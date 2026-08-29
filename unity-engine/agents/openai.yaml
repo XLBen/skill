@@ -1,4 +1,0 @@
-interface:
-  display_name: "Unity 2D Engine Skill"
-  short_description: "Unity 6 2D dev rules, references and editor tools"
-  default_prompt: "Use $unity-engine to develop this Unity 2D project."

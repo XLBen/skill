@@ -1,21 +1,61 @@
 ---
-project: demo-valid
-thesis: docs/thesis.md @ v2 (passed)
-created: 2026-08-30
-status: building
+project: fixture
+contract-hash: ce50b6385e574c76c12a9103d2ea9ba69feec4949e82bb2246cc76cd24d7ff48
+plan-structure-hash: 7ef7f61f0679fc355872623630e4d8172879afbd7550855b3baaed636dacb1fb
+status: planning
 ---
 
-# 施工计划：demo-valid
+# Construction Plan
 
-## 技术验证步（论文 §4 A-[待验证] → S0）
-
-- [x] S0 验证 A-02：邮件周报占比 | 来源：A-02 | 产出：占比结论 | 验收：`python scripts/census.py` | 回退：假设不成立 → CR 回炉 2026-08-30
-
-## 施工步骤
-
-- [x] S1 存储层：建表与迁移 | 来源：P-01、V-01 | 产出：migrations/001.sql | 约束：D-01 | 验收：`npm test -- migrate` | 回退：R-01 2026-08-30
-- [ ] S2 检索接口：全文索引查询 | 来源：P-01、V-02 | 产出：src/search.ts | 验收：`npm test -- search` | 回退：R-01 | 规模：半天
-
-## 变更单（初始为空，施工中追加）
-
-（无）
+```json plan
+{
+  "contract_hash": "ce50b6385e574c76c12a9103d2ea9ba69feec4949e82bb2246cc76cd24d7ff48",
+  "plan_structure_hash": "7ef7f61f0679fc355872623630e4d8172879afbd7550855b3baaed636dacb1fb",
+  "runtime": {
+    "attempts": {},
+    "selected_variants": {},
+    "selection_events": {},
+    "status": "planning",
+    "step_states": {
+      "S-I01-base-01": "dormant"
+    }
+  },
+  "steps": [
+    {
+      "actions": [
+        "Implement compiler"
+      ],
+      "artifacts": [
+        "scripts/check.py"
+      ],
+      "build_rollback": "restore the previous generated plan",
+      "depends_on_segments": [],
+      "id": "S-I01-base-01",
+      "idempotency": "canonical output replaces the target",
+      "interfaces": [
+        "compile(contract) -> plan"
+      ],
+      "segment": "01",
+      "side_effects": [
+        "file-write"
+      ],
+      "unit": "I-01",
+      "variant": "base",
+      "verifications": [
+        "V-01"
+      ]
+    }
+  ],
+  "unit_dag": [],
+  "variant_rules": {
+    "I-01": [
+      {
+        "id": "base",
+        "selector": {
+          "default": true
+        }
+      }
+    ]
+  }
+}
+```

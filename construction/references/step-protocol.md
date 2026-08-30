@@ -1,99 +1,109 @@
-# 单步执行协议（step-protocol）
+# Step And Recovery Protocol
 
-执行/验收/打勾/失败分流前读本文件。
+> When to read: before executing any selected step, and before any failure or
+> CR recovery action.
 
-## 单步生命周期
+Read `contract-schema.md` and validate PLAN before every start or resume.
 
-```
-SELECT → EXECUTE → VERIFY → TICK → LOG
-```
+## Lifecycle
 
-| 阶段 | 规则 |
-|---|---|
-| SELECT | 读 PLAN.md，取第一个 `- [ ]`。作废行（`- [x] ~~S-xx~~ [CR-xx 作废]`）视为已处理，不计入串行链。跳过任何未勾步骤 = 违规 |
-| EXECUTE | 只做本步目标内的事；遵守步骤的 D-xx 约束与"不做清单"；新发现的需求/问题 → 记 build-log"待议"，不顺手做 |
-| VERIFY | 实际执行验收命令，摘录关键输出（几行即可）作为证据。"人工验收"步骤 → 向用户展示检查点，等明确"确认"（连续施工遇到人工验收步骤在此自动暂停） |
-| TICK | VERIFY 通过后，编辑 PLAN.md：`- [ ]` → `- [x] 2026-xx-xx`。打勾与验收证据必须同轮出现 |
-| LOG | build-log.md 追加本步记录，**记录头部附快照**（论文 v(n) + PLAN status），使任意断点可校验版本与状态一致性 |
-
-## build-log 记录格式（追加式）
-
-```markdown
-## S-03 数据层：用户表迁移（2026-xx-xx ｜ 论文 v3 ｜ PLAN: building）
-- 做了：新增 migrations/001_users.sql + 模型
-- 验收：`npm test -- users` → 5 passed（摘录）
-- 待议：发现需要索引优化，涉及 R-02，暂不动
+```text
+pending -> selected -> executing -> verifying -> complete
+                          |              |
+                          +-> blocked <--+
+complete -> invalidated
 ```
 
-## 验收失败分流（防死磕与假通过）
+Only a step in the selected variant can leave `dormant`. Before execution,
+record an attempt ID, expected state revision, environment binding, declared
+side effects, and idempotency strategy. Persist evidence before advancing the
+state projection.
 
-同一思路重试 ≤2 → 换思路 ≤1 → 仍失败，停下来判定：
+Selection, attempt, and verification events include the current contract hash,
+PLAN structure hash, and canonical step hash. Never reuse evidence after any
+of those hashes changes.
 
-| 判定 | 特征 | 动作 |
-|---|---|---|
-| 实现问题 | 论文方案本身说得通，是代码/环境错 | 呈现卡点 + 三个选项（继续修/换实现/暂停）请用户决策 |
-| **设计硬伤** | 继续做下去会违背论文 D-xx/A-xx/V-xx 的承诺（库不支持、假设被证伪、验收标准本身不可能满足） | 停工：status → suspended；写 CR-xx 变更单；告知用户"论文 §<x> 被证伪，请回 thesis-defense 重辩该章" |
+## Recovery
 
-**不许**：降低验收标准放行；改验收命令迁就实现（那是变更单的事）；跳过去先做后面的。
+- No side effect and idempotent: replay the attempt or start a new one.
+- File write: inspect artifacts and postconditions before replacing anything.
+- Migration or remote call: inspect the external idempotency key and
+  postcondition; compensate only as declared by the segment.
+- Never infer completion from files existing. `complete` requires fresh V
+  evidence and an applied event.
 
-## 轻量差距吸收（converge 式；与变更单的分界）
+## Minimal Diff
 
-施工中发现"**论文没说错，只是计划漏了一小步**"时，不必回炉。适用条件三条**全满足**才允许：
+For every changed hunk ask whether removing it would make the selected segment
+or its V fail. Keep necessary hunks. Revert unrelated style work. Record a
+real independent issue for later instead of implementing it. A missing segment
+is a contract defect and returns through CR; construction does not append an
+unreviewed semantic step.
 
-1. 不改变任何 P/D/A/V 条目的语义——原验收命令原样可用；
-2. 不引入论文 §7 不做清单之外的新功能、新模块、新接口；
-3. 补的一步 ≤ 半天工作量，且写得出现成可跑的验收命令。
+## Red-Green Inside A Segment
 
-做法：
+When a segment's local V carries `red_command`, execution follows
+red-green-refactor inside the segment:
 
-1. PLAN.md《施工步骤》末尾追加步骤，编号顺延，来源写 `差距吸收（S-xx 施工发现）`；
-2. build-log 在发现它的那一步记录里写明：差了什么、为什么不走 CR；
-3. 之后按正常 SELECT→EXECUTE→VERIFY→TICK 执行；竣工对照表计入该步。
+1. Run `red_command` first and persist the failing output as a `tdd-red`
+   evidence event bound to the current contract/PLAN/step hashes.
+2. Implement the minimal change that turns it green; record `tdd-green` with
+   the passing output.
+3. Refactor while green, then run the segment's exact V command as usual.
 
-任一命中即**不适用**，走变更单 CR-xx：需要改验收命令或 D-xx 约束；动 B-xx 边界；要新增模块而非补执行细节。拿不准 → 一律按变更单处理；滥用吸收规避重辩 = 违规返工。
+`direct` profile may skip the ceremony when the owner asks; `light`/`full`
+treat red evidence as required whenever `red_command` exists. Never weaken or
+substitute either command. A red that passes on the first run means the test
+or the segment spec is wrong — that is a CR, not a green light.
 
-## 变更单 CR-xx 格式（写入 PLAN.md《变更单》节 + build-log）
+## Variant Selection
 
-```markdown
-### CR-01（2026-xx-xx，S-05 触发）
-- 证伪对象：论文 §3 D-02（<原决策>）
-- 事实：<实际发生什么>
-- 影响：S-05、S-06 验收标准失效
-- 建议：<新方案方向>（留待重辩确认）
-- 状态：待重辩
-```
+S0 may select only a variant already compiled in PLAN. The selector consumes a
+named E result and must choose exactly one variant. An unlisted wheel, custom
+implementation, interface change, or ambiguous selector creates blocking CR.
 
-状态流转（单值，随事件更新）：`待重辩` →（重辩通过且按 CR 落计划）`已落计划`；或 →（用户跳过重辩）`强行复工(用户签字 <日期>)`；conditional 论文重辩后仍遗留时保持 `待重辩` 并更新影响描述。
+## Isolated Execution (Optional)
 
-回炉流程（闭环必须校验外部锚点，不许自证）：
+Enabled when the contract interaction is `checkpoints`/`stepwise` or the
+profile is `full`. The controller dispatches each selected step to a fresh
+`step-executor` subagent holding only that step's spec and its exact V; the
+controller stays responsible for state, the ledger, and event recording, and
+the attempt event carries the executor's `subagent_id`.
 
-1. CR 建立 → **在 `docs/defense-log.md` 追加《CR 回炉请求》条目**（CR-xx / 证伪对象 / 影响清单 / 状态：待重辩）——这是 thesis-defense 检测回炉的唯一锚点，不写它重辩永远不会触发 → thesis-defense 侧进入 `redefending`（协议唯一权威：其 verdict-rules.md《回炉重辩协议》）→ 出口两种：`passed`（清零）或 `conditional`（仍遗留，清单已更新），均 version+1 且 `redefense-of: CR-xx` 保留。
-2. 回到本 skill，**复工前三步强制校验**：
-   a. 校验 `docs/thesis.md` 当前 version > PLAN.md 记录的 `thesis @ v<n>`，**且 status 为 passed/conditional**（`redefending` = 重辩未完成，拒绝复工）——版本没推进 = 重辩没发生，拒绝复工；
-   b. **全量重扫** PLAN 所有步骤的编号引用（来源/约束/验收/回退）——重辩可能改动任意章节导致编号变化或语义漂移，悬空引用必须修正；
-   c. 更新 PLAN frontmatter `thesis @ v<新版本>`，刷新"注意事项"节（conditional 清单/§8 可能已变化）。
-3. 展示按 CR 修订后的受影响步骤（新增/修改/作废）→ **用户确认** → status → building → 复工；同时把 defense-log 中该《CR 回炉请求》的状态改为"已落计划"（防残留"待重辩"重复触发重辩）。确认门与初始计划同级，不许跳过。
+Two gates close every step:
 
-作废步骤写法：`- [x] ~~S-xx~~ （CR-xx 作废，未执行）`——保持勾选态防止被 SELECT 选中，不计竣工贡献；替代步骤编号顺延（S-xxa 或续号）。
+1. Machine gate — the exact V passes and a `step-verification` event bound to
+   the current contract/PLAN/step hashes is recorded.
+2. Review gate — the reviewer audits the step diff for spec compliance and
+   implementation quality. A `hard` issue blocks `complete` exactly like a
+   failed V; soft issues are logged for retro.
 
-用户坚持跳过重辩 → "强行复工"必须双落盘：PLAN.md 对应 CR 状态行写 `状态：强行复工(用户签字 <日期>)` + build-log 记录——保持 PLAN 单一事实源，不留分叉。
+A `direct` profile or `autonomous` interaction stays in-session by default;
+the review gate still applies when the owner asks for it.
 
-## 断点恢复细则（按 status 分支，与 SKILL.md §1 一致）
+## CR Recovery Capability
 
-| 场景 | 恢复动作 |
-|---|---|
-| status: paused / building，"继续施工" | 校验 PLAN 记录 thesis 版本 = 当前 thesis.md version（不一致 → 停下展示两侧版本与差异，走"复工前三步校验"的 b/c 项 + 用户确认后更新 frontmatter，再继续）→ 读 build-log 末 2 条 → **对账**（见下）→ 从第一个未勾步骤继续 |
-| status: planning | 计划未经确认 → 重走用户确认环节，不得开工 |
-| status: suspended | 不复工：展示未决 CR，指路重辩；用户坚持 → 按"强行复工"双落盘流程 |
-| status: done | 告知已竣工；重跑需用户点名（唯一允许回跳的入口仍走"重跑 S-xx"） |
-| 步骤做了一半中断 | 该步未打勾 → 重跑该步 EXECUTE（幂等：已有产出可续用，不重造） |
+Blocking CR disables normal steps but not `cr-recovery`. That capability may
+only:
 
-**对账规则**（勾/日志不一致）：已勾但 build-log 无该步记录（TICK 与 LOG 之间中断）→ 验收证据缺失，按"重跑 S-xx"流程补验补记，并向用户播报对账结果；反向（日志有、PLAN 未勾）→ 以 PLAN 为准补勾，证据取自日志。
+1. recompile the approved contract;
+2. invalidate affected steps using typed dependent edges;
+3. perform declared rollback/compensation;
+4. redo affected selected steps;
+5. execute additional V;
+6. advance `approved -> applying -> verifying -> verified`.
 
-| 用户点名"重跑 S-xx" | 唯一允许的回跳：取消该步及其后所有勾（记录原因于 build-log），从该步重做 |
+Recovery compile and plan validation supply the archived previous contract and
+may change only contract nodes, variants, steps, and DAG edges in the target
+CR's typed impact closure.
 
-## 连续/暂停约定
+No user signature can bypass a refuted fact, unsafe destructive behavior,
+missing acceptance criterion, or incompatible interface. CR state exists only
+in `docs/change-orders.md`; PLAN and logs reference CR IDs without copying its
+status.
 
-- 默认连续施工，直到全部完成、遇到需用户决策的节点（人工验收/失败分流/owner 决策）、或用户说"暂停"。
-- 每步打勾后向用户播报一行：`S-xx ✓ <目标>（验收：通过）`——保持可见性但不等确认。
-- 用户说"暂停"→ 停在当前步边界，status → `paused`（区别于 planning=未经确认、suspended=停工待重辩）。
+## Completion
+
+Generate P -> F -> I -> selected S -> V coverage from engine data. Human V
+requires an explicit owner event. Set PLAN `done` only when every selected step
+is complete, all blocking CR are absent, and final coverage passes.

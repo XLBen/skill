@@ -1,81 +1,99 @@
-# skill — opencode 技能库
+# opencode 契约评审与施工 skills
 
-面向 [opencode](https://opencode.ai) 的中文 skill 集合。每个 skill 一个独立文件夹，复制进目标项目的 `.opencode/skills/` 或通过 `opencode.json` 的 `skills.paths` 注册即可使用。
+本仓库包含一组配套 skill，把需求论证、实现契约、施工计划、执行证据和变更回炉连接成可恢复工作流。
 
-## 本库包含的 skill
-
-| Skill | 目录 | 一句话 | 何时触发 |
-|---|---|---|---|
-| **答辩与论文（苏格拉底）** | [thesis-defense/](thesis-defense/) | 双 AI 全自动答辩：AI 学生写编号论文、AI 导师对抗质疑，循环到 0 硬伤才放行 | "答辩""写论文""论证这个方案""苏格拉底式质疑" |
-| **施工工程** | [construction/](construction/) | 把通过的论文改写成施工计划，逐步执行、验收打勾、失败回炉 | "开工""施工""按论文施工""继续施工""执行计划" |
-
-## 核心流水线：答辩 → 施工
-
-`thesis-defense` 与 `construction` 设计为一对，通过 `docs/thesis.md` 的 frontmatter 状态衔接：
-
-```
-用户提出项目想法
-   ↓ thesis-defense：论文 7 章（P/D/A/R/V/B 编号）→ 双 AI 自动对抗：
-   ↓   AI 学生（主代理）自答修订 × AI 导师（examiner subagent）L1-L5 问题阶梯攻击
-   ↓   停机：一轮 0 硬伤 → status: passed（轮数上限 → conditional）
-docs/thesis.md（status: passed）
-   ↓ construction：门禁检查 → 论文改写为 PLAN.md（假设→S0 验证步，V-xx→验收命令）
-   ↓                SELECT→EXECUTE→VERIFY→TICK→LOG 逐串行执行
-   ↓                验收失败分流：实现问题修复 / 设计硬伤 → CR-xx 变更单
-   └── 硬伤回炉 ──→ thesis-defense 重辩该章 → 更新计划 → 复工
-全部打勾 → 竣工：论文承诺 vs 实际交付对照表
-```
-
-两个 skill 的状态全部落盘（thesis.md / defense-log.md / PLAN.md / build-log.md），会话中断后可从断点恢复。
-
-## 安装（任选目标项目）
-
-```powershell
-# 方式一：复制进项目
-Copy-Item -Recurse "本仓库\thesis-defense" "<目标项目>\.opencode\skills\"
-Copy-Item -Recurse "本仓库\construction" "<目标项目>\.opencode\skills\"
-
-# 方式二：注册本仓库路径（库更新项目同步生效）
-# <目标项目>/opencode.json:
-# { "skills": { "paths": ["E:/MISC/代码项目/skill"] } }
-
-# 可选（推荐）：安装答辩导师 subagent（干净上下文、只读）
-Copy-Item "本仓库\thesis-defense\agents\examiner.md" "<目标项目>\.opencode\agent\examiner.md"
-```
-
-装完**重启 opencode** 生效。
-
-## 部署后自检
-
-1. 在目标项目分别说"帮我答辩论证一下某方案"（应触发深度拨盘 + 写论文）与"开工"（应被门禁检查拦下或正常生成计划）
-2. 中断会话重开，说"继续答辩"/"继续施工"，应从断点恢复而非重头开始
-
-## 自检工具与测试
-
-结构问题不靠肉眼盯，跑校验器（Python 3.8+，无依赖）：
-
-```powershell
-python scripts/check.py thesis docs/thesis.md                        # frontmatter / 编号普查 / A-xx 三态 / V-xx 可执行性
-python scripts/check.py plan docs/PLAN.md --thesis docs/thesis.md    # thesis 锚点 / 串行勾选 / 来源引用闭包 / 验收字段
-python scripts/check.py --selftest                                   # 正反样例回归
-```
-
-`tests/fixtures/` 内含合法与非法样例各两份——既是回归测试，也是最小可运行示例。目标项目里答辩收尾、竣工前后各跑一次；发现问题按对应 skill 的规则处理，不许为了让校验通过而改弱标准。
-
-## 多平台
-
-两个 skill 就是标准 Agent Skills 结构（`SKILL.md` + `references/`，符合 [agentskills.io](https://agentskills.io) 规范），不绑定 opencode：
-
-| Harness | 装法 |
+| Skill | 职责 |
 |---|---|
-| opencode | `opencode.json` 配 `skills.paths` 指向本仓库，或复制进 `.opencode/skills/` |
-| Claude Code | 把 `thesis-defense/`、`construction/` 复制到 `~/.claude/skills/` |
-| 其他 agentskills 兼容 harness | 复制到其技能目录；答辩导师 subagent（`agents/examiner.md`）为可选增强，缺失时自动回退会话内角色切换 |
+| [contract-review](contract-review/) | 保护用户需求，建立 P/F/I/V 契约，并由独立评审审查语义硬伤 |
+| [construction](construction/) | 校验并确定性编译契约，按 DAG 执行步骤，保存验收和恢复证据 |
 
-## 设计参考
+## 用户控制
 
-本库的机制借鉴了社区成熟项目：spec-driven development（[github/spec-kit](https://github.com/github/spec-kit) 的阶段门禁与 converge）、[genkovich/sdd](https://github.com/genkovich/sdd) 的苏格拉底问答 + devil's-advocate 子代理 + 任务 DAG 执行引擎、[m4vic/socratic](https://github.com/m4vic/socratic) 的停机规则与渐进披露，以及 [anthropics/skills](https://github.com/anthropics/skills) 的 skill 编写规范。与社区高星项目的系统对比见 [landscape-comparison.md](landscape-comparison.md)；统一方法论设计稿见 [integration-plan.md](integration-plan.md)（尚未实施到 skill），其一轮硬伤排查见 [integration-audit-round-1.md](integration-audit-round-1.md)。
+- `direct / light / full` 控制流程重量，不降低覆盖和验收底线。
+- `autonomous / checkpoints / stepwise` 控制交互频率。
+- 审计、调研和实验均有预算；预算耗尽只会暂停，不会自动通过。
+- 扩大范围、产生费用、暴露隐私、执行不可逆操作或做价值取舍时，必须交还用户决定。
+
+## 工作流
+
+```text
+用户需求
+  -> contract-review：P/F/I/V 契约 + 独立审查 + contract hash
+  -> construction：确定性 PLAN + variant 选择 + DAG 执行 + 验收证据
+  -> 发现契约问题：CR 台账 -> 影响闭包 -> 回炉 -> 限定恢复
+```
+
+结构、hash、状态和事件由引擎校验；自然语言是否真实、条件是否合理，仍由独立语义审查判断。
+
+## 主要制品
+
+| 文件 | 作用 |
+|---|---|
+| `docs/contract.md` | 可读说明和 canonical JSON contract |
+| `docs/review-log.md` | 评审记录 |
+| `docs/evidence/` | 可复现实证 |
+| `docs/change-orders.md` | CR 状态唯一来源 |
+| `docs/PLAN.md` | 确定性编译结果和运行投影 |
+| `docs/build-log.md` | 施工与维护证据 |
+| `docs/workflow-events.jsonl` | append-only 事件账本 |
+| `docs/workflow-state.json` | 带 CAS revision 的状态投影 |
+
+## 引擎
+
+要求 Python 3.8+，无第三方依赖。纯本地运行，不联网、不上报遥测：所有校验、哈希和事件都留在你的项目目录里。
+
+```powershell
+python scripts/check.py contract docs/contract.md
+python scripts/check.py init docs/contract.md docs/workflow-state.json
+python scripts/check.py compile docs/contract.md docs/PLAN.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
+python scripts/check.py plan docs/PLAN.md --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
+python scripts/check.py reconcile docs/PLAN.md --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
+python scripts/check.py change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
+python scripts/check.py impact docs/contract.md A-01
+python scripts/check.py --selftest
+```
+
+`reconcile` 在竣工前输出 P→F→I→S→V 覆盖矩阵：运行状态、证据是否绑定当前 hash、dormant 变体与阻断 CR。结构闭合交给引擎；"代码是否真的满足契约意图"由 `converge-audit`（见 reviewer-protocol）独立判断。
+
+完整合法示例位于 `tests/fixtures/`。负例由 `--selftest` 在内存中构造，不额外保存重复文件。
+
+## 安装
+
+两个 skill 目录各含一个 `SKILL.md`，遵循 [Agent Skills](https://agentskills.io) 的文件夹约定（frontmatter + 正文指令），兼容 opencode 的 `skills.paths` 注册，也可以被任何按目录扫描 skill 的 agent 加载。
+
+推荐在目标项目的 `opencode.json` 注册本仓库：
+
+```json
+{
+  "skills": {
+    "paths": ["E:/MISC/代码项目/skill"]
+  }
+}
+```
+
+也可以复制 `contract-review/`、`construction/` 和 `scripts/check.py` 到目标项目——三者必须保持相对布局（SKILL.md 里的引擎命令按 `scripts/check.py` 相对路径调用），不要只复制单个 skill 目录。可选安装两个 subagent：
+
+```powershell
+Copy-Item "contract-review/agents/reviewer.md" "<目标项目>/.opencode/agent/reviewer.md"
+Copy-Item "construction/agents/step-executor.md" "<目标项目>/.opencode/agent/step-executor.md"
+```
+
+`step-executor` 是可选的隔离执行器：`checkpoints`/`stepwise` 或 `full` profile 下，每个已选步骤派发一个只带该步骤规格和精确 V 的新 subagent，主会话只负责状态、账本和事件记录（见 step-protocol 的 Isolated Execution）。
+
+修改 skill、agent 或协议文件后需要退出并重启 opencode。
+
+## 文件结构
+
+```text
+construction/
+contract-review/
+scripts/check.py
+tests/fixtures/
+README.md
+```
+
+契约与引擎规则以 `contract-review/references/contract-schema.md` 为准。
 
 ## License
 
-各 skill 独立 MIT，见各自目录下 LICENSE。
+两个 skill 均使用 MIT License。

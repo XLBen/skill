@@ -1,67 +1,43 @@
-# 施工计划模板（plan-template）
+# Construction Plan
 
-改写论文、生成 `docs/PLAN.md` 前读本文件。
+> When to read: while compiling PLAN.md or explaining a compiled summary to
+> the owner; PLAN content itself is compiler output, never hand-written.
 
-## PLAN.md 完整格式
+`docs/PLAN.md` is compiler output. Generate it; do not translate contract prose
+by hand:
 
-```markdown
----
-project: <项目名>
-thesis: docs/thesis.md @ v<n> (passed|conditional)
-created: <YYYY-MM-DD>
-status: planning      # planning(待确认) → building → done(竣工) | paused(用户暂停) | suspended(停工待重辩)
----
-
-# 施工计划：<项目名>
-
-## 注意事项（conditional / §8 沉淀而来，没有则省略本节）
-- [遗留硬伤 CR 来源] <硬伤描述> → 受影响步骤：S-xx（验收在原命令外加一条针对该硬伤的检查点）
-- [已接受风险 R-xx] <风险描述> → 受影响步骤：S-xx
-
-## 不做清单（论文 §7 B-xx）
-- B-01 ...（施工期间不做，越界需求走变更单）
-
-## 技术验证步（论文 §4 A-[待验证] → S0）
-- [ ] S0 验证 A-01：<假设内容> | 来源：A-01 | 产出：最小 spike + 结论 | 验收：`<命令或观察结果>` | 回退：假设不成立 → 触发 CR 回炉重辩 §4
-
-## 施工步骤
-- [ ] S1 <目标一句话> | 来源：P-01、V-02 | 产出：<文件/模块> | 约束：D-xx <决策摘要> | 验收：`<可执行命令>` | 回退：R-xx <方案> | 规模：半天
-- [ ] S2 ...
-
-## 作废步骤写法（CR 回炉后）
-被变更单作废的步骤**不删行、保持勾选态**，防止被 SELECT 选中：
-- [x] ~~S-05~~ （CR-01 作废，未执行；由 S-05a 替代）
-
-## 变更单（初始为空，施工中追加）
-（无）
+```powershell
+python scripts/check.py compile docs/contract.md docs/PLAN.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
+python scripts/check.py plan docs/PLAN.md --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
 ```
 
-## 步骤字段规范
+The file contains frontmatter and one `json plan` block. The engine compiles
+every legal I variant and segment to `S-Ixx-variant-segment`. Unselected
+variants remain `dormant`; `selected_variants` is runtime state and does not
+change the structure hash.
 
-| 字段 | 必填 | 说明 |
-|---|---|---|
-| 编号 S-xx | 是 | 顺序即执行顺序，从 S0（技术验证）起 |
-| 目标 | 是 | 一句话说清这一步完成什么 |
-| 来源 | 是 | 本步落实哪些论文条目（P-xx / V-xx / D-xx…），竣工对照表按此机械汇总，没有来源的步骤不许进计划；差距吸收追加的步骤写「差距吸收（S-xx 施工发现）」（边界见 step-protocol） |
-| 产出 | 是 | 具体文件/模块/配置，不许写"完善功能" |
-| 约束 | 否 | 引用论文 D-xx，写代码时必须遵守 |
-| 验收 | **是** | 可执行命令或"人工验收：<检查点>"，二选一，不许空 |
-| 回退 | 否 | 引用 R-xx，失败时的退路 |
-| 规模 | 建议 | ≤ 半天；超出必须拆分 |
+## Structure Versus Runtime
 
-## 验收命令占位规则（防假打勾）
+Structure hash covers contract hash, unit DAG, variant selectors, and all step
+specifications. It excludes:
 
-- 命令必须**现在就能跑**（依赖已存在于前序步骤），不许引用未来步骤的产物。
-- 论文 V-xx 带 `（tdd）` 标记的步骤，验收须留存红→绿两段输出：先让验收命令失败（红），实现后通过（绿）。
-- 写不出命令 → 两个出路：① 拆分本步骤直到写得出来；② 显式标 `人工验收：<用户需检查什么>`——此类步骤打勾前必须用户说"确认"。
-- 禁止"代码写完即验收"；验收对象是行为（命令输出/测试通过/页面可观察），不是存在性。
+- PLAN status and step state;
+- selected variants;
+- attempts and command output;
+- timestamps;
+- environment-specific execution bindings.
 
-## 排序规则
+Concrete commands that bind a contract template to the current environment go
+in an execution-binding record with environment fingerprint and binding hash.
+They may not weaken V or alter actions, interfaces, side effects, or rollback.
 
-1. S0 技术验证（A-待验证 假设全部在此或拆多个 S0-x）永远最前——假设崩了越早知道越好。
-2. 之后自底向上：项目骨架 → 数据层 → 核心模块 → 集成 → 界面/收尾。
-3. 每步只依赖已排在前面的步骤（严格串行链）。
+## User Confirmation
 
-## 用户确认环节（plan-validate-execute）
+For `checkpoints` and `stepwise`, show a generated summary containing scope,
+selected/default variants, irreversible side effects, human V, and exclusions.
+Confirmation changes runtime status from `planning` to `building`; it does not
+authorize semantic edits. `autonomous` may skip this confirmation only when no
+mandatory owner checkpoint from requirement-protocol applies.
 
-展示完整计划（含每步验收命令）→ 等用户确认 → 才把 status 改 `building` 开工。用户要求改 → 改完再确认一次。确认前的 PLAN.md 允许大改；确认后只能通过变更单修改。`paused`（用户主动暂停）恢复时**不**需要重新确认；`planning` 态恢复必须重走本环节。
+Checkboxes may be rendered as a view, but `runtime.step_states` and the event
+ledger are authoritative.

@@ -50,9 +50,31 @@ Copy-Item "本仓库\thesis-defense\agents\examiner.md" "<目标项目>\.opencod
 1. 在目标项目分别说"帮我答辩论证一下某方案"（应触发深度拨盘 + 写论文）与"开工"（应被门禁检查拦下或正常生成计划）
 2. 中断会话重开，说"继续答辩"/"继续施工"，应从断点恢复而非重头开始
 
+## 自检工具与测试
+
+结构问题不靠肉眼盯，跑校验器（Python 3.8+，无依赖）：
+
+```powershell
+python scripts/check.py thesis docs/thesis.md                        # frontmatter / 编号普查 / A-xx 三态 / V-xx 可执行性
+python scripts/check.py plan docs/PLAN.md --thesis docs/thesis.md    # thesis 锚点 / 串行勾选 / 来源引用闭包 / 验收字段
+python scripts/check.py --selftest                                   # 正反样例回归
+```
+
+`tests/fixtures/` 内含合法与非法样例各两份——既是回归测试，也是最小可运行示例。目标项目里答辩收尾、竣工前后各跑一次；发现问题按对应 skill 的规则处理，不许为了让校验通过而改弱标准。
+
+## 多平台
+
+两个 skill 就是标准 Agent Skills 结构（`SKILL.md` + `references/`，符合 [agentskills.io](https://agentskills.io) 规范），不绑定 opencode：
+
+| Harness | 装法 |
+|---|---|
+| opencode | `opencode.json` 配 `skills.paths` 指向本仓库，或复制进 `.opencode/skills/` |
+| Claude Code | 把 `thesis-defense/`、`construction/` 复制到 `~/.claude/skills/` |
+| 其他 agentskills 兼容 harness | 复制到其技能目录；答辩导师 subagent（`agents/examiner.md`）为可选增强，缺失时自动回退会话内角色切换 |
+
 ## 设计参考
 
-本库的机制借鉴了社区成熟项目：spec-driven development（[github/spec-kit](https://github.com/github/spec-kit) 的阶段门禁与 converge）、[genkovich/sdd](https://github.com/genkovich/sdd) 的苏格拉底问答 + devil's-advocate 子代理 + 任务 DAG 执行引擎、[m4vic/socratic](https://github.com/m4vic/socratic) 的停机规则与渐进披露，以及 [anthropics/skills](https://github.com/anthropics/skills) 的 skill 编写规范。
+本库的机制借鉴了社区成熟项目：spec-driven development（[github/spec-kit](https://github.com/github/spec-kit) 的阶段门禁与 converge）、[genkovich/sdd](https://github.com/genkovich/sdd) 的苏格拉底问答 + devil's-advocate 子代理 + 任务 DAG 执行引擎、[m4vic/socratic](https://github.com/m4vic/socratic) 的停机规则与渐进披露，以及 [anthropics/skills](https://github.com/anthropics/skills) 的 skill 编写规范。与社区高星项目的系统对比见 [landscape-comparison.md](landscape-comparison.md)；统一方法论设计稿见 [integration-plan.md](integration-plan.md)（尚未实施到 skill），其一轮硬伤排查见 [integration-audit-round-1.md](integration-audit-round-1.md)。
 
 ## License
 

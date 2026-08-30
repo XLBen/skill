@@ -14,6 +14,7 @@
 - **深度拨盘**：轻量/标准/严酷，写进 frontmatter 后不再问
 - **断点恢复**：状态全在 thesis.md frontmatter + defense-log.md，会话死了重开接着辩
 - **防谄媚**：导师是干净上下文 subagent 且必须重读论文文件；禁令（不接受"以后再处理"、必须引用原文编号）；僵持记"待仲裁"不阻塞，用户可事后翻案
+- **领域章程模板**：Web 服务 / CLI / 游戏 / 空白四套可判定硬伤标准（`references/charter-templates.md`），复制进目标项目 `docs/defense-charter.md` 裁剪后，导师叠加执行；严酷档 V-xx 支持 `（tdd）` 标记（施工须先红后绿）
 
 ## 目录结构
 
@@ -24,7 +25,8 @@ thesis-defense/
 └── references/
     ├── thesis-template.md       # 论文模板 + frontmatter + 编号规范
     ├── examiner-protocol.md     # 攻击面矩阵 + 问题阶梯 + 导师禁令
-    └── verdict-rules.md         # 硬伤/软伤判定 + 停机 + 恢复 + 仲裁
+    ├── verdict-rules.md         # 硬伤/软伤判定 + 停机 + 恢复 + 仲裁
+    └── charter-templates.md     # 领域章程模板（Web/CLI/游戏/空白）
 ```
 
 ## 安装（项目级）

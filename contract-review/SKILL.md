@@ -1,34 +1,37 @@
 ---
 name: contract-review
-description: Use when the user types /评审, /论证, /质疑, /评估 (directed triggers) or natural language such as 评审方案/论证方案/需求评审/评估项目/苏格拉底式质疑 (non-directed triggers) to review or challenge a project or feature before implementation. Builds a machine-validated P/F/I/V contract, preserves owner decisions, runs proportionate independent challenge, and validates it with scripts/check.py. Not for academic writing, code review, or executing an accepted plan.
+description: Use when the user types /评审, /论证, /质疑, /评估, /规划 (directed triggers) or natural language such as 评审方案/论证方案/需求评审/评估项目/苏格拉底式质疑/规划/编译PLAN (non-directed triggers) to review a requirement into a machine-validated contract and plan the accepted contract into a confirmed PLAN. Preserves owner decisions, runs proportionate independent challenge, and validates everything with scripts/check.py. Not for academic writing, code review, or executing construction steps.
 license: MIT
 metadata:
   language: "zh-CN"
-  produces: "docs/contract.md, docs/review-log.md, docs/evidence/, docs/change-orders.md, docs/workflow-events.jsonl"
+  produces: "docs/contract.md, docs/PLAN.md, docs/review-log.md, docs/evidence/, docs/change-orders.md, docs/workflow-events.jsonl"
   next-skill: "construction"
   calls-skills: "reviewer"
-  commands: "/评审 <方案>, /论证 <设计>, /质疑 <想法>, /评估 <项目>"
+  commands: "/评审 <方案>, /论证 <设计>, /质疑 <想法>, /评估 <项目>, /规划"
 ---
 
-# Contract Review
+# Contract Review (评审 + 规划)
 
-Produce the smallest complete contract the owner can still control. Machine
-checks prove structure; independent review challenges semantics. Neither may
-silently change the user's requirements.
+本 skill 负责动手写代码之前的全部规划工作：需求评审成契约，契约编译成
+可执行 PLAN。Produce the smallest complete contract the owner can still
+control, then the confirmed PLAN compiled from it. Machine checks prove
+structure; independent review challenges semantics. Neither may silently
+change the user's requirements.
 
 ## Commands
 
-| 指令 | 作用 |
-|---|---|
-| `/评审 <方案>` | 完整评审：问答 → 契约 → 独立挑战 → 终审 |
-| `/论证 <设计>` | 论证一个既有设计，产出契约或问题清单 |
-| `/质疑 <想法>` | 苏格拉底式质疑（轻量，可无契约直接开质） |
-| `/评估 <项目>` | 评估项目可行性，同 `/评审` 流程 |
+| 指令 | 何时用 | 做什么 | 产出 |
+|---|---|---|---|
+| `/评审 <方案>` | 有新需求，动手前先定清楚 | 问答决策 → 起草契约 → 独立挑战 → 终审 | `docs/contract.md`（passed） |
+| `/论证 <设计>` | 已有一个具体设计要检验 | 针对该设计取证攻防，走评审流程 | 契约或问题清单 |
+| `/质疑 <想法>` | 还没有契约，只想快速找漏洞 | 苏格拉底式追问，不进契约流程 | 问题清单 |
+| `/评估 <项目>` | 想知道值不值得做 | 可行性论证 | 评估结论 + 建议 |
+| `/规划` | 契约已 passed，要变成可执行计划 | 门校验 → 编译 PLAN → 变体确认 | `docs/PLAN.md`（已确认） |
 
 任一指令可后缀开关，如 `/评审 用 full，checkpoints`、`/评审 autonomous`。
 
 非定向触发（自然语言）与指令完全等效："评审方案：……"、"论证方案：……"、
-"需求评审"、"评估项目"、"苏格拉底式质疑一下……"。
+"需求评审"、"评估项目"、"苏格拉底式质疑一下……"、"规划"、"编译 PLAN"。
 
 ## Skill Calls
 
@@ -40,8 +43,9 @@ their prompts:
   fixed contract snapshot/hash, the relevant evidence, and an output budget;
   expect structured JSON back. The reviewer is read-only and never edits
   `docs/` artifacts.
-- On `passed`, hand off with `next-skill: construction` — tell the user to
-  say `/开工`, or load the construction skill directly.
+- On `passed`, continue with `/规划` in this skill; after PLAN confirmation,
+  hand off with `next-skill: construction` — tell the user to say `/开工`,
+  or load the construction skill directly.
 
 ## Start Or Resume
 
@@ -148,6 +152,30 @@ Before `passed` or `conditional`:
 Hand off generated P/F/I/V/B/W/T/R summaries and the hash. Do not handwrite a
 second semantic contract.
 
+## Plan (Compile And Confirm)
+
+`/规划` turns a `passed` contract into a confirmed executable PLAN. PLAN is
+compiler output; never hand-write it.
+
+1. Gate: run `python scripts/check.py contract docs/contract.md`; require
+   `passed` or legal `conditional`, matching hashes, and no blocking CR.
+2. Compile when PLAN does not exist:
+
+   ```powershell
+   python scripts/check.py compile docs/contract.md docs/PLAN.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
+   python scripts/check.py plan docs/PLAN.md --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
+   ```
+
+3. Confirm per `references/plan-template.md`: show the owner a generated
+   summary when the contract uses `checkpoints`/`stepwise` or any mandatory
+   checkpoint is present. Do not ask again on an unchanged hash after a
+   simple pause.
+
+The compiler emits every reviewed variant. Exactly one per active I is
+selected at runtime through its structured selector; unselected branches
+stay dormant. Construction executes the confirmed PLAN and never recompiles
+it on its own; semantic recompilation happens only through CR recovery.
+
 ## References
 
 | Need | Read |
@@ -155,6 +183,7 @@ second semantic contract.
 | Contract, hash, graph, events, CR | `references/contract-schema.md` |
 | Owner authority and decisions | `references/requirement-protocol.md` |
 | Contract artifact | `references/contract-template.md` |
+| Generated PLAN and confirmation | `references/plan-template.md` |
 | Research and prototype | `references/evidence-protocol.md` |
 | Reviewer modes | `references/reviewer-protocol.md` |
 | Verdict and recovery | `references/verdict-rules.md` |

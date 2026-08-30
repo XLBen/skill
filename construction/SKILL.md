@@ -1,34 +1,36 @@
 ---
 name: construction
-description: Use when the user types /开工, /继续, /竣工, /复盘, /变更 (directed triggers) or natural language such as 开工/施工/按契约开工/继续施工/竣工对账/复盘 (non-directed triggers) to execute a contract-review contract. Validates contract/hash/CR gates, deterministically compiles every I variant and segment, executes selected steps with recovery evidence, and routes semantic change through CR. Not for writing the contract or unrelated ad-hoc coding.
+description: Use when the user types /开工, /继续, /竣工, /复盘, /变更 (directed triggers) or natural language such as 开工/施工/继续施工/竣工对账/复盘 (non-directed triggers) to execute a confirmed contract-review PLAN. Validates contract/hash/CR/PLAN gates, executes selected steps with recovery evidence, and routes semantic change through CR. Contract writing and PLAN compilation/confirmation belong to contract-review (/规划); not for planning or unrelated ad-hoc coding.
 license: MIT
 metadata:
   language: "zh-CN"
-  produces: "docs/PLAN.md, docs/build-log.md, docs/workflow-events.jsonl"
+  produces: "docs/build-log.md, docs/workflow-events.jsonl"
+  updates: "docs/PLAN.md (runtime projection only)"
   requires-skill: "contract-review"
-  calls-skills: "step-executor, reviewer"
+  calls-skills: "step-executor, reviewer, contract-review"
   commands: "/开工, /继续, /竣工, /复盘, /变更 <事实>"
 ---
 
-# Construction
+# Construction (纯施工)
 
-Compile the accepted contract; do not reinterpret it. Runtime execution may
-bind commands and select reviewed variants, but semantic change returns through
-CR.
+Execute the confirmed PLAN; do not reinterpret it. Runtime execution may
+bind commands and select reviewed variants, but semantic change returns
+through CR. 规划（契约与 PLAN 编译确认）归 contract-review 的 `/规划`，
+本 skill 从已确认的 PLAN 开始。
 
 ## Commands
 
-| 指令 | 作用 |
-|---|---|
-| `/开工` | 校验契约门 → 编译 PLAN → 确认 → 施工 |
-| `/继续` | 中断后恢复：重跑门校验，从事件账本续建 |
-| `/竣工` | 强制 `reconcile` 对账 + `converge-audit`，置 `done` |
-| `/复盘` | 竣工后基于证据的复盘（见 retro-protocol） |
-| `/变更 <事实>` | 报告契约与现实的偏差，建立 CR 阻断普通施工 |
+| 指令 | 何时用 | 做什么 | 产出 |
+|---|---|---|---|
+| `/开工` | PLAN 已确认（缺则先委托 `/规划`） | 门校验 → 按依赖序执行步骤、跑 V 留证 | 完成步骤 + 验收证据 |
+| `/继续` | 中断后恢复 | 重跑门校验，从事件账本续建 | 续施工 |
+| `/竣工` | 全部步骤完成后 | `reconcile` 对账 + `converge-audit` | PLAN 置 `done` + 维护交接 |
+| `/复盘` | 竣工后 | 只读证据复盘（见 retro-protocol） | 三张清单建议 |
+| `/变更 <事实>` | 契约与现实不符 | 建 CR 阻断 → 评审裁决 → 影响闭包内重做 | CR `verified` |
 
 指令可后缀开关，如 `/开工 autonomous`。非定向触发（自然语言）与指令完全
-等效："开工"、"施工"、"按契约开工"、"继续施工"、"竣工对账"、"复盘一下"；
-直接陈述契约与现实不符的事实（如"接口 X 实际不存在"）即触发变更流程。
+等效："开工"、"施工"、"继续施工"、"竣工对账"、"复盘一下"；直接陈述契约
+与现实不符的事实（如"接口 X 实际不存在"）即触发变更流程。
 
 ## Skill Calls
 
@@ -43,8 +45,10 @@ their prompts:
 - Load the **reviewer** skill (`name: reviewer`) for the per-step review gate
   and for `converge-audit` at Finish, bound to the reconcile
   `contract_hash`/`plan_structure_hash`.
-- On gate failure caused by contract defects, suggest `/变更 <事实>` or load
-  the contract-review skill for CR adjudication.
+- Load the **contract-review** skill when the gate finds PLAN missing or
+  stale: it runs `/规划` (gate + compile + confirm); construction never
+  compiles PLAN itself. For contract defects, suggest `/变更 <事实>`; CR
+  adjudication likewise delegates to contract-review/reviewer.
 
 ## Gate
 
@@ -56,28 +60,13 @@ Before every start or resume:
 3. Require `passed` or legal `conditional`, contract/schema/compiler support,
    matching hashes, and no blocking CR for ordinary construction.
 4. Run `python scripts/check.py plan docs/PLAN.md --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl` when
-   PLAN exists. A stale or hand-edited structure is rejected and recompiled.
+   PLAN exists. A stale or hand-edited structure is rejected; recompilation
+   goes through contract-review `/规划` delegation or CR recovery.
 5. Reconcile workflow revision and event IDs before changing runtime state.
 
-A blocking CR disables ordinary steps but must not disable its dedicated
-`cr-recovery` capability.
-
-## Compile And Confirm
-
-If PLAN does not exist:
-
-```powershell
-python scripts/check.py compile docs/contract.md docs/PLAN.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
-python scripts/check.py plan docs/PLAN.md --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
-```
-
-Read `references/plan-template.md`. Show the owner a generated summary when the
-contract uses `checkpoints` or `stepwise`, or when any mandatory checkpoint is
-present. Do not ask again on an unchanged hash after a simple pause.
-
-The compiler emits every reviewed variant. Select exactly one per active I
-using its structured selector; unselected branches stay dormant. An S0 result
-may select a compiled fallback but cannot invent one.
+If PLAN does not exist, delegate to contract-review `/规划` first; this
+skill never compiles or confirms PLAN itself. A blocking CR disables
+ordinary steps but must not disable its dedicated `cr-recovery` capability.
 
 ## Execute
 
@@ -100,10 +89,10 @@ record and may not weaken V.
 
 For a `direct` profile contract the gate never shrinks; the ritual does:
 
-- Gate still runs `contract` and `compile`/`plan`; hash and CR checks never
-  skip.
-- Default-variant confirmation may share the single PLAN checkpoint instead of
-  a separate round.
+- Gate still runs `contract` and `plan` validation; hash and CR checks never
+  skip. Missing PLAN may be delegated to contract-review `/规划` in the same
+  session, sharing the single PLAN confirmation checkpoint instead of a
+  separate round.
 - Execution stays in-session, segment after segment; no step-executor skill
   dispatch.
 - Attempt and V evidence events are exactly as mandatory as in `light`/`full`,
@@ -142,8 +131,8 @@ through an event.
 
 | Need | Read |
 |---|---|
-| Generated PLAN and confirmation | `references/plan-template.md` |
 | Attempts, side effects, CR recovery | `references/step-protocol.md` |
 | Post-build learning | `references/retro-protocol.md` |
 | Isolated step execution | `../step-executor/SKILL.md` (skill call) |
 | Review gate and converge-audit | `../reviewer/SKILL.md` (skill call) |
+| PLAN compile/confirm (delegated) | `../contract-review/SKILL.md` `/规划` (skill call) |

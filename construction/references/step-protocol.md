@@ -65,8 +65,8 @@ implementation, interface change, or ambiguous selector creates blocking CR.
 ## Isolated Execution (Optional)
 
 Enabled when the contract interaction is `checkpoints`/`stepwise` or the
-profile is `full`. The controller dispatches each selected step to a fresh
-`step-executor` subagent holding only that step's spec and its exact V; the
+profile is `full`. The controller loads the `step-executor` skill for each
+selected step, passing only that step's spec and its exact V; the
 controller stays responsible for state, the ledger, and event recording, and
 the attempt event carries the executor's `subagent_id`.
 

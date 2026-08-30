@@ -1,11 +1,13 @@
 ---
 name: contract-review
-description: Use when the user wants to 评审/论证/评估 a project or feature before implementation. Builds a machine-validated P/F/I/V contract, preserves owner decisions, runs proportionate independent challenge, and validates it with scripts/check.py. Use for "评审方案", "论证方案", "评估项目", "需求评审", "苏格拉底式质疑"; not for academic writing, code review, or executing an accepted plan.
+description: Use when the user types /评审, /论证, /质疑, /评估 (directed triggers) or natural language such as 评审方案/论证方案/需求评审/评估项目/苏格拉底式质疑 (non-directed triggers) to review or challenge a project or feature before implementation. Builds a machine-validated P/F/I/V contract, preserves owner decisions, runs proportionate independent challenge, and validates it with scripts/check.py. Not for academic writing, code review, or executing an accepted plan.
 license: MIT
 metadata:
   language: "zh-CN"
   produces: "docs/contract.md, docs/review-log.md, docs/evidence/, docs/change-orders.md, docs/workflow-events.jsonl"
   next-skill: "construction"
+  calls-skills: "reviewer"
+  commands: "/评审 <方案>, /论证 <设计>, /质疑 <想法>, /评估 <项目>"
 ---
 
 # Contract Review
@@ -13,6 +15,33 @@ metadata:
 Produce the smallest complete contract the owner can still control. Machine
 checks prove structure; independent review challenges semantics. Neither may
 silently change the user's requirements.
+
+## Commands
+
+| 指令 | 作用 |
+|---|---|
+| `/评审 <方案>` | 完整评审：问答 → 契约 → 独立挑战 → 终审 |
+| `/论证 <设计>` | 论证一个既有设计，产出契约或问题清单 |
+| `/质疑 <想法>` | 苏格拉底式质疑（轻量，可无契约直接开质） |
+| `/评估 <项目>` | 评估项目可行性，同 `/评审` 流程 |
+
+任一指令可后缀开关，如 `/评审 用 full，checkpoints`、`/评审 autonomous`。
+
+非定向触发（自然语言）与指令完全等效："评审方案：……"、"论证方案：……"、
+"需求评审"、"评估项目"、"苏格拉底式质疑一下……"。
+
+## Skill Calls
+
+This skill calls other skills through the skill tool instead of inlining
+their prompts:
+
+- Load the **reviewer** skill (`name: reviewer`) for every scout / question /
+  review / final-audit / cr-audit / converge-audit dispatch. Pass `mode`, the
+  fixed contract snapshot/hash, the relevant evidence, and an output budget;
+  expect structured JSON back. The reviewer is read-only and never edits
+  `docs/` artifacts.
+- On `passed`, hand off with `next-skill: construction` — tell the user to
+  say `/开工`, or load the construction skill directly.
 
 ## Start Or Resume
 
@@ -130,3 +159,4 @@ second semantic contract.
 | Reviewer modes | `references/reviewer-protocol.md` |
 | Verdict and recovery | `references/verdict-rules.md` |
 | Domain charter suggestions | `references/charter-templates.md` |
+| Independent review seat | `../reviewer/SKILL.md` (skill call) |

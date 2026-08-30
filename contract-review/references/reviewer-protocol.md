@@ -3,7 +3,8 @@
 > When to read: only when dispatching or adjudicating a reviewer run
 > (question / review / final-audit / cr-audit / converge-audit).
 
-Dispatch the reviewer with an explicit mode, fixed contract snapshot/hash, and
+Dispatch the reviewer by loading the `reviewer` skill (skill tool, `name:
+reviewer`) with an explicit mode, fixed contract snapshot/hash, and
 output budget. The reviewer never edits artifacts or makes owner decisions.
 
 ## Modes

@@ -1,11 +1,13 @@
 ---
 name: construction
-description: Use when the user wants to 开工/施工/执行计划 from a contract-review contract. Validates contract/hash/CR gates, deterministically compiles every I variant and segment, executes selected steps with recovery evidence, and routes semantic change through CR. Use for "开工", "施工", "按契约开工", "继续施工"; not for writing the contract or unrelated ad-hoc coding.
+description: Use when the user types /开工, /继续, /竣工, /复盘, /变更 (directed triggers) or natural language such as 开工/施工/按契约开工/继续施工/竣工对账/复盘 (non-directed triggers) to execute a contract-review contract. Validates contract/hash/CR gates, deterministically compiles every I variant and segment, executes selected steps with recovery evidence, and routes semantic change through CR. Not for writing the contract or unrelated ad-hoc coding.
 license: MIT
 metadata:
   language: "zh-CN"
   produces: "docs/PLAN.md, docs/build-log.md, docs/workflow-events.jsonl"
   requires-skill: "contract-review"
+  calls-skills: "step-executor, reviewer"
+  commands: "/开工, /继续, /竣工, /复盘, /变更 <事实>"
 ---
 
 # Construction
@@ -13,6 +15,36 @@ metadata:
 Compile the accepted contract; do not reinterpret it. Runtime execution may
 bind commands and select reviewed variants, but semantic change returns through
 CR.
+
+## Commands
+
+| 指令 | 作用 |
+|---|---|
+| `/开工` | 校验契约门 → 编译 PLAN → 确认 → 施工 |
+| `/继续` | 中断后恢复：重跑门校验，从事件账本续建 |
+| `/竣工` | 强制 `reconcile` 对账 + `converge-audit`，置 `done` |
+| `/复盘` | 竣工后基于证据的复盘（见 retro-protocol） |
+| `/变更 <事实>` | 报告契约与现实的偏差，建立 CR 阻断普通施工 |
+
+指令可后缀开关，如 `/开工 autonomous`。非定向触发（自然语言）与指令完全
+等效："开工"、"施工"、"按契约开工"、"继续施工"、"竣工对账"、"复盘一下"；
+直接陈述契约与现实不符的事实（如"接口 X 实际不存在"）即触发变更流程。
+
+## Skill Calls
+
+This skill calls other skills through the skill tool instead of inlining
+their prompts:
+
+- Load the **step-executor** skill (`name: step-executor`) for isolated step
+  execution under `checkpoints`/`stepwise` or `full` profile. Pass exactly
+  one compiled step spec plus its exact V commands; expect raw outputs back.
+  Record the executor's `subagent_id` in the attempt event. The controller
+  (this skill) alone owns state, the ledger, and event recording.
+- Load the **reviewer** skill (`name: reviewer`) for the per-step review gate
+  and for `converge-audit` at Finish, bound to the reconcile
+  `contract_hash`/`plan_structure_hash`.
+- On gate failure caused by contract defects, suggest `/变更 <事实>` or load
+  the contract-review skill for CR adjudication.
 
 ## Gate
 
@@ -72,7 +104,8 @@ For a `direct` profile contract the gate never shrinks; the ritual does:
   skip.
 - Default-variant confirmation may share the single PLAN checkpoint instead of
   a separate round.
-- Execution stays in-session, segment after segment; no subagent dispatch.
+- Execution stays in-session, segment after segment; no step-executor skill
+  dispatch.
 - Attempt and V evidence events are exactly as mandatory as in `light`/`full`,
   and Finish still requires `reconcile` clean or fully CR-carried findings.
 
@@ -100,7 +133,7 @@ python scripts/check.py reconcile docs/PLAN.md --contract docs/contract.md --cha
 
 `status: clean` passes the machine gate. Every `incomplete` finding must either
 be resolved or carried by an open CR; a finding with no CR blocks `done`. The
-controller then dispatches a `converge-audit` (reviewer-protocol) bound to the
+controller then loads the reviewer skill for a `converge-audit` bound to the
 reconcile `contract_hash`/`plan_structure_hash`. Append the maintenance handoff
 and optional evidence-based retro to build-log, then set PLAN runtime `done`
 through an event.
@@ -112,3 +145,5 @@ through an event.
 | Generated PLAN and confirmation | `references/plan-template.md` |
 | Attempts, side effects, CR recovery | `references/step-protocol.md` |
 | Post-build learning | `references/retro-protocol.md` |
+| Isolated step execution | `../step-executor/SKILL.md` (skill call) |
+| Review gate and converge-audit | `../reviewer/SKILL.md` (skill call) |

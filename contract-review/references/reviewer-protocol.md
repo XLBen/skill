@@ -23,9 +23,15 @@ deduplicates against the event ledger by semantic fingerprint.
 
 ## Converge Audit
 
-Run at construction Finish, after `check.py reconcile` reports `clean` or the
-controller has matched every finding to a CR. The reviewer compares the
+Run at construction Finish only after `check.py reconcile` reports `clean`.
+Findings may create CRs, but open or unresolved findings block Finish. The reviewer compares the
 working tree and build-log against the fixed contract snapshot:
+
+The passed `converge-audit` event binds the clean reconcile hash and current
+PLAN runtime revision in addition to contract/PLAN hashes. An audit recorded
+before the final step projection cannot authorize Finish. Copy
+`reconcile_hash` and `plan_revision` from the latest clean `check.py reconcile`
+JSON output into the audit event; do not calculate them manually.
 
 - structure questions were already settled by the engine; do not relitigate
   hashes, DAG shape, or evidence binding;

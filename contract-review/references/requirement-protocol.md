@@ -13,6 +13,13 @@ Every P sourced from a file records its content hash or revision. Every direct
 owner statement references an immutable event ID. A changed source opens T or
 CR; it does not silently rewrite P.
 
+A final grilled brief is an intake source, not a second contract. Owner-confirmed
+`BD` items may seed decided T nodes, but contract-review still records how each
+brief item was consumed, deferred, or rejected. Verified facts may seed E/P;
+unverified facts and assumptions never become requirements merely because the
+brief contains them. Do not repeat questions already confirmed in the bound
+brief unless new evidence creates a conflict.
+
 ## Owner Queue
 
 Persist pending T IDs in FIFO order and expose only one `presented_t_id` at a

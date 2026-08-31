@@ -2,14 +2,19 @@
 """Contract workflow engine for contract-review and construction.
 
 Commands:
+  check.py brief <docs/brief.md>
   check.py contract <docs/contract.md>
   check.py compile <docs/contract.md> <docs/PLAN.md> --change-orders <docs/change-orders.md> --ledger <docs/workflow-events.jsonl>
   check.py plan <docs/PLAN.md> --contract <docs/contract.md> --change-orders <docs/change-orders.md> --ledger <docs/workflow-events.jsonl>
+  check.py confirm-plan <docs/PLAN.md> <selection.json> --contract <docs/contract.md> --ledger <docs/workflow-events.jsonl>
+  check.py plan-event <docs/PLAN.md> <event.json> --contract <docs/contract.md> --ledger <docs/workflow-events.jsonl>
+  check.py finish-plan <docs/PLAN.md> <event.json> --contract <docs/contract.md> --change-orders <docs/change-orders.md> --ledger <docs/workflow-events.jsonl>
   check.py reconcile <docs/PLAN.md> --contract <docs/contract.md> --change-orders <docs/change-orders.md> --ledger <docs/workflow-events.jsonl>
   check.py change-orders <docs/change-orders.md> --ledger <docs/workflow-events.jsonl>
   check.py impact <docs/contract.md> <ID> [<ID> ...]
   check.py init <docs/contract.md> <workflow-state.json>
   check.py event <state.json> <events.jsonl> <event.json> --expected-revision N
+  check.py release <contract.md> <state.json> <events.jsonl> <event.json> --expected-revision N
   check.py record <events.jsonl> <event.json>
   check.py cr-event <change-orders.md> <events.jsonl> <event.json> --expected-revision N
   check.py --selftest
@@ -34,6 +39,12 @@ ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "tests" / "fixtures"
 NODE_TYPES = ("P", "T", "W", "F", "I", "D", "E", "A", "R", "V", "B")
 ID_RE = re.compile(r"^(P|T|W|F|I|D|E|A|R|V|B)-\d{2,}$")
+BRIEF_KINDS = {
+    "fact": "BF", "decision": "BD", "assumption": "BA",
+    "constraint": "BC", "question": "BQ", "success": "BS",
+    "non-goal": "BN",
+}
+BRIEF_STATUS = {"draft", "final"}
 STEP_RE = re.compile(r"^S-I\d{2,}-[a-z0-9-]+-\d{2,}$")
 ACTIVE = {"active", "superseded", "withdrawn"}
 CONTRACT_STATUS = {
@@ -41,6 +52,20 @@ CONTRACT_STATUS = {
     "suspended", "passed", "conditional",
 }
 PLAN_STATUS = {"planning", "building", "paused", "suspended", "done"}
+PLAN_RUNTIME_TRANSITIONS = {
+    "building": {"paused", "suspended", "done"},
+    "paused": {"building"},
+    "suspended": {"building"},
+}
+STEP_RUNTIME_TRANSITIONS = {
+    "pending": {"selected", "blocked"},
+    "selected": {"executing", "blocked"},
+    "executing": {"verifying", "blocked"},
+    "verifying": {"complete", "executing", "blocked"},
+    "complete": {"invalidated"},
+    "blocked": {"selected"},
+    "invalidated": {"selected"},
+}
 BLOCKING_CR = {"proposed", "reviewing", "approved", "applying", "verifying"}
 CR_TRANSITIONS = {
     "proposed": {"reviewing"},
@@ -136,6 +161,10 @@ def contract_hash(contract):
     return digest(contract_projection(contract), "review-contract")
 
 
+def brief_hash(brief):
+    return digest(brief, "requirement-brief")
+
+
 def plan_projection(plan):
     return {
         key: plan[key] for key in (
@@ -191,8 +220,107 @@ def read_artifact(path, block):
 
 def require(obj, fields, where, problems):
     for field in fields:
-        if field not in obj or obj[field] in (None, ""):
+        value = obj.get(field) if isinstance(obj, dict) else None
+        if value is None or (isinstance(value, str) and not value.strip()):
             problems.append(f"{where}: missing {field}")
+
+
+def validate_brief(brief):
+    problems = []
+    if not isinstance(brief, dict):
+        return ["brief must be an object"]
+    require(brief, ("schema_version", "revision", "status", "summary", "items",
+                    "frontier", "owner_confirmation"), "brief", problems)
+    if brief.get("schema_version") != 1:
+        problems.append("brief.schema_version must be 1")
+    if (not isinstance(brief.get("revision"), int)
+            or isinstance(brief.get("revision"), bool)
+            or brief.get("revision", 0) < 1):
+        problems.append("brief.revision must be a positive integer")
+    if not isinstance(brief.get("status"), str) or brief.get("status") not in BRIEF_STATUS:
+        problems.append("brief.status must be draft or final")
+    if not isinstance(brief.get("summary"), str) or not brief.get("summary", "").strip():
+        problems.append("brief.summary must be a non-empty string")
+
+    items = brief.get("items", [])
+    if not isinstance(items, list):
+        problems.append("brief.items must be an array")
+        items = []
+    by_id = {}
+    for index, item in enumerate(items):
+        where = f"brief.items[{index}]"
+        if not isinstance(item, dict):
+            problems.append(f"{where} must be an object")
+            continue
+        require(item, ("id", "kind"), where, problems)
+        ident, kind = item.get("id"), item.get("kind")
+        prefix = BRIEF_KINDS.get(kind) if isinstance(kind, str) else None
+        if prefix is None:
+            problems.append(f"{where}: invalid kind {kind}")
+        elif not isinstance(ident, str) or not re.fullmatch(rf"{prefix}-\d{{2,}}", ident):
+            problems.append(f"{where}: id must match {prefix}-NN")
+        if isinstance(ident, str) and ident in by_id:
+            problems.append(f"brief: duplicate item id {ident}")
+        elif isinstance(ident, str):
+            by_id[ident] = item
+
+        if kind == "fact":
+            require(item, ("statement", "source", "evidence_status"), ident or where, problems)
+            if not isinstance(item.get("evidence_status"), str) or item.get("evidence_status") not in {"verified", "unverified"}:
+                problems.append(f"{ident or where}: invalid evidence_status")
+        elif kind == "decision":
+            require(item, ("question", "choice", "rationale", "owner_confirmed"), ident or where, problems)
+            if item.get("owner_confirmed") is not True:
+                problems.append(f"{ident or where}: decision must be owner-confirmed")
+        elif kind == "assumption":
+            require(item, ("statement", "source", "evidence_status"), ident or where, problems)
+            if not isinstance(item.get("evidence_status"), str) or item.get("evidence_status") not in {"verified", "unverified", "refuted"}:
+                problems.append(f"{ident or where}: invalid evidence_status")
+        elif kind in {"constraint", "success", "non-goal"}:
+            require(item, ("statement", "source"), ident or where, problems)
+        elif kind == "question":
+            require(item, ("question", "status"), ident or where, problems)
+            if not isinstance(item.get("status"), str) or item.get("status") not in {"open", "deferred"}:
+                problems.append(f"{ident or where}: question status must be open or deferred")
+        text_fields = {
+            "fact": ("statement", "source"),
+            "decision": ("question", "choice", "rationale"),
+            "assumption": ("statement", "source"),
+            "constraint": ("statement", "source"),
+            "question": ("question",),
+            "success": ("statement", "source"),
+            "non-goal": ("statement", "source"),
+        }.get(kind, ())
+        for field in text_fields:
+            if not isinstance(item.get(field), str) or not item.get(field, "").strip():
+                problems.append(f"{ident or where}: {field} must be a non-empty string")
+
+    frontier = brief.get("frontier", [])
+    if not isinstance(frontier, list):
+        problems.append("brief.frontier must be an array")
+        frontier = []
+    for ident in frontier:
+        if not isinstance(ident, str) or ident not in by_id or by_id[ident].get("kind") != "question":
+            problems.append(f"brief.frontier: unknown question {ident}")
+
+    confirmation = brief.get("owner_confirmation", {})
+    if not isinstance(confirmation, dict):
+        problems.append("brief.owner_confirmation must be an object")
+        confirmation = {}
+    require(confirmation, ("confirmed", "summary"), "brief.owner_confirmation", problems)
+    if brief.get("status") == "final":
+        if frontier:
+            problems.append("final brief must have an empty frontier")
+        if any(item.get("kind") == "question" and item.get("status") == "open"
+               for item in items if isinstance(item, dict)):
+            problems.append("final brief cannot contain open questions; defer them explicitly")
+        if confirmation.get("confirmed") is not True:
+            problems.append("final brief requires owner confirmation")
+        if not isinstance(confirmation.get("summary"), str) or not confirmation.get("summary", "").strip():
+            problems.append("final brief requires a confirmation summary")
+        if not any(item.get("kind") == "success" for item in items if isinstance(item, dict)):
+            problems.append("final brief requires at least one success item")
+    return problems
 
 
 def check_dag(nodes, edges, label, problems):
@@ -261,8 +389,21 @@ def validate_references(values, allowed, where, by_id, problems):
 
 def validate_contract(contract):
     problems = []
-    if contract.get("profile") not in {"direct", "light", "full"}:
+    if not isinstance(contract, dict):
+        return ["contract must be an object"]
+    if not isinstance(contract.get("profile"), str) or contract.get("profile") not in {"direct", "light", "full"}:
         problems.append("profile must be direct, light, or full")
+    intake = contract.get("intake")
+    if not isinstance(intake, dict):
+        problems.append("intake must be an object")
+        intake = {}
+    require(intake, ("mode",), "intake", problems)
+    if intake and (not isinstance(intake.get("mode"), str) or intake.get("mode") not in {"direct", "grilled"}):
+        problems.append("intake.mode must be direct or grilled")
+    if intake.get("mode") == "grilled":
+        require(intake, ("brief_path", "brief_hash", "dispositions"), "intake", problems)
+        if not isinstance(intake.get("dispositions"), list):
+            problems.append("intake.dispositions must be an array")
     control = contract.get("control", {})
     require(control, ("interaction", "audit_budget", "research_budget", "prototype_budget"), "control", problems)
     if control.get("interaction") not in {"autonomous", "checkpoints", "stepwise"}:
@@ -273,6 +414,36 @@ def validate_contract(contract):
 
     by_id, by_type = collect_nodes(contract, problems)
     active = {ident: node for ident, node in by_id.items() if node.get("status") == "active"}
+
+    seen_brief_ids = set()
+    dispositions = intake.get("dispositions", [])
+    if not isinstance(dispositions, list):
+        dispositions = []
+    for index, disposition in enumerate(dispositions):
+        where = f"intake.dispositions[{index}]"
+        if not isinstance(disposition, dict):
+            problems.append(f"{where} must be an object")
+            continue
+        require(disposition, ("brief_id", "status"), where, problems)
+        brief_id = disposition.get("brief_id")
+        if isinstance(brief_id, str) and brief_id in seen_brief_ids:
+            problems.append(f"intake: duplicate disposition for {brief_id}")
+        if isinstance(brief_id, str):
+            seen_brief_ids.add(brief_id)
+        if not isinstance(disposition.get("status"), str) or disposition.get("status") not in {"consumed", "deferred", "rejected"}:
+            problems.append(f"{where}: invalid status")
+        if disposition.get("status") == "consumed":
+            targets = disposition.get("contract_ids")
+            if not isinstance(targets, list) or not targets:
+                problems.append(f"{where}: consumed item needs contract_ids")
+            else:
+                for target in targets:
+                    if not isinstance(target, str) or target not in by_id:
+                        problems.append(f"{where}: unknown contract id {target}")
+                    elif target not in active:
+                        problems.append(f"{where}: consumed target must be active: {target}")
+        elif not isinstance(disposition.get("reason"), str) or not disposition.get("reason", "").strip():
+            problems.append(f"{where}: deferred/rejected item needs reason")
 
     for ident, node in by_id.items():
         for inverse in node.get("supersedes", []):
@@ -409,6 +580,125 @@ def validate_contract(contract):
     return problems
 
 
+BRIEF_TARGET_TYPES = {
+    "fact": {"P", "W", "D", "E", "A"},
+    "decision": {"P", "T", "D", "I", "B"},
+    "assumption": {"E", "A", "R"},
+    "constraint": {"P", "I", "R", "V", "B"},
+    "question": {"T", "W", "E", "A"},
+    "success": {"P", "V"},
+    "non-goal": {"B"},
+}
+
+
+def validate_brief_artifact(path):
+    problems = []
+    meta, brief = read_artifact(path, "brief")
+    problems.extend(validate_brief(brief))
+    if not isinstance(brief, dict):
+        return meta, brief, None, problems
+    expected = brief_hash(brief)
+    if meta.get("status") != brief.get("status"):
+        problems.append("brief frontmatter status does not match JSON status")
+    if brief.get("status") == "final" and meta.get("brief-hash") != expected:
+        problems.append("frontmatter brief-hash mismatch")
+    return meta, brief, expected, problems
+
+
+def validate_contract_intake(contract_path, contract):
+    intake = contract.get("intake", {})
+    if not isinstance(intake, dict):
+        return []
+    if intake.get("mode") != "grilled":
+        return []
+    problems = []
+    raw_path = intake.get("brief_path")
+    if not isinstance(raw_path, str) or not raw_path.strip():
+        return ["intake.brief_path must be a non-empty relative path"]
+    relative = Path(raw_path)
+    if relative.is_absolute() or ".." in relative.parts:
+        return ["intake.brief_path must stay inside the contract directory"]
+    brief_path = (Path(contract_path).resolve().parent / relative).resolve()
+    contract_dir = Path(contract_path).resolve().parent
+    try:
+        brief_path.relative_to(contract_dir)
+        if not brief_path.is_file():
+            return ["intake.brief_path must name a readable file"]
+        _, brief, expected, brief_problems = validate_brief_artifact(brief_path)
+    except ValueError:
+        return ["intake.brief_path escapes the contract directory"]
+    except (OSError, ValidationError, json.JSONDecodeError, TypeError, AttributeError) as exc:
+        return [f"intake brief is unavailable or invalid: {exc}"]
+    if not isinstance(brief, dict):
+        return problems + ["intake brief must contain a JSON object"]
+    problems.extend(f"brief: {problem}" for problem in brief_problems)
+    if brief.get("status") != "final":
+        problems.append("intake brief must be final")
+    if intake.get("brief_hash") != expected:
+        problems.append("intake.brief_hash mismatch")
+
+    brief_items = {
+        item.get("id"): item for item in brief.get("items", [])
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+    dispositions = {
+        item.get("brief_id"): item for item in intake.get("dispositions", [])
+        if isinstance(item, dict) and isinstance(item.get("brief_id"), str)
+    }
+    missing = sorted(set(brief_items) - set(dispositions))
+    extra = sorted(set(dispositions) - set(brief_items))
+    if missing:
+        problems.append("intake has no disposition for: " + ", ".join(missing))
+    if extra:
+        problems.append("intake dispositions reference unknown brief items: " + ", ".join(extra))
+    for brief_id in sorted(set(brief_items) & set(dispositions)):
+        disposition = dispositions[brief_id]
+        if disposition.get("status") != "consumed":
+            continue
+        brief_item = brief_items[brief_id]
+        allowed = BRIEF_TARGET_TYPES.get(brief_item.get("kind"), set())
+        if brief_item.get("kind") == "fact" and brief_item.get("evidence_status") != "verified":
+            allowed = {"E", "A"}
+        for target in disposition.get("contract_ids", []):
+            target_type = target.split("-", 1)[0] if isinstance(target, str) else ""
+            if target_type not in allowed:
+                problems.append(
+                    f"intake {brief_id}: {brief_items[brief_id].get('kind')} cannot map to {target}"
+                )
+    return problems
+
+
+def contract_problems(contract_path, contract):
+    return validate_contract(contract) + validate_contract_intake(contract_path, contract)
+
+
+def read_checked_contract(path, require_released=False, ledger_path=None):
+    meta, contract = read_artifact(path, "contract")
+    expected = contract_hash(contract)
+    status = meta.get("status")
+    problems = contract_problems(path, contract)
+    if status not in CONTRACT_STATUS:
+        problems.append("frontmatter status is invalid")
+    elif meta.get("phase") not in STATUS_PHASES.get(status, set()):
+        problems.append("frontmatter status/phase pair is invalid")
+    if status in {"passed", "conditional"} and meta.get("contract-hash") != expected:
+        problems.append("frontmatter contract-hash mismatch")
+    if require_released and status not in {"passed", "conditional"}:
+        problems.append("contract must be passed or conditional before construction")
+    if require_released and status in {"passed", "conditional"}:
+        state_path = Path(path).resolve().parent / "workflow-state.json"
+        ledger_path = ledger_path or (Path(path).resolve().parent / "workflow-events.jsonl")
+        try:
+            problems.extend(validate_contract_release(
+                meta, contract, state_path, ledger_path,
+            ))
+        except (OSError, ValidationError, json.JSONDecodeError, TypeError, KeyError) as exc:
+            problems.append(f"contract release proof is unavailable or invalid: {exc}")
+    if problems:
+        raise ValidationError("contract is invalid:\n- " + "\n- ".join(problems))
+    return meta, contract
+
+
 def dependency_edges(contract):
     """Return typed semantic dependency edges as (source, dependent, field)."""
     edges = []
@@ -500,6 +790,8 @@ def compile_plan(contract):
             "selection_events": {},
             "step_states": {step["id"]: "dormant" for step in steps},
             "attempts": {},
+            "applied_event_ids": [],
+            "revision": 0,
         },
     }
     plan["plan_structure_hash"] = plan_hash(plan)
@@ -507,6 +799,122 @@ def compile_plan(contract):
     if len(step_ids) != len(set(step_ids)):
         raise ValidationError("compiler produced duplicate step IDs")
     return plan
+
+
+def replay_plan_runtime(plan, events, problems):
+    runtime = plan.get("runtime", {})
+    matching = [
+        event for event in events
+        if event.get("type") in {"step-transition", "plan-transition"}
+        and event.get("contract_hash") == plan.get("contract_hash")
+        and event.get("plan_structure_hash") == plan.get("plan_structure_hash")
+    ]
+    if runtime.get("status") == "planning":
+        if matching:
+            problems.append("planning PLAN has runtime transition events")
+        return None
+    selected = runtime.get("selected_variants", {})
+    if not isinstance(selected, dict):
+        problems.append("PLAN runtime selected_variants cannot be replayed")
+        return None
+    expected = {
+        "status": "building",
+        "step_states": {
+            step["id"]: ("pending" if selected.get(step.get("unit")) == step.get("variant") else "dormant")
+            for step in plan.get("steps", []) if isinstance(step, dict) and "id" in step
+        },
+        "attempts": {}, "applied_event_ids": [], "revision": 0,
+    }
+    by_revision = {}
+    for event in matching:
+        revision = event.get("from_plan_revision")
+        if not isinstance(revision, int) or isinstance(revision, bool) or revision < 0:
+            problems.append(f"{event.get('id')}: invalid from_plan_revision")
+            continue
+        by_revision.setdefault(revision, []).append(event)
+    used_attempts = set()
+    event_index = {event.get("id"): event for event in events}
+    event_positions = {event.get("id"): index for index, event in enumerate(events)}
+    evidence_floor = {step_id: -1 for step_id in expected["step_states"]}
+    last_transition_position = -1
+    while expected["revision"] in by_revision:
+        candidates = by_revision.pop(expected["revision"])
+        if len(candidates) != 1:
+            problems.append(f"PLAN runtime ledger fork at revision {expected['revision']}")
+            break
+        event = candidates[0]
+        event_id = event.get("id")
+        if not isinstance(event_id, str) or not event_id.strip():
+            problems.append("PLAN runtime event has no ID")
+            break
+        event_position = event_positions.get(event_id, -1)
+        if event_position <= last_transition_position:
+            problems.append(f"{event_id}: runtime revision order differs from ledger order")
+            break
+        if event.get("type") == "plan-transition":
+            target = event.get("to_status")
+            if target not in PLAN_RUNTIME_TRANSITIONS.get(expected["status"], set()):
+                problems.append(f"{event_id}: illegal replayed PLAN transition")
+                break
+            if target == "done":
+                audit = event_index.get(event.get("converge_audit_event"))
+                if (not isinstance(event.get("reconcile_hash"), str)
+                        or not audit or audit.get("type") != "converge-audit"
+                        or audit.get("result") != "passed"
+                        or audit.get("contract_hash") != plan.get("contract_hash")
+                        or audit.get("plan_structure_hash") != plan.get("plan_structure_hash")
+                        or audit.get("reconcile_hash") != event.get("reconcile_hash")
+                        or audit.get("plan_revision") != event.get("from_plan_revision")
+                        or event_positions.get(audit.get("id"), -1) <= last_transition_position
+                        or event_positions.get(audit.get("id"), len(events)) >= event_position):
+                    problems.append(f"{event_id}: done transition lacks reconcile/converge proof")
+                    break
+            expected["status"] = target
+        else:
+            step_id = event.get("step_id")
+            step = next((item for item in plan.get("steps", []) if item.get("id") == step_id), None)
+            if not step or event.get("step_hash") != step_hash(step):
+                problems.append(f"{event_id}: stale or unknown replayed step")
+                break
+            if expected["status"] != "building" or selected.get(step.get("unit")) != step.get("variant"):
+                problems.append(f"{event_id}: replayed step is not executable")
+                break
+            current = expected["step_states"].get(step_id)
+            target = event.get("to_state")
+            if target not in STEP_RUNTIME_TRANSITIONS.get(current, set()):
+                problems.append(f"{event_id}: illegal replayed step transition")
+                break
+            expected["step_states"][step_id] = target
+            if target == "invalidated":
+                evidence_floor[step_id] = event_positions.get(event_id, len(events))
+            if target == "complete":
+                attempt_id = event.get("attempt_id")
+                if not isinstance(attempt_id, str) or not attempt_id.strip() or attempt_id in used_attempts:
+                    problems.append(f"{event_id}: complete needs a fresh attempt ID")
+                    break
+                attempt = event_index.get(attempt_id)
+                attempt_position = event_positions.get(attempt_id, -1)
+                transition_position = event_positions.get(event_id, len(events))
+                verification_ids = attempt.get("verification_events", []) if isinstance(attempt, dict) else []
+                if (not attempt or attempt_position <= evidence_floor[step_id]
+                        or attempt_position >= transition_position
+                        or any(event_positions.get(item, -1) <= evidence_floor[step_id]
+                               or event_positions.get(item, len(events)) >= attempt_position
+                               for item in verification_ids)):
+                    problems.append(f"{event_id}: attempt and V evidence are not fresh for this execution")
+                    break
+                used_attempts.add(attempt_id)
+                expected["attempts"].setdefault(step_id, []).append(attempt_id)
+        expected["applied_event_ids"].append(event_id)
+        expected["revision"] += 1
+        last_transition_position = event_position
+    if by_revision:
+        problems.append("PLAN runtime ledger has a gap or stale branch")
+    defaults = {"applied_event_ids": [], "revision": 0}
+    for field in ("status", "step_states", "attempts", "applied_event_ids", "revision"):
+        if runtime.get(field, defaults.get(field, {})) != expected[field]:
+            problems.append(f"PLAN runtime.{field} does not match ledger replay")
+    return expected
 
 
 def validate_plan(plan, contract, events=None):
@@ -528,12 +936,19 @@ def validate_plan(plan, contract, events=None):
     selection_events = runtime.get("selection_events")
     step_states = runtime.get("step_states")
     attempts = runtime.get("attempts")
+    applied_event_ids = runtime.get("applied_event_ids", [])
     if not isinstance(selected, dict) or not isinstance(selection_events, dict):
         problems.append("PLAN variant runtime fields must be objects")
         selected, selection_events = {}, {}
     if not isinstance(step_states, dict) or not isinstance(attempts, dict):
         problems.append("PLAN step_states and attempts must be objects")
         step_states, attempts = {}, {}
+    if not isinstance(applied_event_ids, list) or any(not isinstance(item, str) for item in applied_event_ids):
+        problems.append("PLAN runtime.applied_event_ids must be an array of event IDs")
+    if (not isinstance(runtime.get("revision", 0), int)
+            or isinstance(runtime.get("revision", 0), bool)
+            or runtime.get("revision", 0) < 0):
+        problems.append("PLAN runtime.revision must be a non-negative integer")
     expected_step_ids = {step["id"] for step in plan.get("steps", [])}
     if set(step_states) != expected_step_ids:
         problems.append("PLAN step_states keys do not match compiled steps")
@@ -544,13 +959,13 @@ def validate_plan(plan, contract, events=None):
     active_units = {unit["id"] for unit in contract["nodes"]["I"] if unit.get("status") == "active"}
     if any(unit not in variants or variant not in variants.get(unit, set()) for unit, variant in selected.items()):
         problems.append("PLAN selected_variants contains an unknown unit or variant")
-    if runtime.get("status") in {"building", "paused", "done"}:
+    if runtime.get("status") in {"building", "paused", "suspended", "done"}:
         if set(selected) != active_units or any(selected[unit] not in variants[unit] for unit in active_units):
             problems.append("PLAN must select exactly one compiled variant for every unit")
         if set(selection_events) != active_units or any(not selection_events.get(unit) for unit in active_units):
             problems.append("PLAN selected variants require selection event IDs")
     event_index = {event.get("id"): event for event in (events or [])}
-    if runtime.get("status") in {"building", "paused", "done"} and events is None:
+    if runtime.get("status") in {"building", "paused", "suspended", "done"} and events is None:
         problems.append("PLAN runtime validation requires the event ledger")
     for unit, event_id in selection_events.items():
         event = event_index.get(event_id)
@@ -559,6 +974,15 @@ def validate_plan(plan, contract, events=None):
             continue
         if event.get("contract_hash") != plan.get("contract_hash") or event.get("plan_structure_hash") != plan.get("plan_structure_hash"):
             problems.append(f"{unit}: variant selection belongs to another contract or PLAN")
+        owner_event = event_index.get(event.get("owner_event"))
+        if (event.get("authorization") != "owner-confirmed"
+                or not owner_event
+                or owner_event.get("type") != "owner-decision"
+                or owner_event.get("decision") != "plan-confirmation"
+                or owner_event.get("result") != "accepted"
+                or owner_event.get("contract_hash") != plan.get("contract_hash")
+                or owner_event.get("plan_structure_hash") != plan.get("plan_structure_hash")):
+            problems.append(f"{unit}: variant selection lacks a bound owner confirmation event")
         rule = next((item for item in plan.get("variant_rules", {}).get(unit, []) if item["id"] == selected.get(unit)), None)
         selector = rule.get("selector", {}) if rule else {}
         evidence = event.get("selector_evidence")
@@ -576,7 +1000,7 @@ def validate_plan(plan, contract, events=None):
         state = step_states.get(step["id"])
         if not is_selected and state != "dormant":
             problems.append(f"{step['id']}: unselected variant must remain dormant")
-        if is_selected and runtime.get("status") in {"building", "paused", "done"} and state == "dormant":
+        if is_selected and runtime.get("status") in {"building", "paused", "suspended", "done"} and state == "dormant":
             problems.append(f"{step['id']}: selected variant cannot remain dormant")
         if runtime.get("status") == "done" and is_selected and state != "complete":
             problems.append(f"{step['id']}: done PLAN has incomplete selected step")
@@ -621,6 +1045,27 @@ def validate_plan(plan, contract, events=None):
     for step in plan.get("steps", []):
         if not STEP_RE.match(step.get("id", "")):
             problems.append(f"invalid step id {step.get('id')}")
+    if events is not None:
+        replay_plan_runtime(plan, events, problems)
+    return problems
+
+
+def plan_artifact_problems(meta, plan, contract, events=None, require_building=False,
+                           require_resumable=False):
+    problems = validate_plan(plan, contract, events)
+    if meta.get("contract-hash") != plan.get("contract_hash"):
+        problems.append("PLAN frontmatter contract-hash mismatch")
+    if meta.get("plan-structure-hash") != plan.get("plan_structure_hash"):
+        problems.append("PLAN frontmatter plan-structure-hash mismatch")
+    runtime = plan.get("runtime", {})
+    if not isinstance(runtime, dict):
+        runtime = {}
+    if meta.get("status") != runtime.get("status"):
+        problems.append("PLAN frontmatter status does not match runtime.status")
+    if require_building and runtime.get("status") != "building":
+        problems.append("PLAN must be confirmed and building before construction")
+    if require_resumable and runtime.get("status") not in {"building", "paused", "suspended"}:
+        problems.append("PLAN must be building, paused, or suspended to resume")
     return problems
 
 
@@ -714,6 +1159,11 @@ def reconcile_closure(contract, plan, events, orders):
         "blocking_crs": blocking,
         "findings": findings,
     }
+
+
+def reconcile_result_hash(matrix):
+    projection = {key: value for key, value in matrix.items() if key != "plan_runtime_status"}
+    return digest(projection, "reconcile-result")
 
 
 def validate_change_orders(data):
@@ -882,8 +1332,10 @@ def load_ledger(path):
     for line in Path(path).read_text(encoding="utf-8").splitlines():
         event = json.loads(line)
         ident = event.get("id")
-        if ident in ids and event_payload(ids[ident]) != event_payload(event):
-            raise ValidationError(f"ledger event ID has conflicting payloads: {ident}")
+        if ident in ids:
+            if event_payload(ids[ident]) != event_payload(event):
+                raise ValidationError(f"ledger event ID has conflicting payloads: {ident}")
+            raise ValidationError(f"ledger contains a duplicate event ID: {ident}")
         ids[ident] = event
         events.append(event)
     return events
@@ -898,12 +1350,18 @@ def record_evidence_event(ledger_path, event_path):
         raise ValidationError("; ".join(problems))
     if submitted["type"] not in {
         "verification", "final-audit", "owner-decision", "evidence",
+        "release-verification", "converge-audit",
         "variant-selection", "attempt", "step-verification",
         "tdd-red", "tdd-green",
     }:
         raise ValidationError("record accepts only immutable evidence event types")
     if submitted["type"] == "verification":
         require(submitted, ("cr_id",), "evidence event", problems)
+    if submitted["type"] == "release-verification":
+        require(submitted, ("v_id", "result", "output_hash", "contract_hash"),
+                "release verification", problems)
+        if submitted.get("result") != "passed":
+            raise ValidationError("release-verification must record result=passed")
     if submitted["type"] in {"tdd-red", "tdd-green"}:
         require(submitted, ("step_id", "v_id", "result", "output_hash", "contract_hash", "plan_structure_hash", "step_hash"), "tdd evidence event", problems)
         expected_result = "failed" if submitted["type"] == "tdd-red" else "passed"
@@ -911,12 +1369,26 @@ def record_evidence_event(ledger_path, event_path):
             raise ValidationError(f"{submitted['type']} must record result={expected_result}")
     if submitted["type"] == "final-audit":
         require(submitted, ("contract_hash", "result"), "final audit event", problems)
+    if submitted["type"] == "owner-decision":
+        require(submitted, ("decision", "result", "contract_hash"), "owner decision", problems)
+        if submitted.get("decision") == "plan-confirmation":
+            require(submitted, ("plan_structure_hash",), "PLAN owner decision", problems)
+            if submitted.get("result") != "accepted":
+                raise ValidationError("PLAN owner decision must record result=accepted")
+    if submitted["type"] == "converge-audit":
+        require(submitted, ("result", "contract_hash", "plan_structure_hash",
+                            "reconcile_hash", "plan_revision"),
+                "converge audit", problems)
+        if submitted.get("result") != "passed":
+            raise ValidationError("converge-audit must record result=passed")
     if submitted["type"] == "verification":
         require(submitted, ("v_id", "result", "output_hash"), "verification event", problems)
         if submitted.get("result") != "passed":
             raise ValidationError("only passed verification can satisfy a CR transition")
     if submitted["type"] == "variant-selection":
-        require(submitted, ("unit", "variant", "selector_evidence", "contract_hash", "plan_structure_hash"), "variant selection", problems)
+        require(submitted, ("unit", "variant", "selector_evidence", "authorization", "owner_event", "contract_hash", "plan_structure_hash"), "variant selection", problems)
+        if submitted.get("authorization") != "owner-confirmed":
+            raise ValidationError("variant selection must be owner-confirmed")
     if submitted["type"] == "attempt":
         require(submitted, ("step_id", "result", "verification_events", "contract_hash", "plan_structure_hash", "step_hash"), "attempt event", problems)
         if submitted.get("subagent_id") is not None and not (
@@ -962,6 +1434,62 @@ def validate_workflow_event(state, event):
             raise ValidationError(f"{budget_kind} budget exhausted; suspend or request owner control")
 
 
+def validate_release_transition(event, events):
+    if event.get("to_status") not in {"passed", "conditional"}:
+        return
+    problems = []
+    require(event, ("contract_hash", "final_audit_event"), "release transition", problems)
+    if problems:
+        raise ValidationError("; ".join(problems))
+    release_index = next(
+        (index for index, item in enumerate(events) if item.get("id") == event.get("id")),
+        len(events),
+    )
+    def prior_event(event_id):
+        return next(
+            (item for index, item in enumerate(events)
+             if index < release_index and item.get("id") == event_id),
+            None,
+        )
+
+    audit = prior_event(event["final_audit_event"])
+    if (not audit or audit.get("type") != "final-audit" or audit.get("result") != "passed"
+            or audit.get("contract_hash") != event.get("contract_hash")):
+        raise ValidationError("release transition requires a passed final-audit event for the contract hash")
+    if event.get("to_status") == "conditional":
+        require(event, ("owner_event", "residual_risk_ids", "additional_verification_ids",
+                        "additional_verification_events"),
+                "conditional release", problems)
+        if problems:
+            raise ValidationError("; ".join(problems))
+        if (not isinstance(event.get("residual_risk_ids"), list) or not event["residual_risk_ids"]
+                or not all(isinstance(item, str) and item.startswith("R-") for item in event["residual_risk_ids"])):
+            raise ValidationError("conditional release needs residual R IDs")
+        if (not isinstance(event.get("additional_verification_ids"), list)
+                or not event["additional_verification_ids"]
+                or not all(isinstance(item, str) and item.startswith("V-") for item in event["additional_verification_ids"])):
+            raise ValidationError("conditional release needs additional V IDs")
+        verification_events = event.get("additional_verification_events")
+        if not isinstance(verification_events, list) or not verification_events:
+            raise ValidationError("conditional release needs executed verification events")
+        verified = set()
+        for event_id in verification_events:
+            verification = prior_event(event_id)
+            if (not verification or verification.get("type") != "release-verification"
+                    or verification.get("result") != "passed"
+                    or verification.get("contract_hash") != event.get("contract_hash")):
+                raise ValidationError("conditional release has an invalid verification event")
+            verified.add(verification.get("v_id"))
+        if set(event["additional_verification_ids"]) != verified:
+            raise ValidationError("conditional release V IDs do not match executed verification events")
+        owner = prior_event(event["owner_event"])
+        if (not owner or owner.get("type") != "owner-decision"
+                or owner.get("decision") != "conditional-release"
+                or owner.get("result") != "accepted"
+                or owner.get("contract_hash") != event.get("contract_hash")):
+            raise ValidationError("conditional release requires a bound owner-decision event")
+
+
 def project_workflow_event(state, event):
     validate_workflow_event(state, event)
     budget_kind = event.get("budget_kind")
@@ -973,6 +1501,9 @@ def project_workflow_event(state, event):
     })
     if budget_kind:
         state["usage"][budget_kind] += 1
+    if event.get("to_status") in {"passed", "conditional"}:
+        state["released_contract_hash"] = event.get("contract_hash")
+        state["release_event_id"] = event.get("id")
 
 
 def write_json_projection(path, value):
@@ -981,6 +1512,50 @@ def write_json_projection(path, value):
     temp = path.with_suffix(path.suffix + ".tmp")
     temp.write_text(json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     os.replace(temp, path)
+
+
+def update_frontmatter(path, values):
+    path = Path(path)
+    text = path.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        raise ValidationError(f"missing frontmatter: {path}")
+    try:
+        end = lines.index("---", 1)
+    except ValueError as exc:
+        raise ValidationError(f"unterminated frontmatter: {path}") from exc
+    remaining = dict(values)
+    for index in range(1, end):
+        if ":" not in lines[index]:
+            continue
+        key = lines[index].split(":", 1)[0].strip()
+        if key in remaining:
+            lines[index] = f"{key}: {remaining.pop(key)}"
+    for key, value in remaining.items():
+        lines.insert(end, f"{key}: {value}")
+        end += 1
+    temp = path.with_suffix(path.suffix + ".tmp")
+    temp.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    os.replace(temp, path)
+
+
+def release_contract(contract_path, state_path, ledger_path, event_path, expected_revision):
+    meta, contract = read_artifact(contract_path, "contract")
+    problems = contract_problems(contract_path, contract)
+    if problems:
+        raise ValidationError("contract is invalid:\n- " + "\n- ".join(problems))
+    submitted = json.loads(Path(event_path).read_text(encoding="utf-8"))
+    if submitted.get("to_status") not in {"passed", "conditional"}:
+        raise ValidationError("release requires a passed or conditional workflow event")
+    expected = contract_hash(contract)
+    if submitted.get("contract_hash") != expected:
+        raise ValidationError("release event contract_hash mismatch")
+    state = append_event(state_path, ledger_path, event_path, expected_revision)
+    update_frontmatter(contract_path, {
+        "status": state["status"], "phase": state["phase"], "contract-hash": expected,
+    })
+    read_checked_contract(contract_path, require_released=True, ledger_path=ledger_path)
+    return state
 
 
 def reconcile_workflow(state, events):
@@ -998,6 +1573,55 @@ def reconcile_workflow(state, events):
     if stale:
         raise ValidationError("workflow ledger contains an unapplied stale event")
     return state
+
+
+def validate_contract_release(meta, contract, state_path, ledger_path):
+    problems = []
+    events = load_ledger(ledger_path)
+    control = contract.get("control", {})
+    projected = {
+        "revision": 0,
+        "status": "draft",
+        "phase": "intake",
+        "profile": contract.get("profile"),
+        "interaction": control.get("interaction"),
+        "budgets": {
+            "audit": control.get("audit_budget"),
+            "research": control.get("research_budget"),
+            "prototype": control.get("prototype_budget"),
+        },
+        "usage": {"audit": 0, "research": 0, "prototype": 0},
+        "applied_event_ids": [],
+    }
+    reconcile_workflow(projected, events)
+    stored = json.loads(Path(state_path).read_text(encoding="utf-8"))
+    for field in ("revision", "status", "phase", "applied_event_ids",
+                  "released_contract_hash", "release_event_id"):
+        if stored.get(field) != projected.get(field):
+            problems.append(f"workflow state {field} does not match the replayed ledger")
+    expected = contract_hash(contract)
+    if projected.get("status") != meta.get("status") or projected.get("phase") != "idle":
+        problems.append("workflow state does not prove the released contract status")
+    if projected.get("released_contract_hash") != expected:
+        problems.append("workflow release hash does not match the contract")
+    release = next((item for item in events if item.get("id") == projected.get("release_event_id")), None)
+    if not release:
+        problems.append("workflow release event is missing")
+    else:
+        try:
+            validate_release_transition(release, events)
+        except ValidationError as exc:
+            problems.append(str(exc))
+        if release.get("to_status") != meta.get("status"):
+            problems.append("workflow release event status does not match the contract")
+        if meta.get("status") == "conditional":
+            known_r = {node.get("id") for node in contract.get("nodes", {}).get("R", []) if node.get("status") == "active"}
+            known_v = {node.get("id") for node in contract.get("nodes", {}).get("V", []) if node.get("status") == "active"}
+            if not set(release.get("residual_risk_ids", [])).issubset(known_r):
+                problems.append("conditional release references unknown active residual risks")
+            if not set(release.get("additional_verification_ids", [])).issubset(known_v):
+                problems.append("conditional release references unknown active verifications")
+    return problems
 
 
 def append_event(state_path, ledger_path, event_path, expected_revision):
@@ -1021,6 +1645,7 @@ def append_event(state_path, ledger_path, event_path, expected_revision):
         if state["revision"] != expected_revision:
             raise ValidationError(f"revision conflict: expected {expected_revision}, actual {state['revision']}")
         validate_workflow_event(state, submitted)
+        validate_release_transition(submitted, events)
         event = dict(submitted, from_revision=state["revision"], from_status=state["status"])
         ledger_path.parent.mkdir(parents=True, exist_ok=True)
         with ledger_path.open("a", encoding="utf-8", newline="\n") as stream:
@@ -1167,13 +1792,348 @@ def apply_cr_event(change_path, ledger_path, event_path, expected_revision, capa
         return data
 
 
+def confirm_plan(plan_path, selection_path, contract_path, ledger_path):
+    with file_lock(str(plan_path) + ".confirmation"):
+        return confirm_plan_locked(plan_path, selection_path, contract_path, ledger_path)
+
+
+def confirm_plan_locked(plan_path, selection_path, contract_path, ledger_path):
+    meta, plan = read_artifact(plan_path, "plan")
+    _, contract = read_checked_contract(contract_path, require_released=True, ledger_path=ledger_path)
+    existing_events = load_ledger(ledger_path)
+    problems = plan_artifact_problems(meta, plan, contract, existing_events)
+    if problems:
+        raise ValidationError("PLAN is invalid:\n- " + "\n- ".join(problems))
+    runtime = plan.get("runtime", {})
+    if runtime.get("status") not in {"planning", "building"}:
+        raise ValidationError("only a planning or already-building PLAN can be confirmed")
+
+    selection = json.loads(Path(selection_path).read_text(encoding="utf-8"))
+    if not isinstance(selection, dict):
+        raise ValidationError("PLAN selection must be an object")
+    event_base = selection.get("id")
+    authorization = selection.get("authorization")
+    owner_event_id = selection.get("owner_event")
+    selections = selection.get("selections")
+    if not isinstance(event_base, str) or not re.fullmatch(r"[A-Za-z0-9._:-]+", event_base):
+        raise ValidationError("PLAN selection id must use letters, digits, '.', '_', ':', or '-'")
+    if authorization != "owner-confirmed" or not isinstance(owner_event_id, str) or not owner_event_id.strip():
+        raise ValidationError("PLAN selection requires authorization=owner-confirmed and owner_event")
+    if not isinstance(selections, dict):
+        raise ValidationError("PLAN selection.selections must be an object")
+
+    active_units = {
+        unit["id"] for unit in contract.get("nodes", {}).get("I", [])
+        if isinstance(unit, dict) and unit.get("status") == "active"
+    }
+    if set(selections) != active_units:
+        raise ValidationError("PLAN selection must choose exactly one variant for every active unit")
+    events = []
+    selected_variants, selection_events = {}, {}
+    for unit in sorted(active_units):
+        choice = selections.get(unit)
+        if not isinstance(choice, dict):
+            raise ValidationError(f"PLAN selection for {unit} must be an object")
+        variant = choice.get("variant")
+        selector_evidence = choice.get("selector_evidence")
+        if not isinstance(variant, str) or not isinstance(selector_evidence, str):
+            raise ValidationError(f"PLAN selection for {unit} needs variant and selector_evidence")
+        event_id = f"{event_base}:{unit}"
+        events.append({
+            "id": event_id,
+            "type": "variant-selection",
+            "unit": unit,
+            "variant": variant,
+            "selector_evidence": selector_evidence,
+            "authorization": authorization,
+            "owner_event": owner_event_id,
+            "contract_hash": plan.get("contract_hash"),
+            "plan_structure_hash": plan.get("plan_structure_hash"),
+        })
+        selected_variants[unit] = variant
+        selection_events[unit] = event_id
+
+    prior_selections = [
+        item for item in existing_events
+        if item.get("type") == "variant-selection"
+        and item.get("contract_hash") == plan.get("contract_hash")
+        and item.get("plan_structure_hash") == plan.get("plan_structure_hash")
+    ]
+    if runtime.get("status") == "planning" and prior_selections:
+        prior_by_id = {item.get("id"): item for item in prior_selections}
+        if (set(prior_by_id) != {item["id"] for item in events}
+                or any(event_payload(prior_by_id[item["id"]]) != event_payload(item) for item in events)):
+            raise ValidationError("a different PLAN confirmation is already durable in the ledger")
+
+    if runtime.get("status") == "building":
+        recorded_index = {item.get("id"): item for item in existing_events}
+        if (runtime.get("selected_variants") == selected_variants
+                and runtime.get("selection_events") == selection_events
+                and all(recorded_index.get(item["id"])
+                        and event_payload(recorded_index[item["id"]]) == event_payload(item)
+                        for item in events)):
+            return plan
+        raise ValidationError("PLAN is already confirmed; change requires a CR and recompile")
+
+    updated = json.loads(json.dumps(plan))
+    updated_runtime = updated["runtime"]
+    updated_runtime["status"] = "building"
+    updated_runtime.setdefault("revision", 0)
+    updated_runtime.setdefault("applied_event_ids", [])
+    updated_runtime["selected_variants"] = selected_variants
+    updated_runtime["selection_events"] = selection_events
+    for step in updated.get("steps", []):
+        step_id = step.get("id")
+        if step_id in updated_runtime.get("step_states", {}):
+            selected = selected_variants.get(step.get("unit")) == step.get("variant")
+            if updated_runtime["step_states"][step_id] == "dormant":
+                updated_runtime["step_states"][step_id] = "pending" if selected else "dormant"
+
+    event_index = {event.get("id"): event for event in existing_events}
+    for event in events:
+        recorded = event_index.get(event["id"])
+        if recorded and event_payload(recorded) != event_payload(event):
+            raise ValidationError(f"ledger event ID payload conflict: {event['id']}")
+    combined_events = existing_events + [event for event in events if event["id"] not in event_index]
+    problems = validate_plan(updated, contract, combined_events)
+    if problems:
+        raise ValidationError("PLAN confirmation is invalid:\n- " + "\n- ".join(problems))
+
+    ledger_path = Path(ledger_path)
+    with file_lock(ledger_path):
+        recorded_events = load_ledger(ledger_path)
+        recorded_index = {event.get("id"): event for event in recorded_events}
+        for event in events:
+            recorded = recorded_index.get(event["id"])
+            if recorded and event_payload(recorded) != event_payload(event):
+                raise ValidationError(f"ledger event ID payload conflict: {event['id']}")
+        missing = [event for event in events if event["id"] not in recorded_index]
+        if missing:
+            ledger_path.parent.mkdir(parents=True, exist_ok=True)
+            with ledger_path.open("a", encoding="utf-8", newline="\n") as stream:
+                for event in missing:
+                    stream.write(json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n")
+                stream.flush()
+                os.fsync(stream.fileno())
+        target = Path(plan_path)
+        temp = target.with_suffix(target.suffix + ".tmp")
+        temp.write_text(render_plan(updated, meta.get("project", "project")), encoding="utf-8", newline="\n")
+        os.replace(temp, target)
+    return updated
+
+
+def apply_plan_event(plan_path, event_path, contract_path, ledger_path, allow_done=False):
+    with file_lock(str(plan_path) + ".runtime"):
+        return apply_plan_event_locked(plan_path, event_path, contract_path, ledger_path, allow_done)
+
+
+def apply_plan_event_locked(plan_path, event_path, contract_path, ledger_path, allow_done=False):
+    meta, plan = read_artifact(plan_path, "plan")
+    _, contract = read_checked_contract(contract_path, require_released=True, ledger_path=ledger_path)
+    events = load_ledger(ledger_path)
+    replay_problems = []
+    recovered = replay_plan_runtime(plan, events, replay_problems)
+    hard_replay_problems = [item for item in replay_problems if "does not match ledger replay" not in item]
+    if hard_replay_problems:
+        raise ValidationError("PLAN runtime ledger is invalid:\n- " + "\n- ".join(hard_replay_problems))
+    if recovered:
+        for field, value in recovered.items():
+            plan["runtime"][field] = value
+        meta["status"] = plan["runtime"]["status"]
+    problems = plan_artifact_problems(meta, plan, contract, events)
+    if problems:
+        raise ValidationError("PLAN is invalid:\n- " + "\n- ".join(problems))
+    submitted = json.loads(Path(event_path).read_text(encoding="utf-8"))
+    if not isinstance(submitted, dict):
+        raise ValidationError("PLAN runtime event must be an object")
+    require(submitted, ("id", "type", "expected_revision", "contract_hash", "plan_structure_hash"),
+            "PLAN runtime event", problems := [])
+    if problems:
+        raise ValidationError("; ".join(problems))
+    if submitted["type"] not in {"step-transition", "plan-transition"}:
+        raise ValidationError("PLAN runtime event type must be step-transition or plan-transition")
+    if (submitted.get("contract_hash") != plan.get("contract_hash")
+            or submitted.get("plan_structure_hash") != plan.get("plan_structure_hash")):
+        raise ValidationError("PLAN runtime event belongs to another contract or PLAN")
+
+    runtime = plan["runtime"]
+    applied = runtime.setdefault("applied_event_ids", [])
+    if submitted["id"] in applied:
+        recorded = next((event for event in events if event.get("id") == submitted["id"]), None)
+        if not recorded or any(recorded.get(key) != value for key, value in submitted.items()):
+            raise ValidationError(f"PLAN runtime event ID payload conflict: {submitted['id']}")
+        target = Path(plan_path)
+        temp = target.with_suffix(target.suffix + ".tmp")
+        temp.write_text(render_plan(plan, meta.get("project", "project")), encoding="utf-8", newline="\n")
+        os.replace(temp, target)
+        return plan
+    revision = runtime.get("revision", 0)
+    if submitted.get("expected_revision") != revision:
+        raise ValidationError(
+            f"PLAN revision conflict: expected {submitted.get('expected_revision')}, actual {revision}"
+        )
+    event = dict(submitted, from_plan_revision=revision)
+
+    updated = json.loads(json.dumps(plan))
+    updated_runtime = updated["runtime"]
+    if submitted["type"] == "plan-transition":
+        require(submitted, ("to_status",), "PLAN transition", problems := [])
+        if problems:
+            raise ValidationError("; ".join(problems))
+        current = runtime.get("status")
+        target = submitted.get("to_status")
+        if target == "done" and not allow_done:
+            raise ValidationError("done requires the finish-plan command")
+        if target not in PLAN_RUNTIME_TRANSITIONS.get(current, set()):
+            raise ValidationError(f"illegal PLAN transition: {current} -> {target}")
+        updated_runtime["status"] = target
+    else:
+        require(submitted, ("step_id", "to_state"), "step transition", problems := [])
+        if problems:
+            raise ValidationError("; ".join(problems))
+        step_id = submitted.get("step_id")
+        step = next((item for item in updated.get("steps", []) if item.get("id") == step_id), None)
+        if not step:
+            raise ValidationError(f"unknown PLAN step: {step_id}")
+        if submitted.get("step_hash") != step_hash(step):
+            raise ValidationError("step transition has a stale or missing step_hash")
+        if updated_runtime.get("status") != "building":
+            raise ValidationError("step transitions require PLAN runtime.status=building")
+        if updated_runtime.get("selected_variants", {}).get(step.get("unit")) != step.get("variant"):
+            raise ValidationError("cannot transition an unselected variant step")
+        current = updated_runtime.get("step_states", {}).get(step_id)
+        target = submitted.get("to_state")
+        if target not in STEP_RUNTIME_TRANSITIONS.get(current, set()):
+            raise ValidationError(f"illegal step transition: {current} -> {target}")
+        updated_runtime["step_states"][step_id] = target
+        if target == "complete":
+            attempt_id = submitted.get("attempt_id")
+            if not isinstance(attempt_id, str) or not attempt_id.strip():
+                raise ValidationError("complete step transition requires attempt_id")
+            if any(attempt_id in ids for ids in updated_runtime.get("attempts", {}).values() if isinstance(ids, list)):
+                raise ValidationError("complete step transition requires a fresh attempt_id")
+            updated_runtime.setdefault("attempts", {}).setdefault(step_id, []).append(attempt_id)
+
+    updated_runtime.setdefault("applied_event_ids", []).append(event["id"])
+    updated_runtime["revision"] = revision + 1
+    combined = events + [event]
+    problems = validate_plan(updated, contract, combined)
+    if problems:
+        raise ValidationError("PLAN runtime transition is invalid:\n- " + "\n- ".join(problems))
+
+    ledger_path = Path(ledger_path)
+    with file_lock(ledger_path):
+        recorded_events = load_ledger(ledger_path)
+        recorded = next((item for item in recorded_events if item.get("id") == event["id"]), None)
+        if recorded and event_payload(recorded) != event_payload(event):
+            raise ValidationError(f"PLAN runtime event ID payload conflict: {submitted['id']}")
+        if not recorded:
+            ledger_path.parent.mkdir(parents=True, exist_ok=True)
+            with ledger_path.open("a", encoding="utf-8", newline="\n") as stream:
+                stream.write(json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n")
+                stream.flush()
+                os.fsync(stream.fileno())
+        target = Path(plan_path)
+        temp = target.with_suffix(target.suffix + ".tmp")
+        temp.write_text(render_plan(updated, meta.get("project", "project")), encoding="utf-8", newline="\n")
+        os.replace(temp, target)
+    return updated
+
+
+def done_reconcile_problems(plan, contract, events, orders):
+    problems = []
+    matrix = reconcile_closure(contract, plan, events, orders)
+    if matrix.get("status") != "clean":
+        problems.append("done PLAN requires a clean reconcile result")
+    applied = plan.get("runtime", {}).get("applied_event_ids", [])
+    done_event = next(
+        (event for event in events
+         if event.get("id") in applied and event.get("type") == "plan-transition"
+         and event.get("to_status") == "done"),
+        None,
+    )
+    if not done_event or done_event.get("reconcile_hash") != reconcile_result_hash(matrix):
+        problems.append("done PLAN reconcile proof is missing or stale")
+    return problems
+
+
+def finish_plan(plan_path, event_path, contract_path, change_path, ledger_path):
+    with file_lock(str(plan_path) + ".runtime"):
+        submitted = json.loads(Path(event_path).read_text(encoding="utf-8"))
+        if not isinstance(submitted, dict):
+            raise ValidationError("Finish event must be an object")
+        if submitted.get("type") != "plan-transition" or submitted.get("to_status") != "done":
+            raise ValidationError("Finish event must be a plan-transition to done")
+        meta, plan = read_artifact(plan_path, "plan")
+        _, contract = read_checked_contract(contract_path, require_released=True, ledger_path=ledger_path)
+        _, orders = read_artifact(change_path, "change-orders")
+        events = load_ledger(ledger_path)
+        replay_problems = []
+        recovered = replay_plan_runtime(plan, events, replay_problems)
+        hard_replay_problems = [item for item in replay_problems if "does not match ledger replay" not in item]
+        if hard_replay_problems:
+            raise ValidationError("PLAN runtime ledger is invalid:\n- " + "\n- ".join(hard_replay_problems))
+        if recovered:
+            for field, value in recovered.items():
+                plan["runtime"][field] = value
+            meta["status"] = plan["runtime"]["status"]
+        if plan.get("runtime", {}).get("status") == "done":
+            recorded = next((item for item in events if item.get("id") == submitted.get("id")), None)
+            if not recorded or any(recorded.get(key) != value for key, value in submitted.items()):
+                raise ValidationError("Finish event ID payload conflict")
+            problems = plan_artifact_problems(meta, plan, contract, events)
+            problems += done_reconcile_problems(plan, contract, events, orders)
+            if problems:
+                raise ValidationError("Finished PLAN is invalid:\n- " + "\n- ".join(problems))
+            target = Path(plan_path)
+            temp = target.with_suffix(target.suffix + ".tmp")
+            temp.write_text(render_plan(plan, meta.get("project", "project")), encoding="utf-8", newline="\n")
+            os.replace(temp, target)
+            return plan
+        problems = plan_artifact_problems(meta, plan, contract, events, require_building=True)
+        problems += validate_change_orders(orders)
+        problems += validate_cr_provenance(orders, events)
+        if problems:
+            raise ValidationError("Finish gate is invalid:\n- " + "\n- ".join(problems))
+        matrix = reconcile_closure(contract, plan, events, orders)
+        if matrix.get("status") != "clean":
+            raise ValidationError("Finish requires reconcile status=clean")
+        matrix_hash = reconcile_result_hash(matrix)
+        audit = next((item for item in events if item.get("id") == submitted.get("converge_audit_event")), None)
+        event_positions = {item.get("id"): index for index, item in enumerate(events)}
+        last_runtime_position = max(
+            (event_positions.get(item, -1) for item in plan["runtime"].get("applied_event_ids", [])),
+            default=-1,
+        )
+        if (not audit or audit.get("type") != "converge-audit" or audit.get("result") != "passed"
+                or audit.get("contract_hash") != plan.get("contract_hash")
+                or audit.get("plan_structure_hash") != plan.get("plan_structure_hash")
+                or audit.get("reconcile_hash") != matrix_hash
+                or audit.get("plan_revision") != plan["runtime"].get("revision", 0)
+                or event_positions.get(audit.get("id"), -1) <= last_runtime_position):
+            raise ValidationError("Finish requires a passed converge-audit event for this PLAN")
+        submitted["reconcile_hash"] = matrix_hash
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".json", delete=False) as stream:
+            json.dump(submitted, stream, ensure_ascii=False, sort_keys=True)
+            generated_path = stream.name
+        try:
+            return apply_plan_event_locked(
+                plan_path, generated_path, contract_path, ledger_path, allow_done=True,
+            )
+        finally:
+            try:
+                Path(generated_path).unlink()
+            except FileNotFoundError:
+                pass
+
+
 def render_plan(plan, project="fixture"):
     return (
         "---\n"
         f"project: {project}\n"
         f"contract-hash: {plan['contract_hash']}\n"
         f"plan-structure-hash: {plan['plan_structure_hash']}\n"
-        "status: planning\n"
+        f"status: {plan['runtime']['status']}\n"
         "---\n\n# Construction Plan\n\n```json plan\n"
         + json.dumps(plan, ensure_ascii=False, sort_keys=True, indent=2)
         + "\n```\n"
@@ -1192,11 +2152,97 @@ def report(label, problems):
 
 def selftest():
     failures = 0
+    brief_meta, brief, expected_brief_hash, brief_problems = validate_brief_artifact(
+        FIXTURES / "brief-valid.md"
+    )
+    if brief_meta.get("brief-hash") != expected_brief_hash:
+        brief_problems.append("valid brief fixture frontmatter hash mismatch")
+    failures += report("valid brief", brief_problems)
+
+    missing_success = json.loads(json.dumps(brief))
+    missing_success["items"] = [
+        item for item in missing_success["items"] if item.get("kind") != "success"
+    ]
+    duplicate_brief = json.loads(json.dumps(brief))
+    duplicate_brief["items"].append(json.loads(json.dumps(duplicate_brief["items"][0])))
+    missing_rejected = any("success item" in item for item in validate_brief(missing_success))
+    duplicate_rejected = any("duplicate item id" in item for item in validate_brief(duplicate_brief))
+    malformed_rejected = bool(validate_brief({
+        "schema_version": 1, "revision": 1, "status": [], "summary": "x",
+        "items": [], "frontier": [[]], "owner_confirmation": {},
+    }))
+    if missing_rejected and duplicate_rejected and malformed_rejected:
+        print("[invalid brief] OK (independent rules and malformed types rejected)")
+    else:
+        print("[invalid brief] X a brief invariant was accepted")
+        failures += 1
+
     valid_meta, valid = read_artifact(FIXTURES / "contract-valid.md", "contract")
     problems = validate_contract(valid)
     if valid_meta.get("contract-hash") != contract_hash(valid):
         problems.append("valid fixture frontmatter hash mismatch")
     failures += report("valid contract", problems)
+
+    grilled = json.loads(json.dumps(valid))
+    grilled["intake"] = {
+        "mode": "grilled",
+        "brief_path": "brief-valid.md",
+        "brief_hash": expected_brief_hash,
+        "dispositions": [
+            {"brief_id": "BF-01", "status": "consumed", "contract_ids": ["P-01"]},
+            {"brief_id": "BD-01", "status": "consumed", "contract_ids": ["P-01"]},
+            {"brief_id": "BS-01", "status": "consumed", "contract_ids": ["P-01", "V-01"]},
+        ],
+    }
+    grilled_problems = validate_contract(grilled)
+    grilled_problems += validate_contract_intake(FIXTURES / "contract-valid.md", grilled)
+    failures += report("brief-to-contract handoff", grilled_problems)
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        intake_dir = Path(temp_dir)
+        unverified_brief = json.loads(json.dumps(brief))
+        next(item for item in unverified_brief["items"] if item["id"] == "BF-01")["evidence_status"] = "unverified"
+        unverified_hash = brief_hash(unverified_brief)
+        (intake_dir / "brief.md").write_text(
+            "---\nstatus: final\nbrief-hash: " + unverified_hash
+            + "\n---\n\n```json brief\n"
+            + json.dumps(unverified_brief, ensure_ascii=False, sort_keys=True, indent=2)
+            + "\n```\n", encoding="utf-8", newline="\n",
+        )
+        unverified_contract = json.loads(json.dumps(grilled))
+        unverified_contract["intake"]["brief_path"] = "brief.md"
+        unverified_contract["intake"]["brief_hash"] = unverified_hash
+        unverified_problems = validate_contract_intake(intake_dir / "contract.md", unverified_contract)
+        inactive_contract = json.loads(json.dumps(grilled))
+        inactive_contract["nodes"]["P"][0]["status"] = "withdrawn"
+        inactive_problems = validate_contract(inactive_contract)
+        directory_contract = json.loads(json.dumps(grilled))
+        directory_contract["intake"]["brief_path"] = "."
+        directory_problems = validate_contract_intake(intake_dir / "contract.md", directory_contract)
+        bad_reason_contract = json.loads(json.dumps(grilled))
+        bad_reason_contract["intake"]["dispositions"][0] = {
+            "brief_id": "BF-01", "status": "deferred", "reason": True,
+        }
+        reason_problems = validate_contract(bad_reason_contract)
+    if (any("cannot map to P-01" in item for item in unverified_problems)
+            and any("consumed target must be active" in item for item in inactive_problems)
+            and any("readable file" in item for item in directory_problems)
+            and any("needs reason" in item for item in reason_problems)):
+        print("[brief intake safety] OK (evidence, active target, and path enforced)")
+    else:
+        print(f"[brief intake safety] X {unverified_problems + inactive_problems + directory_problems + reason_problems}")
+        failures += 1
+
+    broken_handoff = json.loads(json.dumps(grilled))
+    broken_handoff["intake"]["brief_hash"] = "stale"
+    broken_handoff["intake"]["dispositions"].pop()
+    handoff_problems = validate_contract_intake(FIXTURES / "contract-valid.md", broken_handoff)
+    if any("brief_hash mismatch" in item for item in handoff_problems) and any(
+            "no disposition" in item for item in handoff_problems):
+        print("[brief handoff tamper/coverage] OK (rejected)")
+    else:
+        print(f"[brief handoff tamper/coverage] X {handoff_problems}")
+        failures += 1
 
     invalid = json.loads(json.dumps(valid))
     invalid["control"]["audit_budget"] = -1
@@ -1244,6 +2290,253 @@ def selftest():
     if plan_meta.get("plan-structure-hash") != plan_hash(plan):
         problems.append("valid plan frontmatter hash mismatch")
     failures += report("valid plan", problems)
+    if any("confirmed and building" in item for item in plan_artifact_problems(
+            plan_meta, plan, valid, [], require_building=True)):
+        print("[PLAN confirmation gate] OK (planning PLAN rejected for build)")
+    else:
+        print("[PLAN confirmation gate] X planning PLAN accepted for build")
+        failures += 1
+    unauthorized = json.loads(json.dumps(compiled))
+    unauthorized["runtime"].update({
+        "status": "building", "selected_variants": {"I-01": "base"},
+        "selection_events": {"I-01": "EV-SELECT-UNAUTHORIZED"},
+        "step_states": {"S-I01-base-01": "pending"},
+    })
+    unauthorized_events = [{
+        "id": "EV-SELECT-UNAUTHORIZED", "type": "variant-selection",
+        "unit": "I-01", "variant": "base", "selector_evidence": "default",
+        "contract_hash": unauthorized["contract_hash"],
+        "plan_structure_hash": unauthorized["plan_structure_hash"],
+    }]
+    if any("owner confirmation" in item for item in validate_plan(unauthorized, valid, unauthorized_events)):
+        print("[PLAN owner authorization] OK (hand-edited activation rejected)")
+    else:
+        print("[PLAN owner authorization] X unauthorized activation accepted")
+        failures += 1
+    with tempfile.TemporaryDirectory() as temp_dir:
+        plan_dir = Path(temp_dir)
+        contract_path = plan_dir / "contract.md"
+        plan_path = plan_dir / "PLAN.md"
+        ledger_path = plan_dir / "events.jsonl"
+        selection_path = plan_dir / "selection.json"
+        owner_event_path = plan_dir / "owner-event.json"
+        state_path = plan_dir / "workflow-state.json"
+        review_event_path = plan_dir / "review-event.json"
+        audit_event_path = plan_dir / "audit-event.json"
+        release_event_path = plan_dir / "release-event.json"
+        contract_path.write_text((FIXTURES / "contract-valid.md").read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
+        update_frontmatter(contract_path, {"status": "draft", "phase": "intake"})
+        plan_path.write_text((FIXTURES / "plan-valid.md").read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
+        selection_path.write_text(json.dumps({
+            "id": "EV-PLAN-CONFIRM-TEST",
+            "authorization": "owner-confirmed",
+            "owner_event": "EV-OWNER-PLAN-TEST",
+            "selections": {"I-01": {"variant": "base", "selector_evidence": "default"}},
+        }), encoding="utf-8", newline="\n")
+        owner_event_path.write_text(json.dumps({
+            "id": "EV-OWNER-PLAN-TEST", "type": "owner-decision",
+            "decision": "plan-confirmation", "result": "accepted",
+            "contract_hash": plan["contract_hash"],
+            "plan_structure_hash": plan["plan_structure_hash"],
+        }), encoding="utf-8", newline="\n")
+        review_event_path.write_text(json.dumps({
+            "id": "EV-REVIEW-TEST", "to_status": "reviewing",
+            "to_phase": "final-audit-recorded",
+        }), encoding="utf-8", newline="\n")
+        audit_event_path.write_text(json.dumps({
+            "id": "EV-AUDIT-TEST", "type": "final-audit", "result": "passed",
+            "contract_hash": plan["contract_hash"],
+        }), encoding="utf-8", newline="\n")
+        release_event_path.write_text(json.dumps({
+            "id": "EV-RELEASE-TEST", "to_status": "passed", "to_phase": "idle",
+            "contract_hash": plan["contract_hash"], "final_audit_event": "EV-AUDIT-TEST",
+        }), encoding="utf-8", newline="\n")
+        append_event(state_path, ledger_path, review_event_path, 0)
+        record_evidence_event(ledger_path, audit_event_path)
+        release_contract(contract_path, state_path, ledger_path, release_event_path, 1)
+        record_evidence_event(ledger_path, owner_event_path)
+        confirmed = confirm_plan(plan_path, selection_path, contract_path, ledger_path)
+        confirmed_meta, confirmed_artifact = read_artifact(plan_path, "plan")
+        confirmation_problems = plan_artifact_problems(
+            confirmed_meta, confirmed_artifact, valid, load_ledger(ledger_path),
+            require_building=True,
+        )
+        confirm_idempotent = confirm_plan(plan_path, selection_path, contract_path, ledger_path)
+        conflicting_selection = plan_dir / "conflicting-selection.json"
+        conflicting_selection.write_text(json.dumps({
+            "id": "EV-PLAN-CONFIRM-TEST", "authorization": "owner-confirmed",
+            "owner_event": "EV-OWNER-DOES-NOT-EXIST",
+            "selections": {"I-01": {"variant": "base", "selector_evidence": "default"}},
+        }), encoding="utf-8", newline="\n")
+        confirmation_conflict_blocked = False
+        try:
+            confirm_plan(plan_path, conflicting_selection, contract_path, ledger_path)
+        except ValidationError:
+            confirmation_conflict_blocked = True
+        confirmation_events = load_ledger(ledger_path)
+        step_id = confirmed_artifact["steps"][0]["id"]
+        step_digest = step_hash(confirmed_artifact["steps"][0])
+        for revision, event_id, target_state in (
+                (0, "EV-STEP-SELECTED", "selected"),
+                (1, "EV-STEP-EXECUTING", "executing"),
+                (2, "EV-STEP-VERIFYING", "verifying")):
+            runtime_event = plan_dir / f"{event_id}.json"
+            runtime_event.write_text(json.dumps({
+                "id": event_id, "type": "step-transition",
+                "step_id": step_id, "to_state": target_state,
+                "expected_revision": revision,
+                "contract_hash": plan["contract_hash"],
+                "plan_structure_hash": plan["plan_structure_hash"],
+                "step_hash": step_digest,
+            }), encoding="utf-8", newline="\n")
+            apply_plan_event(plan_path, runtime_event, contract_path, ledger_path)
+        verification_path = plan_dir / "verification.json"
+        verification_path.write_text(json.dumps({
+            "id": "EV-STEP-V-TEST", "type": "step-verification",
+            "step_id": step_id, "v_id": "V-01", "result": "passed",
+            "output_hash": "test-output", "contract_hash": plan["contract_hash"],
+            "plan_structure_hash": plan["plan_structure_hash"], "step_hash": step_digest,
+        }), encoding="utf-8", newline="\n")
+        record_evidence_event(ledger_path, verification_path)
+        attempt_path = plan_dir / "attempt.json"
+        attempt_path.write_text(json.dumps({
+            "id": "EV-ATTEMPT-TEST", "type": "attempt", "step_id": step_id,
+            "result": "passed", "verification_events": ["EV-STEP-V-TEST"],
+            "contract_hash": plan["contract_hash"],
+            "plan_structure_hash": plan["plan_structure_hash"], "step_hash": step_digest,
+        }), encoding="utf-8", newline="\n")
+        record_evidence_event(ledger_path, attempt_path)
+        complete_path = plan_dir / "complete.json"
+        complete_path.write_text(json.dumps({
+            "id": "EV-STEP-COMPLETE", "type": "step-transition",
+            "step_id": step_id, "to_state": "complete", "attempt_id": "EV-ATTEMPT-TEST",
+            "expected_revision": 3,
+            "contract_hash": plan["contract_hash"],
+            "plan_structure_hash": plan["plan_structure_hash"], "step_hash": step_digest,
+        }), encoding="utf-8", newline="\n")
+        apply_plan_event(plan_path, complete_path, contract_path, ledger_path)
+        for revision, event_id, target_status in (
+                (4, "EV-PLAN-PAUSE", "paused"),
+                (5, "EV-PLAN-RESUME", "building")):
+            runtime_event = plan_dir / f"{event_id}.json"
+            runtime_event.write_text(json.dumps({
+                "id": event_id, "type": "plan-transition", "to_status": target_status,
+                "expected_revision": revision,
+                "contract_hash": plan["contract_hash"],
+                "plan_structure_hash": plan["plan_structure_hash"],
+            }), encoding="utf-8", newline="\n")
+            apply_plan_event(plan_path, runtime_event, contract_path, ledger_path)
+        change_path = plan_dir / "change-orders.md"
+        change_path.write_text(
+            (FIXTURES / "change-orders-valid.md").read_text(encoding="utf-8"),
+            encoding="utf-8", newline="\n",
+        )
+        _, prefinish_plan = read_artifact(plan_path, "plan")
+        _, prefinish_orders = read_artifact(change_path, "change-orders")
+        prefinish_matrix = reconcile_closure(
+            valid, prefinish_plan, load_ledger(ledger_path), prefinish_orders,
+        )
+        converge_path = plan_dir / "converge.json"
+        converge_path.write_text(json.dumps({
+            "id": "EV-CONVERGE-TEST", "type": "converge-audit", "result": "passed",
+            "contract_hash": plan["contract_hash"],
+            "plan_structure_hash": plan["plan_structure_hash"],
+            "reconcile_hash": reconcile_result_hash(prefinish_matrix),
+            "plan_revision": prefinish_plan["runtime"]["revision"],
+        }), encoding="utf-8", newline="\n")
+        record_evidence_event(ledger_path, converge_path)
+        finish_path = plan_dir / "finish.json"
+        finish_path.write_text(json.dumps({
+            "id": "EV-PLAN-DONE", "type": "plan-transition", "to_status": "done",
+            "expected_revision": 6, "converge_audit_event": "EV-CONVERGE-TEST",
+            "contract_hash": plan["contract_hash"],
+            "plan_structure_hash": plan["plan_structure_hash"],
+        }), encoding="utf-8", newline="\n")
+        generic_done_blocked = False
+        try:
+            apply_plan_event(plan_path, finish_path, contract_path, ledger_path)
+        except ValidationError:
+            generic_done_blocked = True
+        final_runtime = finish_plan(plan_path, finish_path, contract_path, change_path, ledger_path)
+        finish_idempotent = finish_plan(plan_path, finish_path, contract_path, change_path, ledger_path)
+        final_meta, final_plan = read_artifact(plan_path, "plan")
+        runtime_problems = plan_artifact_problems(
+            final_meta, final_plan, valid, load_ledger(ledger_path),
+        )
+    if (not confirmation_problems and confirmed["runtime"]["status"] == "building"
+            and confirm_idempotent["runtime"]["status"] == "building"
+            and confirmation_conflict_blocked and len(confirmation_events) == 5):
+        print("[PLAN confirmation event] OK (activated and idempotent)")
+    else:
+        print(f"[PLAN confirmation event] X {confirmation_problems}")
+        failures += 1
+    if (not runtime_problems and generic_done_blocked
+            and final_runtime["runtime"]["status"] == "done"
+            and finish_idempotent["runtime"]["status"] == "done"):
+        print("[PLAN runtime events] OK (step, pause, resume, and done projected)")
+    else:
+        print(f"[PLAN runtime events] X {runtime_problems}")
+        failures += 1
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        legacy_dir = Path(temp_dir)
+        legacy = json.loads(json.dumps(valid))
+        legacy.pop("intake")
+        legacy_hash = contract_hash(legacy)
+        legacy_path = legacy_dir / "legacy.md"
+        legacy_path.write_text(
+            "---\nstatus: passed\ncontract-hash: " + legacy_hash
+            + "\n---\n\n```json contract\n"
+            + json.dumps(legacy, ensure_ascii=False, sort_keys=True, indent=2)
+            + "\n```\n", encoding="utf-8", newline="\n",
+        )
+        legacy_blocked = False
+        try:
+            read_checked_contract(legacy_path, require_released=True)
+        except ValidationError:
+            legacy_blocked = True
+        draft_path = legacy_dir / "draft.md"
+        draft_path.write_text(
+            "---\nstatus: draft\n---\n\n```json contract\n"
+            + json.dumps(valid, ensure_ascii=False, sort_keys=True, indent=2)
+            + "\n```\n", encoding="utf-8", newline="\n",
+        )
+        draft_blocked = False
+        try:
+            read_checked_contract(draft_path, require_released=True)
+        except ValidationError:
+            draft_blocked = True
+        self_declared_path = legacy_dir / "self-declared.md"
+        self_declared_path.write_text(
+            (FIXTURES / "contract-valid.md").read_text(encoding="utf-8"),
+            encoding="utf-8", newline="\n",
+        )
+        self_declared_blocked = False
+        try:
+            read_checked_contract(self_declared_path, require_released=True)
+        except ValidationError:
+            self_declared_blocked = True
+    if legacy_blocked and draft_blocked and self_declared_blocked:
+        print("[contract schema/release gate] OK (schema, status, and release proof enforced)")
+    else:
+        print("[contract schema/release gate] X schema or release gate failed")
+        failures += 1
+    future_release = {
+        "id": "EV-RELEASE-FUTURE", "to_status": "passed", "to_phase": "idle",
+        "contract_hash": contract_hash(valid), "final_audit_event": "EV-AUDIT-FUTURE",
+    }
+    try:
+        validate_release_transition(future_release, [
+            future_release,
+            {"id": "EV-AUDIT-FUTURE", "type": "final-audit", "result": "passed",
+             "contract_hash": contract_hash(valid)},
+        ])
+        future_release_blocked = False
+    except ValidationError:
+        future_release_blocked = True
+    print("[release evidence order] " + ("OK" if future_release_blocked else "X future evidence accepted"))
+    if not future_release_blocked:
+        failures += 1
     forged = json.loads(json.dumps(plan))
     forged["variant_rules"]["I-01"][0]["selector"] = {"default": False, "forged": True}
     forged["plan_structure_hash"] = plan_hash(forged)
@@ -1267,7 +2560,7 @@ def selftest():
         "attempts": {"S-I01-base-01": ["EV-ATTEMPT"]},
     })
     stale_events = [
-        {"id": "EV-SELECT", "type": "variant-selection", "unit": "I-01", "variant": "base", "selector_evidence": "default", "contract_hash": "stale", "plan_structure_hash": "stale"},
+        {"id": "EV-SELECT", "type": "variant-selection", "unit": "I-01", "variant": "base", "selector_evidence": "default", "authorization": "owner-confirmed", "owner_event": "EV-OWNER-STALE", "contract_hash": "stale", "plan_structure_hash": "stale"},
         {"id": "EV-ATTEMPT", "type": "attempt", "step_id": "S-I01-base-01", "result": "passed", "verification_events": ["EV-V"], "contract_hash": "stale", "plan_structure_hash": "stale", "step_hash": "stale"},
         {"id": "EV-V", "type": "step-verification", "step_id": "S-I01-base-01", "v_id": "V-01", "result": "passed", "output_hash": "fake", "contract_hash": "stale", "plan_structure_hash": "stale", "step_hash": "stale"},
     ]
@@ -1286,20 +2579,51 @@ def selftest():
         "selection_events": {"I-01": "EV-SELECT-OK"},
         "step_states": {"S-I01-base-01": "complete"},
         "attempts": {"S-I01-base-01": ["EV-ATTEMPT-OK"]},
+        "applied_event_ids": ["EV-STEP-SELECT-OK", "EV-STEP-EXECUTE-OK", "EV-STEP-VERIFY-OK", "EV-STEP-COMPLETE-OK", "EV-DONE-OK"],
+        "revision": 5,
     })
     done_events = [
+        {"id": "EV-OWNER-OK", "type": "owner-decision", "decision": "plan-confirmation", "result": "accepted",
+         "contract_hash": done_hash, "plan_structure_hash": done_plan_hash},
         {"id": "EV-SELECT-OK", "type": "variant-selection", "unit": "I-01", "variant": "base",
-         "selector_evidence": "default", "contract_hash": done_hash, "plan_structure_hash": done_plan_hash},
+         "selector_evidence": "default", "authorization": "owner-confirmed", "owner_event": "EV-OWNER-OK",
+         "contract_hash": done_hash, "plan_structure_hash": done_plan_hash},
         {"id": "EV-V-OK", "type": "step-verification", "step_id": "S-I01-base-01", "v_id": "V-01",
          "result": "passed", "output_hash": "h", "contract_hash": done_hash,
          "plan_structure_hash": done_plan_hash, "step_hash": done_step_hash},
         {"id": "EV-ATTEMPT-OK", "type": "attempt", "step_id": "S-I01-base-01", "result": "passed",
          "verification_events": ["EV-V-OK"], "contract_hash": done_hash,
          "plan_structure_hash": done_plan_hash, "step_hash": done_step_hash},
+        {"id": "EV-STEP-SELECT-OK", "type": "step-transition", "step_id": "S-I01-base-01", "to_state": "selected",
+         "expected_revision": 0, "from_plan_revision": 0, "contract_hash": done_hash,
+         "plan_structure_hash": done_plan_hash, "step_hash": done_step_hash},
+        {"id": "EV-STEP-EXECUTE-OK", "type": "step-transition", "step_id": "S-I01-base-01", "to_state": "executing",
+         "expected_revision": 1, "from_plan_revision": 1, "contract_hash": done_hash,
+         "plan_structure_hash": done_plan_hash, "step_hash": done_step_hash},
+        {"id": "EV-STEP-VERIFY-OK", "type": "step-transition", "step_id": "S-I01-base-01", "to_state": "verifying",
+         "expected_revision": 2, "from_plan_revision": 2, "contract_hash": done_hash,
+         "plan_structure_hash": done_plan_hash, "step_hash": done_step_hash},
+        {"id": "EV-STEP-COMPLETE-OK", "type": "step-transition", "step_id": "S-I01-base-01", "to_state": "complete",
+         "attempt_id": "EV-ATTEMPT-OK", "expected_revision": 3, "from_plan_revision": 3,
+         "contract_hash": done_hash, "plan_structure_hash": done_plan_hash, "step_hash": done_step_hash},
+        {"id": "EV-CONVERGE-OK", "type": "converge-audit", "result": "passed",
+         "contract_hash": done_hash, "plan_structure_hash": done_plan_hash,
+         "reconcile_hash": "selftest", "plan_revision": 4},
+        {"id": "EV-DONE-OK", "type": "plan-transition", "to_status": "done", "expected_revision": 4,
+         "from_plan_revision": 4, "reconcile_hash": "selftest", "converge_audit_event": "EV-CONVERGE-OK",
+         "contract_hash": done_hash, "plan_structure_hash": done_plan_hash},
     ]
     if validate_plan(clean_done, valid, done_events):
         failures += 1
         print("[reconcile closure] X fully evidenced done PLAN rejected")
+    forged_runtime = json.loads(json.dumps(clean_done))
+    forged_runtime["runtime"]["applied_event_ids"] = []
+    forged_runtime["runtime"]["revision"] = 0
+    if any("ledger replay" in item for item in validate_plan(forged_runtime, valid, done_events)):
+        print("[runtime ledger replay] OK (forged snapshot rejected)")
+    else:
+        failures += 1
+        print("[runtime ledger replay] X forged done snapshot accepted")
     matrix = reconcile_closure(valid, clean_done, done_events, {"revision": 0, "orders": []})
     if matrix["status"] == "clean" and matrix["coverage"]["P-01"]["closed"]:
         print("[reconcile closure] OK (clean matrix)")
@@ -1546,12 +2870,18 @@ def main(argv):
             print(__doc__)
             return 2
         command = argv[1]
+        if command == "brief":
+            meta, brief, expected, problems = validate_brief_artifact(argv[2])
+            print(f"brief-hash: {expected}")
+            return report("brief", problems)
         if command == "contract":
             meta, contract = read_artifact(argv[2], "contract")
-            problems = validate_contract(contract)
             expected = contract_hash(contract)
+            problems = contract_problems(argv[2], contract)
             if meta.get("status") not in CONTRACT_STATUS:
                 problems.append("frontmatter status is invalid")
+            elif meta.get("phase") not in STATUS_PHASES.get(meta.get("status"), set()):
+                problems.append("frontmatter status/phase pair is invalid")
             if meta.get("status") in {"passed", "conditional"} and meta.get("contract-hash") != expected:
                 problems.append("frontmatter contract-hash mismatch")
             print(f"contract-hash: {expected}")
@@ -1563,7 +2893,7 @@ def main(argv):
             ledger_path = argv[argv.index("--ledger") + 1]
             recovery = argv[argv.index("--recovery-cr") + 1] if "--recovery-cr" in argv else None
             recovery_order = enforce_cr_gate(change_path, ledger_path, recovery)
-            meta, contract = read_artifact(argv[2], "contract")
+            meta, contract = read_checked_contract(argv[2], require_released=True, ledger_path=ledger_path)
             plan = compile_plan(contract)
             if recovery_order:
                 if "--previous-contract" not in argv:
@@ -1577,6 +2907,35 @@ def main(argv):
             Path(argv[3]).write_text(render_plan(plan, meta.get("project", "project")), encoding="utf-8", newline="\n")
             print(f"wrote {argv[3]} ({len(plan['steps'])} variant-segments)")
             return 0
+        if command == "confirm-plan" and len(argv) >= 4:
+            if "--contract" not in argv or "--ledger" not in argv:
+                raise ValidationError("confirm-plan requires --contract and --ledger")
+            plan = confirm_plan(
+                argv[2], argv[3], argv[argv.index("--contract") + 1],
+                argv[argv.index("--ledger") + 1],
+            )
+            print(f"confirmed {argv[2]} ({len(plan['runtime']['selected_variants'])} variants)")
+            return 0
+        if command == "plan-event" and len(argv) >= 4:
+            if "--contract" not in argv or "--ledger" not in argv:
+                raise ValidationError("plan-event requires --contract and --ledger")
+            plan = apply_plan_event(
+                argv[2], argv[3], argv[argv.index("--contract") + 1],
+                argv[argv.index("--ledger") + 1],
+            )
+            print(f"PLAN runtime status: {plan['runtime']['status']}")
+            return 0
+        if command == "finish-plan" and len(argv) >= 4:
+            for flag in ("--contract", "--change-orders", "--ledger"):
+                if flag not in argv:
+                    raise ValidationError("finish-plan requires --contract, --change-orders, and --ledger")
+            plan = finish_plan(
+                argv[2], argv[3], argv[argv.index("--contract") + 1],
+                argv[argv.index("--change-orders") + 1],
+                argv[argv.index("--ledger") + 1],
+            )
+            print(f"finished {argv[2]} ({plan['runtime']['status']})")
+            return 0
         if command == "plan":
             if "--contract" not in argv or "--change-orders" not in argv or "--ledger" not in argv:
                 raise ValidationError("plan command requires --contract, --change-orders, and --ledger")
@@ -1584,20 +2943,33 @@ def main(argv):
             ledger_path = argv[argv.index("--ledger") + 1]
             recovery_order = enforce_cr_gate(argv[argv.index("--change-orders") + 1], ledger_path, recovery)
             contract_path = argv[argv.index("--contract") + 1]
-            _, contract = read_artifact(contract_path, "contract")
+            _, contract = read_checked_contract(contract_path, require_released=True, ledger_path=ledger_path)
             if recovery_order:
                 if "--previous-contract" not in argv:
                     raise ValidationError("CR recovery plan validation requires --previous-contract")
                 _, old_contract = read_artifact(argv[argv.index("--previous-contract") + 1], "contract")
                 enforce_recovery_contract_scope(old_contract, contract, recovery_order)
-            _, plan = read_artifact(argv[2], "plan")
-            return report("plan", validate_plan(plan, contract, load_ledger(ledger_path)))
+            plan_meta, plan = read_artifact(argv[2], "plan")
+            plan_problems = plan_artifact_problems(
+                plan_meta, plan, contract, load_ledger(ledger_path),
+                require_building="--require-building" in argv,
+                require_resumable="--require-resumable" in argv,
+            )
+            if plan.get("runtime", {}).get("status") == "done":
+                _, orders = read_artifact(argv[argv.index("--change-orders") + 1], "change-orders")
+                plan_problems += done_reconcile_problems(
+                    plan, contract, load_ledger(ledger_path), orders,
+                )
+            return report("plan", plan_problems)
         if command == "reconcile" and len(argv) >= 3:
             for flag in ("--contract", "--change-orders", "--ledger"):
                 if flag not in argv:
                     raise ValidationError("reconcile requires --contract, --change-orders, and --ledger")
             ledger_path = argv[argv.index("--ledger") + 1]
-            _, contract = read_artifact(argv[argv.index("--contract") + 1], "contract")
+            _, contract = read_checked_contract(
+                argv[argv.index("--contract") + 1], require_released=True,
+                ledger_path=ledger_path,
+            )
             _, orders = read_artifact(argv[argv.index("--change-orders") + 1], "change-orders")
             _, plan = read_artifact(argv[2], "plan")
             events = load_ledger(ledger_path)
@@ -1607,8 +2979,13 @@ def main(argv):
             problems += validate_cr_provenance(orders, events)
             if problems:
                 return report("reconcile", problems)
-            print(json.dumps(reconcile_closure(contract, plan, events, orders),
-                             ensure_ascii=False, sort_keys=True, indent=2))
+            matrix = reconcile_closure(contract, plan, events, orders)
+            output = dict(
+                matrix,
+                reconcile_hash=reconcile_result_hash(matrix),
+                plan_revision=plan.get("runtime", {}).get("revision", 0),
+            )
+            print(json.dumps(output, ensure_ascii=False, sort_keys=True, indent=2))
             return 0
         if command == "change-orders":
             if "--ledger" not in argv:
@@ -1618,18 +2995,14 @@ def main(argv):
             problems.extend(validate_cr_provenance(data, load_ledger(argv[argv.index("--ledger") + 1])))
             return report("change-orders", problems)
         if command == "impact" and len(argv) >= 4:
-            _, contract = read_artifact(argv[2], "contract")
-            problems = validate_contract(contract)
-            if problems:
-                raise ValidationError("contract is invalid:\n- " + "\n- ".join(problems))
+            _, contract = read_checked_contract(argv[2])
             plan = compile_plan(contract)
             print(json.dumps(impact_closure(contract, argv[3:], plan), ensure_ascii=False, sort_keys=True, indent=2))
             return 0
         if command == "init" and len(argv) == 4:
-            meta, contract = read_artifact(argv[2], "contract")
-            problems = validate_contract(contract)
-            if problems:
-                raise ValidationError("contract is invalid:\n- " + "\n- ".join(problems))
+            meta, contract = read_checked_contract(argv[2])
+            if meta.get("status") != "draft" or meta.get("phase") not in {"intake", "idle"}:
+                raise ValidationError("workflow state must be initialized from a draft contract")
             target = Path(argv[3])
             if target.exists():
                 raise ValidationError(f"state already exists: {target}")
@@ -1644,7 +3017,17 @@ def main(argv):
             if len(argv) < 5 or "--expected-revision" not in argv:
                 raise ValidationError("event requires state, ledger, event and --expected-revision N")
             revision = int(argv[argv.index("--expected-revision") + 1])
+            submitted = json.loads(Path(argv[4]).read_text(encoding="utf-8"))
+            if submitted.get("to_status") in {"passed", "conditional"}:
+                raise ValidationError("use release so contract frontmatter is projected with workflow state")
             state = append_event(argv[2], argv[3], argv[4], revision)
+            print(json.dumps(state, ensure_ascii=False, sort_keys=True))
+            return 0
+        if command == "release":
+            if len(argv) < 6 or "--expected-revision" not in argv:
+                raise ValidationError("release requires contract, state, ledger, event, and --expected-revision N")
+            revision = int(argv[argv.index("--expected-revision") + 1])
+            state = release_contract(argv[2], argv[3], argv[4], argv[5], revision)
             print(json.dumps(state, ensure_ascii=False, sort_keys=True))
             return 0
         if command == "record" and len(argv) == 4:
@@ -1656,13 +3039,14 @@ def main(argv):
                 raise ValidationError("cr-event requires change-orders, ledger, event, --contract, and --expected-revision N")
             revision = int(argv[argv.index("--expected-revision") + 1])
             capability = argv[argv.index("--capability") + 1] if "--capability" in argv else None
-            _, contract = read_artifact(argv[argv.index("--contract") + 1], "contract")
+            _, contract = read_checked_contract(argv[argv.index("--contract") + 1])
             data = apply_cr_event(argv[2], argv[3], argv[4], revision, capability, contract)
             print(json.dumps(data, ensure_ascii=False, sort_keys=True))
             return 0
         print(__doc__)
         return 2
-    except (FileNotFoundError, ValidationError, ValueError, json.JSONDecodeError) as exc:
+    except (OSError, ValidationError, ValueError, TypeError, AttributeError, KeyError,
+            json.JSONDecodeError) as exc:
         print(f"error: {exc}")
         return 2
 

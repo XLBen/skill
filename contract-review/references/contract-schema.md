@@ -3,7 +3,7 @@
 > When to read: before drafting or editing the contract JSON, and whenever
 > HASH/STATE/CR/COMPILER rules are cited.
 
-This file is the normative protocol for `contract-review` and `construction`.
+This file is the normative protocol for `grill`, `contract-review`, and `construction`.
 `scripts/check.py` and its fixtures are the executable definition when prose
 and implementation disagree.
 
@@ -24,7 +24,7 @@ interface is genuinely equivalent, or a rollback is operationally sound.
 
 ````markdown
 ```json contract
-{ "profile": "light", "control": { ... }, "nodes": { ... } }
+{ "intake": { "mode": "direct" }, "profile": "light", "control": { ... }, "nodes": { ... } }
 ```
 ````
 
@@ -44,6 +44,13 @@ node has this common envelope:
 Supported node groups are `P/T/W/F/I/D/E/A/R/V/B`. IDs are stable and never
 reused. Replacement edges must be bidirectional. Inactive nodes remain for
 audit history but do not satisfy current coverage.
+
+`intake.mode` is mandatory. `direct` means the input was already specific
+enough for review. `grilled` binds `brief_path`, `brief_hash`, and a disposition
+for every typed item in the final brief. The path is relative to the contract
+file and must not escape its directory. Consumed items cite concrete contract
+IDs; deferred or rejected items carry a reason. Missing coverage blocks
+contract release.
 
 ## User Control
 
@@ -85,6 +92,12 @@ excluded from the projection. Referenced evidence requires `bundle_hash`,
 computed with domain `evidence-bundle` over the evidence node excluding
 that field.
 
+Requirement brief hashes use domain `requirement-brief` over the authoritative
+`json brief` block. A grilled contract stores that hash inside canonical
+`intake`, so the brief is transitively bound into the contract and PLAN hashes.
+`check.py contract` automatically loads and verifies the referenced brief; the
+check cannot be bypassed by omitting a CLI flag.
+
 JSON integers and floating-point values are intentionally distinct (`1` is not
 `1.0`); schema-defined counts use integers. This avoids implementation-specific
 numeric coercion in the current hash profile.
@@ -125,6 +138,12 @@ Writers supply `expected-revision`; stale writes fail instead of overwriting
 another session. Append the event and fsync it before atomically replacing the
 projection. Replaying an existing event ID is idempotent.
 
+`passed`/`conditional` are release proofs, not editable labels. Their workflow
+transition names the exact contract hash and a passed `final-audit` event; the
+engine replays the ledger from draft and compares `workflow-state.json` before
+compile. A conditional release additionally binds an accepted owner decision,
+active residual R IDs, and passed `release-verification` events for its V IDs.
+
 Supported contract statuses include `draft`, `reviewing`, `awaiting-owner`,
 `blocked`, `suspended`, `re-reviewing`, `passed`, and `conditional`.
 `conditional` requires a structurally valid contract and only owner-signed,
@@ -149,17 +168,22 @@ missing acceptance criterion.
 ## Commands
 
 ```powershell
-python scripts/check.py contract docs/contract.md
-python scripts/check.py init docs/contract.md docs/workflow-state.json
-python scripts/check.py compile docs/contract.md docs/PLAN.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
-python scripts/check.py plan docs/PLAN.md --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
-python scripts/check.py reconcile docs/PLAN.md --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
-python scripts/check.py change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
-python scripts/check.py impact docs/contract.md A-01
-python scripts/check.py event docs/workflow-state.json docs/workflow-events.jsonl event.json --expected-revision 3
-python scripts/check.py record docs/workflow-events.jsonl verification-event.json
-python scripts/check.py cr-event docs/change-orders.md docs/workflow-events.jsonl event.json --contract docs/contract.md --expected-revision 3 --capability cr-recovery
-python scripts/check.py --selftest
+python .opencode/workflow/scripts/check.py brief docs/brief.md
+python .opencode/workflow/scripts/check.py contract docs/contract.md
+python .opencode/workflow/scripts/check.py init docs/contract.md docs/workflow-state.json
+python .opencode/workflow/scripts/check.py compile docs/contract.md docs/PLAN.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
+python .opencode/workflow/scripts/check.py plan docs/PLAN.md --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
+python .opencode/workflow/scripts/check.py confirm-plan docs/PLAN.md selection.json --contract docs/contract.md --ledger docs/workflow-events.jsonl
+python .opencode/workflow/scripts/check.py plan-event docs/PLAN.md event.json --contract docs/contract.md --ledger docs/workflow-events.jsonl
+python .opencode/workflow/scripts/check.py finish-plan docs/PLAN.md finish-event.json --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
+python .opencode/workflow/scripts/check.py reconcile docs/PLAN.md --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
+python .opencode/workflow/scripts/check.py change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
+python .opencode/workflow/scripts/check.py impact docs/contract.md A-01
+python .opencode/workflow/scripts/check.py event docs/workflow-state.json docs/workflow-events.jsonl event.json --expected-revision 3
+python .opencode/workflow/scripts/check.py release docs/contract.md docs/workflow-state.json docs/workflow-events.jsonl release-event.json --expected-revision 3
+python .opencode/workflow/scripts/check.py record docs/workflow-events.jsonl verification-event.json
+python .opencode/workflow/scripts/check.py cr-event docs/change-orders.md docs/workflow-events.jsonl event.json --contract docs/contract.md --expected-revision 3 --capability cr-recovery
+python .opencode/workflow/scripts/check.py --selftest
 ```
 
 Do not hand-edit compiled PLAN structure. Runtime fields may change through the

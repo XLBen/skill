@@ -1,7 +1,7 @@
 ---
 project: fixture
-contract-hash: ce50b6385e574c76c12a9103d2ea9ba69feec4949e82bb2246cc76cd24d7ff48
-plan-structure-hash: 7ef7f61f0679fc355872623630e4d8172879afbd7550855b3baaed636dacb1fb
+contract-hash: eedaea79c9691e9a72edc9acd591c758423448339f8123278f46ecdba8bacdf6
+plan-structure-hash: ea47f5f32fa9213f9526952ccb62922e191221a6be6f268cae55d8a24c243671
 status: planning
 ---
 
@@ -9,8 +9,8 @@ status: planning
 
 ```json plan
 {
-  "contract_hash": "ce50b6385e574c76c12a9103d2ea9ba69feec4949e82bb2246cc76cd24d7ff48",
-  "plan_structure_hash": "7ef7f61f0679fc355872623630e4d8172879afbd7550855b3baaed636dacb1fb",
+  "contract_hash": "eedaea79c9691e9a72edc9acd591c758423448339f8123278f46ecdba8bacdf6",
+  "plan_structure_hash": "ea47f5f32fa9213f9526952ccb62922e191221a6be6f268cae55d8a24c243671",
   "runtime": {
     "attempts": {},
     "selected_variants": {},

@@ -2,7 +2,7 @@
 project: fixture
 status: passed
 phase: idle
-contract-hash: ce50b6385e574c76c12a9103d2ea9ba69feec4949e82bb2246cc76cd24d7ff48
+contract-hash: eedaea79c9691e9a72edc9acd591c758423448339f8123278f46ecdba8bacdf6
 ---
 
 # Fixture Contract
@@ -10,6 +10,9 @@ contract-hash: ce50b6385e574c76c12a9103d2ea9ba69feec4949e82bb2246cc76cd24d7ff48
 ```json contract
 {
   "profile": "light",
+  "intake": {
+    "mode": "direct"
+  },
   "control": {
     "interaction": "checkpoints",
     "audit_budget": 2,

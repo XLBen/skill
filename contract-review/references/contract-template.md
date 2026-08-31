@@ -53,12 +53,36 @@ V summary.
 
 ## Contract
 ```json contract
-{ ... }
+{
+  "intake": {
+    "mode": "direct"
+  },
+  "profile": "light",
+  "control": { ... },
+  "nodes": { ... }
+}
 ```
 ```
 
 The JSON block, not duplicated prose, is the hash input and construction
 contract.
+
+`intake` is mandatory. Use `{"mode":"direct"}` only when the request was
+already ready for review. A grilled intake is canonical and hash-bound:
+
+```json
+{
+  "mode": "grilled",
+  "brief_path": "brief.md",
+  "brief_hash": "<requirement-brief hash>",
+  "dispositions": [
+    {"brief_id": "BS-01", "status": "consumed", "contract_ids": ["P-01", "V-01"]}
+  ]
+}
+```
+
+The path is relative to `docs/contract.md`. Every brief item appears exactly
+once as `consumed`, `deferred`, or `rejected`; the latter two require a reason.
 
 ## Minimum By Profile
 

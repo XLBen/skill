@@ -1,13 +1,13 @@
 ---
 name: contract-review
-description: Use when the user types /评审, /论证, /质疑, /评估, /规划 (directed triggers) or natural language such as 评审方案/论证方案/需求评审/评估项目/苏格拉底式质疑/规划/编译PLAN (non-directed triggers) to review a requirement into a machine-validated contract and plan the accepted contract into a confirmed PLAN. Preserves owner decisions, runs proportionate independent challenge, and validates everything with scripts/check.py. Not for academic writing, code review, or executing construction steps.
+description: Use when the user types /review, /debate, /assess, or /plan, or asks to 评审方案、论证设计、评估项目或编译PLAN. Converts ready requirements or a validated grill brief into a machine-checked contract and confirmed PLAN. Routes vague or high-risk requirements to grill; never executes construction steps.
 license: MIT
 metadata:
   language: "zh-CN"
   produces: "docs/contract.md, docs/PLAN.md, docs/review-log.md, docs/evidence/, docs/change-orders.md, docs/workflow-events.jsonl"
   next-skill: "construction"
-  calls-skills: "reviewer"
-  commands: "/评审 <方案>, /论证 <设计>, /质疑 <想法>, /评估 <项目>, /规划"
+  calls-skills: "grill, reviewer"
+  commands: "/review <requirements>, /debate <design>, /assess <idea>, /plan"
 ---
 
 # Contract Review (评审 + 规划)
@@ -20,18 +20,24 @@ change the user's requirements.
 
 ## Commands
 
-| 指令 | 何时用 | 做什么 | 产出 |
-|---|---|---|---|
-| `/评审 <方案>` | 有新需求，动手前先定清楚 | 问答决策 → 起草契约 → 独立挑战 → 终审 | `docs/contract.md`（passed） |
-| `/论证 <设计>` | 已有一个具体设计要检验 | 针对该设计取证攻防，走评审流程 | 契约或问题清单 |
-| `/质疑 <想法>` | 还没有契约，只想快速找漏洞 | 苏格拉底式追问，不进契约流程 | 问题清单 |
-| `/评估 <项目>` | 想知道值不值得做 | 可行性论证 | 评估结论 + 建议 |
-| `/规划` | 契约已 passed，要变成可执行计划 | 门校验 → 编译 PLAN → 变体确认 | `docs/PLAN.md`（已确认） |
+- `/review <requirements>` is the normal entry: ready requirements become a
+  reviewed contract. If user/problem/outcome/constraints/success are materially
+  unclear, or the work is costly, irreversible, privacy/security sensitive, or
+  otherwise high-risk, load grill instead of guessing.
+- `/plan` compiles a passed contract into `docs/PLAN.md` and confirms its
+  variants. It does not review requirements again.
+- `/debate <design>` examines an existing design and its trade-offs.
+- `/assess <idea>` gives a go/clarify/stop assessment without silently
+  starting contract work.
 
-任一指令可后缀开关，如 `/评审 用 full，checkpoints`、`/评审 autonomous`。
+`/assess` and `/debate` are read-only auxiliary modes. Assessment returns a
+`go`, `clarify`, or `stop` verdict with rationale, material unknowns, and the
+next decision. Debate compares the supplied design's alternatives, evidence,
+trade-offs, and failure modes. Neither creates or edits workflow artifacts
+unless the user separately invokes `/review`.
 
-非定向触发（自然语言）与指令完全等效："评审方案：……"、"论证方案：……"、
-"需求评审"、"评估项目"、"苏格拉底式质疑一下……"、"规划"、"编译 PLAN"。
+Natural-language requests remain valid. `/challenge` belongs to reviewer;
+it is a lightweight challenge, not intake or contract review.
 
 ## Skill Calls
 
@@ -43,8 +49,10 @@ their prompts:
   fixed contract snapshot/hash, the relevant evidence, and an output budget;
   expect structured JSON back. The reviewer is read-only and never edits
   `docs/` artifacts.
-- On `passed`, continue with `/规划` in this skill; after PLAN confirmation,
-  hand off with `next-skill: construction` — tell the user to say `/开工`,
+- Load the **grill** skill (`name: grill`) when intake readiness is missing.
+  A valid final brief returns here; do not repeat its confirmed questions.
+- On `passed`, continue with `/plan` in this skill; after PLAN confirmation,
+  hand off with `next-skill: construction` — tell the user to say `/build`,
   or load the construction skill directly.
 
 ## Start Or Resume
@@ -56,13 +64,25 @@ and verdict protocols are needed only when issues exist.
 
 1. If `docs/workflow-state.json` exists, reconcile it with the append-only
    event ledger by revision/event ID. Never infer state from chat.
-2. Validate an existing contract with
-   `python scripts/check.py contract docs/contract.md`.
-3. Read `docs/change-orders.md` for CR work; review/build logs only reference
+2. If the current request explicitly names `docs/brief.md`, run
+   `python .opencode/workflow/scripts/check.py brief docs/brief.md`.
+   A grilled intake must be final and owner-confirmed. Preserve every typed
+   brief item in canonical `intake.dispositions`: consumed items name their
+   contract IDs; deferred/rejected items carry a reason.
+   Never infer that an unmentioned brief is current merely because the file
+   exists; no-argument `/review` must ask which input to review.
+3. Validate an existing contract with
+   `python .opencode/workflow/scripts/check.py contract docs/contract.md`.
+4. Read `docs/change-orders.md` for CR work; review/build logs only reference
    CR IDs.
 
+New contracts always declare `intake.mode`. Use `direct` only for a specific,
+small, reversible request that does not need grill. Use `grilled` when the
+contract consumes `docs/brief.md`; the canonical contract stores the brief
+path, hash, and full disposition coverage.
+
 For a new contract, initialize the revision/budget projection once with
-`python scripts/check.py init docs/contract.md docs/workflow-state.json`.
+`python .opencode/workflow/scripts/check.py init docs/contract.md docs/workflow-state.json`.
 
 If the engine is unavailable, stop before declaring `passed`; do not simulate
 hashes or schema checks manually.
@@ -144,32 +164,40 @@ non-factual residual risks with owner decision and additional V.
 Before `passed` or `conditional`:
 
 1. Apply all T decisions to the contract.
-2. Require evidence bundle hashes for cited E.
-3. Run `python scripts/check.py contract docs/contract.md`.
-4. Run a clean-context final audit against the fixed contract snapshot.
-5. Persist the audit event and exact contract hash.
+2. For grilled intake, account for every brief item and verify its hash.
+3. Require evidence bundle hashes for cited E.
+4. Run `python .opencode/workflow/scripts/check.py contract docs/contract.md`.
+5. Run a clean-context final audit against the fixed contract snapshot.
+6. Record the passed `final-audit` event, then use `check.py release` to append
+   the workflow transition and project contract frontmatter to
+   `passed`/`conditional` with that event ID and exact contract hash.
+   `conditional` also requires a bound owner decision plus active residual R
+   and additional V IDs. Frontmatter alone is not a release.
 
 Hand off generated P/F/I/V/B/W/T/R summaries and the hash. Do not handwrite a
 second semantic contract.
 
 ## Plan (Compile And Confirm)
 
-`/规划` turns a `passed` contract into a confirmed executable PLAN. PLAN is
+`/plan` turns a `passed` contract into a confirmed executable PLAN. PLAN is
 compiler output; never hand-write it.
 
-1. Gate: run `python scripts/check.py contract docs/contract.md`; require
+1. Gate: run `python .opencode/workflow/scripts/check.py contract docs/contract.md`; require
    `passed` or legal `conditional`, matching hashes, and no blocking CR.
 2. Compile when PLAN does not exist:
 
    ```powershell
-   python scripts/check.py compile docs/contract.md docs/PLAN.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
-   python scripts/check.py plan docs/PLAN.md --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
+   python .opencode/workflow/scripts/check.py compile docs/contract.md docs/PLAN.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
+   python .opencode/workflow/scripts/check.py plan docs/PLAN.md --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
    ```
 
-3. Confirm per `references/plan-template.md`: show the owner a generated
-   summary when the contract uses `checkpoints`/`stepwise` or any mandatory
-   checkpoint is present. Do not ask again on an unchanged hash after a
-   simple pause.
+3. Confirm per `references/plan-template.md`: always show the owner the generated
+   PLAN summary and record the decision. `autonomous` reduces later step
+   interruptions; it does not skip this release. Do not ask again on an
+   unchanged hash after a simple pause.
+4. Persist the confirmed selections with `confirm-plan`, then run `plan` with
+   `--require-building`. A chat acknowledgement without these events is not a
+   confirmed PLAN.
 
 The compiler emits every reviewed variant. Exactly one per active I is
 selected at runtime through its structured selector; unselected branches

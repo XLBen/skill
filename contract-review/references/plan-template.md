@@ -7,8 +7,8 @@
 by hand:
 
 ```powershell
-python scripts/check.py compile docs/contract.md docs/PLAN.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
-python scripts/check.py plan docs/PLAN.md --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
+python .opencode/workflow/scripts/check.py compile docs/contract.md docs/PLAN.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
+python .opencode/workflow/scripts/check.py plan docs/PLAN.md --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
 ```
 
 The file contains frontmatter and one `json plan` block. The engine compiles
@@ -36,8 +36,33 @@ They may not weaken V or alter actions, interfaces, side effects, or rollback.
 For `checkpoints` and `stepwise`, show a generated summary containing scope,
 selected/default variants, irreversible side effects, human V, and exclusions.
 Confirmation changes runtime status from `planning` to `building`; it does not
-authorize semantic edits. `autonomous` may skip this confirmation only when no
-mandatory owner checkpoint from requirement-protocol applies.
+authorize semantic edits. The confirmation is always an immutable owner
+decision. `autonomous` reduces step interruptions but does not authorize a
+self-declared PLAN release.
+
+Write the confirmation as a temporary JSON input; this is the only supported
+way to activate a PLAN:
+
+```json
+{
+  "id": "EV-PLAN-CONFIRM-01",
+  "authorization": "owner-confirmed",
+  "owner_event": "EV-OWNER-PLAN-01",
+  "selections": {
+    "I-01": {"variant": "base", "selector_evidence": "default"}
+  }
+}
+```
+
+First record `owner_event` as an `owner-decision` with
+`decision: plan-confirmation`, `result: accepted`, and the current contract and
+PLAN hashes. Every active I must then appear exactly once. Non-default variants
+name a previously recorded selector evidence event instead of `default`. Run:
+
+```powershell
+python .opencode/workflow/scripts/check.py confirm-plan docs/PLAN.md selection.json --contract docs/contract.md --ledger docs/workflow-events.jsonl
+python .opencode/workflow/scripts/check.py plan docs/PLAN.md --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl --require-building
+```
 
 Checkboxes may be rendered as a view, but `runtime.step_states` and the event
 ledger are authoritative.

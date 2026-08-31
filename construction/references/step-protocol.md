@@ -19,6 +19,15 @@ record an attempt ID, expected state revision, environment binding, declared
 side effects, and idempotency strategy. Persist evidence before advancing the
 state projection.
 
+Write each lifecycle change as a `step-transition` JSON event and apply it with
+`check.py plan-event`. A transition to `complete` includes the passed immutable
+`attempt_id`; the engine rejects completion without matching V evidence. Pause,
+resume and suspend use `plan-transition` events through the same command.
+Every runtime event binds `contract_hash` and `plan_structure_hash`; step events
+also bind the canonical `step_hash`. Every event supplies `expected_revision`
+for CAS. `done` is reserved for `check.py finish-plan`, which also verifies
+clean reconcile and a bound converge audit.
+
 Selection, attempt, and verification events include the current contract hash,
 PLAN structure hash, and canonical step hash. Never reuse evidence after any
 of those hashes changes.
@@ -106,4 +115,5 @@ status.
 
 Generate P -> F -> I -> selected S -> V coverage from engine data. Human V
 requires an explicit owner event. Set PLAN `done` only when every selected step
-is complete, all blocking CR are absent, and final coverage passes.
+is complete, all blocking CR are absent, and final coverage passes; apply the
+`done` transition with `check.py finish-plan`, never by editing PLAN.

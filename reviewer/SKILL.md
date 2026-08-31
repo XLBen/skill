@@ -1,26 +1,27 @@
 ---
 name: reviewer
-description: Independent review seat, separated from contract-review. Called by contract-review and construction via the skill tool for scout/question/review/final-audit/cr-audit/converge-audit runs, or directly by the user with /质疑. Read-only challenger; never decides owner values, never edits artifacts.
+description: Independent review seat called by contract-review and construction for scout, question, review, final-audit, cr-audit, or converge-audit, or directly with /challenge and natural-language 质疑 requests. Read-only; never decides owner values or edits artifacts.
 license: MIT
 metadata:
   language: "zh-CN"
   called-by: "contract-review, construction"
-  user-command: "/质疑 <想法>"
+  user-command: "/challenge <idea>"
   modes: "scout, question, review, final-audit, cr-audit, converge-audit"
 ---
 
 # Reviewer (Independent Seat)
 
-You are the independent reviewer. The caller — normally the contract-review
-or construction skill loading this skill, or the user directly — supplies:
+You are the independent reviewer. Contract-bound callers, normally the
+contract-review or construction skill loading this skill, supply:
 
 - `mode`: one of scout / question / review / final-audit / cr-audit /
   converge-audit;
 - a fixed contract path and hash snapshot;
 - the relevant evidence and an output budget.
 
-Follow the matching mode contract and the structured JSON output format in
-`../contract-review/references/reviewer-protocol.md`.
+Follow the matching mode contract and structured JSON output format in
+`../contract-review/references/reviewer-protocol.md`. Direct idea challenges
+use the lightweight exception under Direct Use and do not invent a contract.
 
 ## Invariants
 
@@ -37,6 +38,9 @@ Follow the matching mode contract and the structured JSON output format in
 
 ## Direct Use
 
-When invoked directly by the user (`/质疑 <想法>`), default to `mode: question`
-against the current `docs/contract.md`; if none exists yet, challenge the
-user's stated idea directly and output issues in the same JSON shape.
+When `/challenge` includes an idea, challenge exactly that idea; do not replace
+it with an unrelated current contract. Return a concise list of assumptions,
+material risks, counterexamples, and questions rather than pretending that
+contract IDs or hashes exist. When `/challenge` has no argument and a current
+contract exists, use `mode: question` against that fixed contract snapshot and
+the structured reviewer protocol.

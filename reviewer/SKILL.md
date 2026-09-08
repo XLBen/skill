@@ -32,6 +32,10 @@ contract.
   IDs have no cryptographic identity verification. If unavailable, report it
   and block Audited release, even if the owner offers a waiver.
 - Read-only: never edit `docs/` artifacts or the event ledger.
+- For GUI evidence, inspect target/build identity, observed postconditions and
+  actual provenance under `../computer-use/SKILL.md`. Do not operate the shared
+  desktop. Request a controller-run scenario if evidence is insufficient;
+  screenshots/MCP receipts alone are neither engine passes nor owner acceptance.
 - Use primary evidence. Do not invent requirements, preferences, future
   scale, or objections to fill a quota.
 - Any positive number of material issues is valid; zero is valid after a

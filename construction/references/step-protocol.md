@@ -105,6 +105,15 @@ suite cannot pass, even with exit 0. Preserve per-scenario results in existing
 evidence. Controller/reviewer inspection supplies this integrity check, not a
 claim that the engine understands runner discovery or mock semantics.
 
+For native GUI boundaries, the main controller loads `computer-use`; see
+`../../computer-use/SKILL.md`. Serialize its interactive session with any GUI
+test runner. Executors/test authors supply scenarios, not competing desktop
+actions; reviewers inspect evidence read-only. Interactive MCP output is only
+supporting evidence, never a `step-verification` event. Keep automated V on a
+real bounded `verify-step` runner; human V uses the existing owner-decision gate.
+Missing desktop tools or an unexecutable V blocks that verification rather than
+authorizing a fake pass or a silent change of verification type.
+
 ## Minimal Diff
 
 For every changed hunk ask whether removing it would make the selected segment

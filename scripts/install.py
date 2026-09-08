@@ -192,7 +192,12 @@ def main():
                 )
 
     manual_config = False
+    live_paths = []
     if not args.commands_only:
+        live_paths = [
+            path.as_posix() for path in sorted(repo.iterdir())
+            if path.is_dir() and (path / "SKILL.md").is_file()
+        ]
         if jsonc_path.exists() and not json_path.exists():
             manual_config = True
     config = preflight_config if json_path.exists() else {}
@@ -235,10 +240,14 @@ def main():
         if not args.commands_only and not manual_config:
             config.setdefault("$schema", "https://opencode.ai/config.json")
             skills = config.setdefault("skills", {})
-            paths = skills.setdefault("paths", [])
-            repo_path = repo.as_posix()
-            if repo_path not in paths:
-                paths.append(repo_path)
+            paths = []
+            for path in skills.get("paths", []):
+                # Retire only the exact root written by previous installers.
+                if path == repo.as_posix() or (path in live_paths and path in paths):
+                    continue
+                paths.append(path)
+            paths.extend(path for path in live_paths if path not in paths)
+            skills["paths"] = paths
             with json_path.open("w", encoding="utf-8", newline="\n") as stream:
                 stream.write(json.dumps(config, ensure_ascii=False, indent=2) + "\n")
     except BaseException:
@@ -264,9 +273,10 @@ def main():
     if not args.commands_only:
         if manual_config:
             print("opencode.jsonc was not edited because comments must be preserved.")
-            print(f'add or merge this JSONC field: "skills": {{ "paths": ["{repo.as_posix()}"] }}')
+            print(f'add or merge this JSONC field: "skills": {{ "paths": {json.dumps(live_paths)} }}')
+            print(f'remove only the exact old skills.paths entry, if present: {json.dumps(repo.as_posix())}')
         else:
-            print(f"registered skills path: {repo.as_posix()}")
+            print(f"registered skills paths: {', '.join(live_paths)}")
     print("restart OpenCode to load the changes")
 
 

@@ -19,6 +19,12 @@ policy, and classified pre-change evidence. The controller owns minimal scoped
 setup/harness readiness before independent tests; missing readiness is a
 blocker, not permission to implement behavior before those tests.
 
+Do not operate the shared desktop from this subagent. If the step needs native
+GUI observation/input, return the exact target/scenario and requested actions
+to the main controller, which loads `computer-use` and serializes UI work.
+Continue scoped implementation from its evidence; do not claim its observations
+as an independent test or engine verification.
+
 Work only on that step:
 
 1. Verify the manifest before editing. The test author and implementation

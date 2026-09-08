@@ -96,6 +96,7 @@ grill frontier，不开始施工。
 - `test-author`：由 fresh subagent 调度时独立生成和冻结验收测试。
 - `reviewer`：由 fresh subagent 调度时进行只读评审。
 - `step-executor`：由 fresh subagent 隔离执行一个严格 PLAN 步骤。
+- `computer-use`：主控制器按需执行真实桌面 GUI 路径，观察、操作、验证；需要另行授权的 MCP。
 
 加载 skill 只会加入说明，不会自动创建独立身份。需要作者隔离时必须真实调度
 fresh subagent 或真实独立 session；不可用时记录 independence unavailable 并阻断
@@ -109,17 +110,30 @@ Audited release，不能用 waiver 冒充独立评审。ID 只是声明，没有
 python scripts/install.py "E:/path/to/target-project"
 ```
 
-安装器会复制五个 command wrapper 和校验引擎，并在 `opencode.json` 注册本仓库的
-skills path。升级时会删除仍未被本地修改的旧命令；本地改过的旧命令会保留并提示，
+安装器会复制五个 command wrapper 和校验引擎，并在 `opencode.json` 分别注册本仓库
+当前顶层 skill 目录，避免扫描 `validation/` 的冻结旧版同名 skill。升级时替换原先
+精确匹配的仓库根 skills path，保留其他配置。旧命令仍未被本地修改时会删除；本地改过的旧命令会保留并提示，
 显式使用 `--force` 才会移除。
 
 使用 `opencode.jsonc` 时，安装器保留注释并提示手工添加 skills path。安装或修改
 skill 后必须重启 OpenCode。
 
+### 可选桌面验证
+
+已融合 [computer-use-kit](https://github.com/ILoveMyJay/computer-use-kit) 的操作规程，
+保留 MIT 授权并适配本项目的风险、证据和子代理边界。无需新增命令，`/build`、`/fix`
+或 `/resume` 遇到需要 GUI 的路径时内部加载；纯 Web 优先使用专用浏览器自动化。
+
+安装 skill 不会自动安装或启用桌面 MCP，也不会更改全局权限。建议使用 Cua Driver，
+具体接入、默认禁用的配置示例和非敏感窗口 smoke 见 [computer-use/README.md](computer-use/README.md)。
+桌面由主控制器独占，子代理不同时操作。截图不等于验收通过，已有引擎 gate 保持不变。
+本仓库尚未验证真实桌面后端；缺少工具/权限或可执行验收 runner 时会明确阻塞，不报假成功。
+
 ## 验证
 
 ```powershell
 python scripts/check.py --selftest
+python -B -m unittest discover -s tests -p test_install.py
 ```
 
 严格流程的单项排查命令仍可直接运行 `scripts/check.py`；合法示例位于

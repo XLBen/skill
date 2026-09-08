@@ -35,6 +35,12 @@ The controller owns minimal scoped setup/harness readiness before dispatch.
 If discovery, dependencies, fixtures, or required services are not ready,
 return a setup blocker; do not repair product code or count setup failure as red.
 
+For GUI scenarios, author the test independently but have the main controller
+serialize the pre-change runner or interactive `computer-use` observation on the
+shared desktop. Do not take desktop control from this subagent. Preserve actual
+test authorship and raw run provenance; interactive observation cannot replace
+required executable red/green evidence or an owner's human acceptance.
+
 If the caller does not supply a frozen specification, stop and ask for it. Do
 not infer a new product requirement from implementation code.
 

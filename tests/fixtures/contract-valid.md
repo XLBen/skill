@@ -2,7 +2,7 @@
 project: fixture
 status: passed
 phase: idle
-contract-hash: eedaea79c9691e9a72edc9acd591c758423448339f8123278f46ecdba8bacdf6
+contract-hash: e0d0872536ca22c749651120328d1136fdc1182169a0be2184e0a5cba4eda120
 ---
 
 # Fixture Contract
@@ -107,9 +107,14 @@ contract-hash: eedaea79c9691e9a72edc9acd591c758423448339f8123278f46ecdba8bacdf6
         "covers": ["P-01", "F-01", "I-01"],
         "prerequisites": [],
         "stage": "after-I-01/base/01",
-        "command": "python scripts/check.py --selftest",
+        "command": "python -c \"import json; assert json.dumps(sorted(json.loads('[3, 1, 2]'))) == '[1, 2, 3]'; print('compiler fixture PASS')\"",
         "observation": "",
-        "expected": "exit 0"
+        "given": "Python standard library json is available; no project files are required",
+        "when": "Parse, sort, and serialize a fixed JSON array and assert the deterministic output",
+        "then": "stdout contains 'compiler fixture PASS'",
+        "assertion_kind": "content",
+        "empty_result_policy": "Missing output, empty output, or exit 0 without the literal compiler fixture PASS line is failure",
+        "expected": "exit 0 plus stdout contains compiler fixture PASS"
       }
     ],
     "B": [

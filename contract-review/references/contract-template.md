@@ -58,6 +58,23 @@ V summary.
     "mode": "direct"
   },
   "profile": "light",
+  "workflow_protocol": "v0.2",
+  "delivery": {
+    "stage": "first-slice",
+    "phase_0": {
+      "status": "passed",
+      "artifact": "evidence/phase-0-P0-01.md"
+    },
+    "slice_budget": {
+      "active_p_max": 3,
+      "active_f_max": 3,
+      "active_i_max": 3,
+      "active_v_max": 5,
+      "plan_segments_max": 8,
+      "contract_nonblank_lines_max": 180,
+      "estimated_product_lines_min": 1
+    }
+  },
   "control": { ... },
   "nodes": { ... }
 }
@@ -94,6 +111,31 @@ irrelevant; do not create placeholder nodes merely to look complete.
 - `light`: one independent semantic audit; research and prototypes only for a
   material dispute.
 - `full`: scouting, repeated adversarial review, and clean final audit.
+
+## First-Slice Delivery Metadata
+
+For a new Audited `light`/`full` contract, add a `delivery` object to the JSON
+block. This is a prompt-layer protocol field; the current engine preserves the
+contract hash but does not enforce these fields. The reviewer enforces their
+meaning before release:
+
+- Top-level `workflow_protocol` is `v0.2` for every new Audited contract; it is
+  machine-enforced and must not be nested in `delivery`. Existing released
+  packages retain their protocol. The following `delivery` fields remain
+  reviewer-enforced metadata, not machine gates;
+- `stage` is `first-slice` for the initial contract;
+- `phase_0.status` is `passed` or the direct-path exception `not-needed`, and
+  `phase_0.artifact` points to the evidence record;
+- `slice_budget` contains numeric limits declared before the contract is
+  drafted. Guidance defaults are 3 active P, 3 active F, 3 active I, 5 active
+  V, 8 PLAN segments, 180 non-blank contract lines, and at least 1 estimated
+  product line. A wider value needs an owner decision before draft;
+- the first slice contains one path observable by a real user or downstream
+  consumer. Infrastructure-only work is not an MVP slice.
+
+After the first slice is accepted, use
+`references/slice-increment-protocol.md` for planned expansion. Do not put a
+normal SI in `docs/change-orders.md`; that file remains the source of CR state.
 
 ## Migration
 

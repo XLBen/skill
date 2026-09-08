@@ -54,6 +54,30 @@ closure and run `cr-audit`; do not limit analysis to the originally named
 chapter. After approval, construction uses its dedicated recovery capability.
 Rejected and waived CR still require complete evidence chains before close.
 
+## SI
+
+Use an SI for planned expansion only after the current slice has passed real
+verification and owner acceptance. An SI uses an ADDED/MODIFIED/REMOVED delta,
+declares its affected closure and budget, and does not replay unaffected work.
+Do not use SI to bypass a failed V, a refuted fact, an incompatible interface,
+or an unsafe side effect; those remain hard CR findings.
+
+## v0.2 Verification Findings
+
+The following are hard findings for a new v0.2 slice, not optional style:
+
+- a V that asserts only exit 0 or accepts a missing/empty required result;
+- a missing concrete Given/When/Then scenario or output/state assertion;
+- a missing Phase 0 record when a material external assumption exists;
+- a third identical failure followed by a fourth ordinary retry or an
+  escalation without the required evidence payload;
+- identical test-author and implementation-author IDs, or changed protected
+  acceptance semantics/hashes without approved CR, independent test-author
+  revision/revalidation, reviewer review, and refreshed classified evidence;
+  targeted new/changed behavior requires red, unaffected regression requires
+  baseline-green, never a manufactured failure;
+- a first-slice budget exceeded without a pre-recorded owner exception.
+
 ## Conditional
 
 Conditional cannot contain a hard issue, pending owner choice, missing field,

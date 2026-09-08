@@ -1,11 +1,17 @@
 # Reviewer Protocol
 
-> When to read: only when dispatching or adjudicating a reviewer run
-> (question / review / final-audit / cr-audit / converge-audit).
+> When to read: before every reviewer dispatch and when adjudicating a run
+> (scout / question / review / final-audit / cr-audit / converge-audit).
 
-Dispatch the reviewer by loading the `reviewer` skill (skill tool, `name:
-reviewer`) with an explicit mode, fixed contract snapshot/hash, and
-output budget. The reviewer never edits artifacts or makes owner decisions.
+Dispatch a fresh reviewer subagent, then have it load the `reviewer` skill
+(skill tool, `name: reviewer`). Supply an explicit mode, fixed contract
+snapshot/hash, and output budget. Loading a skill in the controller is not
+dispatch or independence; if no fresh subagent is available, use a real separate
+session with recorded provenance or block Audited release.
+For v0.2 (and existing v0.1) first-slice and construction audits, also pass the
+Phase 0 record, slice-budget report, test-author manifest, and implementation
+diff when they exist. The reviewer never edits artifacts or makes owner
+decisions.
 
 ## Modes
 
@@ -38,8 +44,24 @@ JSON output into the audit event; do not calculate them manually.
 - judge only what the engine cannot: does the implemented code satisfy each
   active P's intent, does each executed V actually observe what it claims, and
   does any build-log claim overstate what the artifacts show;
+- inspect the final integrated state, not only changed units or demo labels.
+  Require actual public-interface journeys covering every promised user-facing
+  outcome in the current slice and affected existing journeys, from representative
+  input to useful output and retrieval; do not demand deferred future slices. Shared
+  scenarios and CLI/library interfaces are valid. Check repeatable delivered
+  setup, dependencies/access, target versus verification environment, and
+  handoff instructions. Missing prerequisites or untested target conditions
+  must remain explicit gaps, not readiness claims;
 - a confirmed gap is `hard` and must become a blocking CR before `done`; a
   residual non-factual risk follows the owner-decision path;
+- a v0.2 acceptance is not sufficient when it reports only exit 0, accepts an
+  empty required result, lacks a concrete Given/When/Then assertion, or has no
+  traceable test-author/frozen-hash record;
+- a third consecutive attempt with the same normalized failure signature is a
+  circuit-break event. The fourth ordinary retry is not allowed; the audit
+  checks the escalation payload and at least two costed options;
+- normal planned growth is an SI, not a CR. A proposed SI before current-slice
+  acceptance is a hard process issue;
 - record the audit as an event and cite the reconcile output hash fields
   (`contract_hash`, `plan_structure_hash`) so the judgment is bound to the
   exact closure matrix it audited.

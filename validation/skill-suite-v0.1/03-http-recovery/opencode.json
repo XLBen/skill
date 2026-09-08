@@ -1,0 +1,35 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "zhipuai-coding-plan/glm-5.3",
+  "small_model": "zhipuai-coding-plan/glm-5.3-flash",
+  "share": "disabled",
+  "snapshot": true,
+  "instructions": [
+    "AGENTS.md"
+  ],
+  "skills": {
+    "paths": [
+      ".opencode/skills"
+    ]
+  },
+  "permission": {
+    "read": {
+      "*": "allow",
+      "evaluation/**": "deny",
+      "boundary/server.py": "deny",
+      "boundary/control.py": "deny",
+      "boundary/transient_gate.py": "deny"
+    },
+    "edit": {
+      "*": "allow",
+      ".opencode/**": "deny",
+      "evaluation/**": "deny",
+      "boundary/**": "deny",
+      "TASK.md": "deny",
+      "ACCEPTANCE.md": "deny",
+      "START.md": "deny",
+      "AGENTS.md": "deny",
+      "opencode.json": "deny"
+    }
+  }
+}

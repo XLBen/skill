@@ -1,0 +1,3 @@
+{"event_id":"e-1","account":"alpha","delta":5}
+{"event_id":"e-2","account":"beta","delta":7}
+{"event_id":"e-3","account":"alpha","delta":-2}

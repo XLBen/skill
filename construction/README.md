@@ -1,12 +1,11 @@
 # construction
 
-这个 skill 从确认后的 PLAN 开始，不负责问需求，也不负责重新规划。
+这个内部 skill 从确认后的 Audited PLAN 开始，不负责问需求，也不负责重新规划。
+首个切片或 SI 必须先由 fresh subagent 加载 test-author 生成并冻结验收测试。
 
-- `/build`：开始施工；每步都跑原始验收命令并保存证据。
-- `/resume`：中断后重新校验并继续。
-- `/change <fact>`：现实和契约不一致时建 CR，普通施工随即停止。
-- `/finish`：最终对账和独立审计都通过后才置 done。
-- `/retro`：竣工后复盘，可选。
+- 公开 `/build` 和 `/resume` 由 mvp-delivery 路由到这里。
+- 公开 `/fix` 在现实和契约不一致时触发内部 CR；计划内增量仍使用 SI。
+- finish/reconcile 和可选 retro 都是内部操作，不再是用户命令。
 
-PLAN 缺失或过期时，它会调用 contract-review 的 `/plan`，不会自己编一个。
-执行与恢复细节见 `references/step-protocol.md`。
+PLAN 缺失或过期时，控制器会回到 `/plan` 的内部 contract-review 阶段，不会临时编造。
+执行、测试隔离、失败签名和恢复细节见 `references/step-protocol.md`。

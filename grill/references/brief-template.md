@@ -56,3 +56,13 @@ Allowed `kind` values and prefixes are `fact/BF`, `decision/BD`,
 `assumption/BA`, `constraint/BC`, `question/BQ`, `success/BS`, and
 `non-goal/BN`. A final brief has an empty frontier and explicit owner
 confirmation.
+
+Use `summary` and existing item `statement`/decision fields to capture the
+intended user/interface, target versus verification environment, representative
+input, useful output and retrieval, and repeatable delivered setup. Record
+material prerequisites or environment gaps as facts, constraints, assumptions,
+or open questions as appropriate. Success items describe observable journeys
+through the intended public interface covering every promised user-facing
+outcome; one scenario may cover several outcomes. CLI commands and library API
+calls count, without adding a GUI or deployment requirement. Reuse established
+answers and ask only material unknowns; no extra fields or checklist artifact.

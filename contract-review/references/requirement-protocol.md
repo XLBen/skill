@@ -20,6 +20,19 @@ unverified facts and assumptions never become requirements merely because the
 brief contains them. Do not repeat questions already confirmed in the bound
 brief unless new evidence creates a conflict.
 
+## Usability Readiness
+
+Reuse the brief and repository evidence; ask only material unknowns affecting
+scope, feasibility, or acceptance. In existing P/F/I/V/B and evidence, capture
+the intended user/public interface, target versus verification environment,
+representative input, useful output and retrieval, and repeatable setup from
+delivered files, including required dependencies, access, and handoff steps.
+Make environment gaps explicit rather than claiming unobserved readiness.
+Every promised user-facing outcome needs a public-interface acceptance journey;
+shared scenarios may cover several outcomes. CLI/library interfaces are valid,
+with no imposed GUI or deployment. This is not an exhaustive intake checklist
+or a new schema/artifact.
+
 ## Owner Queue
 
 Persist pending T IDs in FIFO order and expose only one `presented_t_id` at a
@@ -42,3 +55,23 @@ irreversible action, spend, privacy exposure, or a value trade-off. Present:
 
 Budget exhaustion is another checkpoint. The legal outcomes are add budget,
 reduce scope, pause, or terminate. Never interpret silence as consent.
+
+## Risk-First Intake
+
+For new v0.2 Audited work, before turning the brief into a full contract, rank unverified
+assumptions by the cost of being wrong. The first Phase 0 probe targets the
+highest-cost assumption and names the P/F/I/V that it could invalidate. Do not
+spend the first budget on easy scaffolding while a core external boundary,
+real-data availability, authentication state, or user-visible path remains
+untested.
+
+The owner confirms the probe budget and any side effect before execution. A
+probe result can be `passed`, `blocked`, `refuted`, or `not-needed`; only the
+first and the narrowly defined direct exception permit a first-slice contract.
+
+## Normal Increment Versus CR
+
+After a slice is genuinely accepted, planned expansion is recorded as an SI
+delta. A fact or interface that turns out to be false, an acceptance criterion
+that is missing, or an unsafe side effect is not an SI: stop ordinary work and
+open a blocking CR. Never use a planned increment to conceal a failed slice.

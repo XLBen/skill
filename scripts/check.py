@@ -3,6 +3,9 @@
 
 Commands:
   check.py brief <docs/brief.md>
+  check.py goal <.opencode/mvp/goal.md>
+  check.py verify-goal <.opencode/mvp/goal.md> <O-NN> --evidence <path>
+  check.py finish-goal <.opencode/mvp/goal.md>
   check.py contract <docs/contract.md>
   check.py compile <docs/contract.md> <docs/PLAN.md> --change-orders <docs/change-orders.md> --ledger <docs/workflow-events.jsonl>
   check.py plan <docs/PLAN.md> --contract <docs/contract.md> --change-orders <docs/change-orders.md> --ledger <docs/workflow-events.jsonl>
@@ -16,6 +19,8 @@ Commands:
   check.py event <state.json> <events.jsonl> <event.json> --expected-revision N
   check.py release <contract.md> <state.json> <events.jsonl> <event.json> --expected-revision N
   check.py record <events.jsonl> <event.json>
+  check.py verify-step <PLAN.md> <S-ID> <V-ID> --contract <contract.md> --ledger <events.jsonl> --evidence <path> --event-id <ID>
+  check.py record-human-step <PLAN.md> <S-ID> <V-ID> --contract <contract.md> --ledger <events.jsonl> --owner-event <ID> --event-id <ID>
   check.py cr-event <change-orders.md> <events.jsonl> <event.json> --expected-revision N
   check.py --selftest
 
@@ -26,9 +31,13 @@ import hashlib
 import json
 import os
 import re
+import signal
+import subprocess
 import sys
 import tempfile
+import time
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -45,6 +54,17 @@ BRIEF_KINDS = {
     "non-goal": "BN",
 }
 BRIEF_STATUS = {"draft", "final"}
+GOAL_STATUS = {"active", "blocked", "complete"}
+GOAL_OUTCOME_STATUS = {"pending", "verified", "blocked"}
+GOAL_RISK_FACTORS = {
+    "none", "external-boundary", "authentication", "privacy", "money",
+    "migration", "irreversible", "cross-module", "security",
+}
+GOAL_HIGH_RISK = {"authentication", "privacy", "money", "migration", "irreversible", "security"}
+GOAL_GUARDED_RISK = {"external-boundary", "cross-module"}
+GOAL_ID_RE = re.compile(r"^G-[A-Z0-9][A-Z0-9-]*$")
+OUTCOME_ID_RE = re.compile(r"^O-\d{2,}$")
+HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 STEP_RE = re.compile(r"^S-I\d{2,}-[a-z0-9-]+-\d{2,}$")
 ACTIVE = {"active", "superseded", "withdrawn"}
 CONTRACT_STATUS = {
@@ -165,6 +185,17 @@ def brief_hash(brief):
     return digest(brief, "requirement-brief")
 
 
+def goal_definition_hash(goal):
+    projected = json.loads(json.dumps(goal))
+    projected.pop("status", None)
+    for outcome in projected.get("outcomes", []):
+        if isinstance(outcome, dict):
+            outcome.pop("status", None)
+            outcome.pop("evidence", None)
+            outcome.pop("blocker", None)
+    return digest(projected, "mvp-goal-definition")
+
+
 def plan_projection(plan):
     return {
         key: plan[key] for key in (
@@ -208,7 +239,10 @@ def parse_block(text, name):
                     raise ValidationError(f"duplicate JSON key in {name}: {key}")
                 result[key] = value
             return result
-        return json.loads(match.group(1), object_pairs_hook=reject_duplicates)
+        def reject_constant(value):
+            raise ValidationError(f"non-finite JSON number in {name}: {value}")
+        return json.loads(match.group(1), object_pairs_hook=reject_duplicates,
+                          parse_constant=reject_constant)
     except json.JSONDecodeError as exc:
         raise ValidationError(f"invalid JSON in {name}: {exc}") from exc
 
@@ -231,7 +265,7 @@ def validate_brief(brief):
         return ["brief must be an object"]
     require(brief, ("schema_version", "revision", "status", "summary", "items",
                     "frontier", "owner_confirmation"), "brief", problems)
-    if brief.get("schema_version") != 1:
+    if type(brief.get("schema_version")) is not int or brief.get("schema_version") != 1:
         problems.append("brief.schema_version must be 1")
     if (not isinstance(brief.get("revision"), int)
             or isinstance(brief.get("revision"), bool)
@@ -276,7 +310,7 @@ def validate_brief(brief):
             require(item, ("statement", "source", "evidence_status"), ident or where, problems)
             if not isinstance(item.get("evidence_status"), str) or item.get("evidence_status") not in {"verified", "unverified", "refuted"}:
                 problems.append(f"{ident or where}: invalid evidence_status")
-        elif kind in {"constraint", "success", "non-goal"}:
+        elif isinstance(kind, str) and kind in {"constraint", "success", "non-goal"}:
             require(item, ("statement", "source"), ident or where, problems)
         elif kind == "question":
             require(item, ("question", "status"), ident or where, problems)
@@ -290,7 +324,7 @@ def validate_brief(brief):
             "question": ("question",),
             "success": ("statement", "source"),
             "non-goal": ("statement", "source"),
-        }.get(kind, ())
+        }.get(kind, ()) if isinstance(kind, str) else ()
         for field in text_fields:
             if not isinstance(item.get(field), str) or not item.get(field, "").strip():
                 problems.append(f"{ident or where}: {field} must be a non-empty string")
@@ -320,6 +354,180 @@ def validate_brief(brief):
             problems.append("final brief requires a confirmation summary")
         if not any(item.get("kind") == "success" for item in items if isinstance(item, dict)):
             problems.append("final brief requires at least one success item")
+    return problems
+
+
+def validate_assertion(assertion, where, problems):
+    if not isinstance(assertion, dict):
+        problems.append(f"{where}.assertion must be an object")
+    elif assertion.get("type") == "stdout-contains":
+        if set(assertion) != {"type", "literal"} or not isinstance(assertion.get("literal"), str) or not assertion["literal"].strip():
+            problems.append(f"{where}: stdout-contains needs a non-empty literal only")
+    elif assertion.get("type") == "json-equals":
+        if set(assertion) != {"type", "expected"}:
+            problems.append(f"{where}: json-equals needs expected only")
+        else:
+            try:
+                canonical_bytes(assertion["expected"])
+            except (TypeError, ValueError):
+                problems.append(f"{where}: expected must be a finite JSON value")
+    else:
+        problems.append(f"{where}: assertion type must be stdout-contains or json-equals")
+
+
+def validate_goal(goal):
+    problems = []
+    if not isinstance(goal, dict):
+        return ["goal must be an object"]
+    require(goal, (
+        "schema_version", "id", "status", "source", "goal", "rigor",
+        "risk", "first_slice", "demo", "constraints", "deferred", "outcomes",
+    ), "goal", problems)
+    if type(goal.get("schema_version")) is not int or goal.get("schema_version") != 1:
+        problems.append("goal.schema_version must be 1")
+    if not isinstance(goal.get("id"), str) or not GOAL_ID_RE.fullmatch(goal.get("id", "")):
+        problems.append("goal.id must match G-NAME")
+    if not isinstance(goal.get("status"), str) or goal.get("status") not in GOAL_STATUS:
+        problems.append("goal.status must be active, blocked, or complete")
+    for field in ("goal", "first_slice", "demo"):
+        if not isinstance(goal.get(field), str) or not goal.get(field, "").strip():
+            problems.append(f"goal.{field} must be a non-empty string")
+    for field in ("constraints", "deferred"):
+        value = goal.get(field)
+        if not isinstance(value, list) or any(not isinstance(item, str) or not item.strip() for item in value):
+            problems.append(f"goal.{field} must be an array of non-empty strings")
+
+    rigor = goal.get("rigor")
+    if not isinstance(rigor, str) or rigor not in {"normal", "guarded", "audited"}:
+        problems.append("goal.rigor must be normal, guarded, or audited")
+    risk = goal.get("risk")
+    if not isinstance(risk, dict):
+        problems.append("goal.risk must be an object")
+        risk = {}
+    require(risk, ("factors", "rationale"), "goal.risk", problems)
+    factors = risk.get("factors")
+    if not isinstance(factors, list) or not factors or any(not isinstance(item, str) or item not in GOAL_RISK_FACTORS for item in factors):
+        problems.append("goal.risk.factors must be a non-empty array of known factors")
+        factors = []
+    if len(factors) != len(set(factors)):
+        problems.append("goal.risk.factors must not contain duplicates")
+    if "none" in factors and len(factors) != 1:
+        problems.append("goal.risk factor none cannot be combined with other factors")
+    if not isinstance(risk.get("rationale"), str) or not risk.get("rationale", "").strip():
+        problems.append("goal.risk.rationale must be a non-empty string")
+    if GOAL_HIGH_RISK.intersection(factors) and rigor != "audited":
+        problems.append("high-risk factors require audited rigor")
+    elif GOAL_GUARDED_RISK.intersection(factors) and rigor == "normal":
+        problems.append("external-boundary or cross-module risk requires guarded or audited rigor")
+
+    source = goal.get("source")
+    if not isinstance(source, dict):
+        problems.append("goal.source must be an object")
+        source = {}
+    source_type = source.get("type")
+    if source_type == "direct":
+        require(source, ("raw_request",), "goal.source", problems)
+        if not isinstance(source.get("raw_request"), str) or not source.get("raw_request", "").strip():
+            problems.append("goal.source.raw_request must preserve the non-empty user request")
+    elif source_type == "brief":
+        require(source, ("path", "brief_hash", "coverage"), "goal.source", problems)
+        if not isinstance(source.get("path"), str) or not source.get("path", "").strip():
+            problems.append("goal.source.path must be a non-empty relative path")
+        if not isinstance(source.get("brief_hash"), str) or not HASH_RE.fullmatch(source.get("brief_hash", "")):
+            problems.append("goal.source.brief_hash must be a sha256 hash")
+        coverage = source.get("coverage")
+        if not isinstance(coverage, list):
+            problems.append("goal.source.coverage must be an array")
+        else:
+            seen_coverage = set()
+            for index, item in enumerate(coverage):
+                where = f"goal.source.coverage[{index}]"
+                if not isinstance(item, dict):
+                    problems.append(f"{where} must be an object")
+                    continue
+                require(item, ("brief_id", "disposition"), where, problems)
+                brief_id = item.get("brief_id")
+                if not isinstance(brief_id, str) or not re.fullmatch(r"B[A-Z]-\d{2,}", brief_id):
+                    problems.append(f"{where}.brief_id is invalid")
+                elif brief_id in seen_coverage:
+                    problems.append(f"goal.source.coverage duplicates {brief_id}")
+                else:
+                    seen_coverage.add(brief_id)
+                if not isinstance(item.get("disposition"), str) or item.get("disposition") not in {"outcome", "constraint", "deferred", "non-goal", "rejected"}:
+                    problems.append(f"{where}.disposition is invalid")
+                if item.get("disposition") == "outcome":
+                    refs = item.get("outcome_ids")
+                    if not isinstance(refs, list) or not refs or any(not isinstance(ref, str) for ref in refs):
+                        problems.append(f"{where}: outcome disposition needs outcome_ids")
+                elif not isinstance(item.get("reason"), str) or not item.get("reason", "").strip():
+                    problems.append(f"{where}: non-outcome disposition needs reason")
+    else:
+        problems.append("goal.source.type must be direct or brief")
+
+    outcomes = goal.get("outcomes")
+    if not isinstance(outcomes, list) or not outcomes:
+        problems.append("goal.outcomes must be a non-empty array")
+        outcomes = []
+    outcome_ids = set()
+    for index, outcome in enumerate(outcomes):
+        where = f"goal.outcomes[{index}]"
+        if not isinstance(outcome, dict):
+            problems.append(f"{where} must be an object")
+            continue
+        require(outcome, ("id", "statement", "status", "verification"), where, problems)
+        ident = outcome.get("id")
+        if not isinstance(ident, str) or not OUTCOME_ID_RE.fullmatch(ident):
+            problems.append(f"{where}.id must match O-NN")
+        elif ident in outcome_ids:
+            problems.append(f"goal.outcomes duplicates {ident}")
+        else:
+            outcome_ids.add(ident)
+        if not isinstance(outcome.get("statement"), str) or not outcome.get("statement", "").strip():
+            problems.append(f"{where}.statement must be a non-empty string")
+        status = outcome.get("status")
+        if not isinstance(status, str) or status not in GOAL_OUTCOME_STATUS:
+            problems.append(f"{where}.status is invalid")
+        verification = outcome.get("verification")
+        if not isinstance(verification, dict):
+            problems.append(f"{where}.verification must be an object")
+            verification = {}
+        require(verification, ("command", "expected", "assertion_kind", "empty_result_policy"), f"{where}.verification", problems)
+        if not isinstance(verification.get("command"), str) or not verification.get("command", "").strip():
+            problems.append(f"{where}.verification.command must be a non-empty string")
+        if not isinstance(verification.get("expected"), str) or not verification.get("expected", "").strip():
+            problems.append(f"{where}.verification.expected must be a non-empty string")
+        if not isinstance(verification.get("assertion_kind"), str) or verification.get("assertion_kind") not in {"content", "state", "schema", "count", "user-visible"}:
+            problems.append(f"{where}.verification.assertion_kind is invalid")
+        if not isinstance(outcome.get("user_entry", False), bool):
+            problems.append(f"{where}.user_entry must be a boolean")
+        validate_assertion(verification.get("assertion"), f"{where}.verification", problems)
+        if not isinstance(verification.get("empty_result_policy"), str) or not verification.get("empty_result_policy", "").strip():
+            problems.append(f"{where}.verification.empty_result_policy must be a non-empty string")
+        timeout = verification.get("timeout_seconds", 120)
+        if not isinstance(timeout, int) or isinstance(timeout, bool) or not 1 <= timeout <= 3600:
+            problems.append(f"{where}.verification.timeout_seconds must be 1..3600")
+        if status == "verified" and not isinstance(outcome.get("evidence"), dict):
+            problems.append(f"{where}: verified outcome needs engine evidence")
+        if status == "blocked" and (not isinstance(outcome.get("blocker"), str) or not outcome.get("blocker", "").strip()):
+            problems.append(f"{where}: blocked outcome needs blocker")
+        if status != "blocked" and "blocker" in outcome:
+            problems.append(f"{where}: blocker is legal only for blocked outcomes")
+
+    if source_type == "brief" and isinstance(source.get("coverage"), list):
+        for item in source["coverage"]:
+            if isinstance(item, dict) and item.get("disposition") == "outcome":
+                for ref in item.get("outcome_ids", []) if isinstance(item.get("outcome_ids"), list) else []:
+                    if not isinstance(ref, str) or ref not in outcome_ids:
+                        problems.append(f"goal.source.coverage references unknown outcome {ref}")
+    if goal.get("status") == "complete" and not any(
+            isinstance(item, dict) and item.get("user_entry") is True for item in outcomes):
+        problems.append("complete goal requires at least one user-entry outcome")
+    if goal.get("status") == "complete" and any(
+            item.get("status") != "verified" for item in outcomes if isinstance(item, dict)):
+        problems.append("complete goal requires every outcome to be verified")
+    if goal.get("status") == "blocked" and not any(
+            item.get("status") == "blocked" for item in outcomes if isinstance(item, dict)):
+        problems.append("blocked goal requires at least one blocked outcome")
     return problems
 
 
@@ -393,6 +601,9 @@ def validate_contract(contract):
         return ["contract must be an object"]
     if not isinstance(contract.get("profile"), str) or contract.get("profile") not in {"direct", "light", "full"}:
         problems.append("profile must be direct, light, or full")
+    protocol = contract.get("workflow_protocol", "legacy")
+    if not isinstance(protocol, str) or protocol not in {"legacy", "v0.1", "v0.2"}:
+        problems.append("workflow_protocol must be legacy, v0.1, or v0.2")
     intake = contract.get("intake")
     if not isinstance(intake, dict):
         problems.append("intake must be an object")
@@ -405,8 +616,11 @@ def validate_contract(contract):
         if not isinstance(intake.get("dispositions"), list):
             problems.append("intake.dispositions must be an array")
     control = contract.get("control", {})
+    if not isinstance(control, dict):
+        problems.append("control must be an object")
+        control = {}
     require(control, ("interaction", "audit_budget", "research_budget", "prototype_budget"), "control", problems)
-    if control.get("interaction") not in {"autonomous", "checkpoints", "stepwise"}:
+    if not isinstance(control.get("interaction"), str) or control.get("interaction") not in {"autonomous", "checkpoints", "stepwise"}:
         problems.append("control.interaction is invalid")
     for key in ("audit_budget", "research_budget", "prototype_budget"):
         if not isinstance(control.get(key), int) or control.get(key, -1) < 0:
@@ -502,6 +716,18 @@ def validate_contract(contract):
             problems.append(f"{ident}: human verification needs observation")
         if node.get("type") != "human" and not node.get("command"):
             problems.append(f"{ident}: automated verification needs command")
+        if node.get("type") != "human" and not isinstance(node.get("command"), str):
+            problems.append(f"{ident}: automated verification command must be a string")
+        if protocol == "v0.2" and node.get("type") != "human":
+            validate_assertion(node.get("assertion"), ident, problems)
+            require(node, ("given", "when", "then", "assertion_kind", "empty_result_policy"), ident, problems)
+            if not isinstance(node.get("assertion_kind"), str) or node.get("assertion_kind") not in {"content", "state", "schema", "count", "user-visible"}:
+                problems.append(f"{ident}: invalid assertion_kind")
+            if not isinstance(node.get("empty_result_policy"), str) or not node.get("empty_result_policy", "").strip():
+                problems.append(f"{ident}: empty_result_policy must be a non-empty string")
+            timeout = node.get("timeout_seconds", 300)
+            if not isinstance(timeout, int) or isinstance(timeout, bool) or not 1 <= timeout <= 3600:
+                problems.append(f"{ident}: timeout_seconds must be 1..3600")
         red = node.get("red_command")
         if red is not None and (not isinstance(red, str) or not red.strip()):
             problems.append(f"{ident}: red_command must be a non-empty string when present")
@@ -603,6 +829,337 @@ def validate_brief_artifact(path):
     if brief.get("status") == "final" and meta.get("brief-hash") != expected:
         problems.append("frontmatter brief-hash mismatch")
     return meta, brief, expected, problems
+
+
+def goal_project_root(path):
+    path = Path(path).resolve()
+    if path.parent.name != "mvp" or path.parent.parent.name != ".opencode":
+        raise ValidationError("goal card must live directly under .opencode/mvp/")
+    return path.parent.parent.parent
+
+
+def validate_goal_artifact(path):
+    problems = []
+    meta, goal = read_artifact(path, "goal")
+    problems.extend(validate_goal(goal))
+    if problems:
+        return meta, goal, problems
+    try:
+        project_root = goal_project_root(path)
+    except ValidationError as exc:
+        problems.append(str(exc))
+        project_root = None
+    if meta.get("status") != goal.get("status"):
+        problems.append("goal frontmatter status does not match JSON status")
+
+    source = goal.get("source", {})
+    if project_root and isinstance(source, dict) and source.get("type") == "brief":
+        raw_path = source.get("path")
+        if isinstance(raw_path, str):
+            relative = Path(raw_path)
+            if relative.is_absolute() or ".." in relative.parts:
+                problems.append("goal.source.path must stay inside the project")
+            else:
+                brief_path = (project_root / relative).resolve()
+                try:
+                    brief_path.relative_to(project_root)
+                    _, brief, expected, brief_problems = validate_brief_artifact(brief_path)
+                    problems.extend(f"source brief: {item}" for item in brief_problems)
+                    if brief.get("status") != "final":
+                        problems.append("goal source brief must be final")
+                    confirmation = brief.get("owner_confirmation")
+                    if not isinstance(confirmation, dict) or confirmation.get("confirmed") is not True:
+                        problems.append("goal source brief requires owner confirmation")
+                    if source.get("brief_hash") != expected:
+                        problems.append("goal.source.brief_hash mismatch")
+                    brief_ids = {
+                        item.get("id") for item in brief.get("items", [])
+                        if isinstance(item, dict) and isinstance(item.get("id"), str)
+                    }
+                    covered = {
+                        item.get("brief_id") for item in source.get("coverage", [])
+                        if isinstance(item, dict) and isinstance(item.get("brief_id"), str)
+                    }
+                    if brief_ids - covered:
+                        problems.append("goal source has no coverage for: " + ", ".join(sorted(brief_ids - covered)))
+                    if covered - brief_ids:
+                        problems.append("goal source coverage has unknown brief IDs: " + ", ".join(sorted(covered - brief_ids)))
+                except (OSError, ValidationError, TypeError, AttributeError, ValueError) as exc:
+                    problems.append(f"goal source brief is unavailable or invalid: {exc}")
+
+    definition_hash = goal_definition_hash(goal)
+    for outcome in goal.get("outcomes", []):
+        if not isinstance(outcome, dict) or outcome.get("status") != "verified":
+            continue
+        evidence = outcome.get("evidence", {})
+        where = f"{outcome.get('id', 'outcome')}.evidence"
+        require(evidence, ("path", "sha256"), where, problems)
+        raw_path = evidence.get("path")
+        if not project_root or not isinstance(raw_path, str):
+            continue
+        relative = Path(raw_path)
+        if relative.is_absolute() or ".." in relative.parts:
+            problems.append(f"{where}.path must stay inside the project")
+            continue
+        evidence_path = (project_root / relative).resolve()
+        try:
+            evidence_path.relative_to(project_root)
+            evidence_bytes = evidence_path.read_bytes()
+            payload = json.loads(evidence_bytes.decode("utf-8"))
+            actual_hash = hashlib.sha256(evidence_bytes).hexdigest()
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            problems.append(f"{where} is unavailable or invalid: {exc}")
+            continue
+        if evidence.get("sha256") != actual_hash:
+            problems.append(f"{where}.sha256 mismatch")
+        verification = outcome.get("verification", {})
+        if (not isinstance(payload, dict) or payload.get("kind") != "goal-verification"
+                or payload.get("goal_id") != goal.get("id")
+                or payload.get("outcome_id") != outcome.get("id")
+                or payload.get("goal_definition_hash") != definition_hash
+                or payload.get("command") != verification.get("command")
+                or payload.get("result") != "passed"
+                or type(payload.get("exit_code")) is not int
+                or payload.get("exit_code") != 0
+                or payload.get("timed_out") is not False
+                or payload.get("assertion") != verification.get("assertion")
+                or payload.get("assertion_passed") is not True
+                or not evaluate_assertion(payload.get("stdout"), verification["assertion"])):
+            problems.append(f"{where} does not prove this goal outcome")
+    return meta, goal, problems
+
+
+def render_goal(goal):
+    return (
+        "---\n"
+        f"status: {goal['status']}\n"
+        "---\n\n"
+        f"# Goal: {goal['goal']}\n\n"
+        "```json goal\n"
+        + json.dumps(goal, ensure_ascii=False, sort_keys=True, indent=2)
+        + "\n```\n"
+    )
+
+
+def evaluate_assertion(stdout, assertion):
+    """Evaluate captured stdout, never a narrative expected-result claim."""
+    if not isinstance(stdout, str) or not isinstance(assertion, dict):
+        return False
+    if assertion.get("type") == "stdout-contains":
+        literal = assertion.get("literal")
+        return isinstance(literal, str) and bool(literal.strip()) and literal in stdout
+    if assertion.get("type") == "json-equals" and "expected" in assertion:
+        try:
+            def unique_object(pairs):
+                result = {}
+                for key, value in pairs:
+                    if key in result:
+                        raise ValueError("duplicate JSON key")
+                    result[key] = value
+                return result
+            actual = json.loads(stdout, object_pairs_hook=unique_object)
+            return canonical_bytes(actual) == canonical_bytes(assertion["expected"])
+        except (TypeError, ValueError):
+            return False
+    return False
+
+
+def run_command_evidence(command, cwd, evidence_path, metadata, timeout_seconds, recover=False):
+    evidence_path = Path(evidence_path)
+    if evidence_path.exists():
+        if recover:
+            try:
+                raw = evidence_path.read_bytes()
+                payload = json.loads(raw)
+                expected = dict(metadata, schema_version=1, command=command,
+                                cwd=str(Path(cwd).resolve()), timeout_seconds=timeout_seconds)
+                if not isinstance(payload, dict) or any(
+                        canonical_bytes(payload.get(key)) != canonical_bytes(value)
+                        for key, value in expected.items()):
+                    raise ValueError("evidence bindings mismatch")
+                if (type(payload.get("timed_out")) is not bool
+                        or not isinstance(payload.get("stdout"), str)
+                        or not isinstance(payload.get("stderr"), str)
+                        or (payload["timed_out"] and payload.get("exit_code") is not None)
+                        or (not payload["timed_out"] and type(payload.get("exit_code")) is not int)
+                        or type(payload.get("elapsed_seconds")) not in (int, float)
+                        or not 0 <= payload["elapsed_seconds"] < float("inf")):
+                    raise ValueError("invalid execution result")
+                start = datetime.fromisoformat(payload["started_at"].replace("Z", "+00:00"))
+                finish = datetime.fromisoformat(payload["finished_at"].replace("Z", "+00:00"))
+                if start.tzinfo is None or finish.tzinfo is None or finish < start:
+                    raise ValueError("invalid execution timestamps")
+                passed = payload["exit_code"] == 0 and not payload["timed_out"]
+                if "assertion" in metadata:
+                    asserted = evaluate_assertion(payload["stdout"], metadata["assertion"])
+                    if payload.get("assertion_passed") is not asserted:
+                        raise ValueError("invalid assertion result")
+                    passed = passed and asserted
+                if payload.get("result") != ("passed" if passed else "failed"):
+                    raise ValueError("inconsistent execution result")
+                if set(payload) != set(expected) | {
+                        "started_at", "finished_at", "elapsed_seconds", "timed_out",
+                        "exit_code", "stdout", "stderr", "result"} | (
+                            {"assertion_passed"} if "assertion" in metadata else set()):
+                    raise ValueError("unexpected evidence fields")
+                return payload, hashlib.sha256(raw).hexdigest()
+            except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+                raise ValidationError(f"orphaned verification evidence is invalid: {exc}") from exc
+        raise ValidationError(f"evidence file already exists: {evidence_path}")
+    evidence_path.parent.mkdir(parents=True, exist_ok=True)
+    temp = evidence_path.with_suffix(evidence_path.suffix + ".tmp")
+    try:
+        # Reserve before execution; an interrupted run must not silently rerun side effects.
+        with temp.open("x", encoding="utf-8"):
+            pass
+    except FileExistsError as exc:
+        raise ValidationError(f"temporary evidence file already exists: {temp}") from exc
+    started = datetime.now(timezone.utc)
+    started_clock = time.perf_counter()
+    timed_out = False
+    process = subprocess.Popen(
+        command, shell=True, cwd=str(cwd), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        **({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt"
+           else {"start_new_session": True}),
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=timeout_seconds)
+        exit_code = process.returncode
+    except subprocess.TimeoutExpired as exc:
+        timed_out = True
+        exit_code = None
+        stdout, stderr = exc.stdout or b"", exc.stderr or b""
+        try:
+            if os.name == "nt":
+                subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+            else:
+                os.killpg(process.pid, signal.SIGKILL)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        try:
+            process.kill()
+            stdout, stderr = process.communicate(timeout=5)
+        except subprocess.TimeoutExpired as cleanup:
+            stdout, stderr = cleanup.stdout or stdout, cleanup.stderr or stderr
+        except OSError:
+            pass
+        # Windows reader threads may still hold pipe locks after cleanup times out;
+        # closing those streams here could block indefinitely.
+        if os.name != "nt":
+            process.stdout.close()
+            process.stderr.close()
+    stdout = stdout.decode("utf-8", errors="replace")
+    stderr = stderr.decode("utf-8", errors="replace")
+    finished = datetime.now(timezone.utc)
+    payload = dict(metadata)
+    payload.update({
+        "schema_version": 1,
+        "command": command,
+        "cwd": str(Path(cwd).resolve()),
+        "started_at": started.isoformat().replace("+00:00", "Z"),
+        "finished_at": finished.isoformat().replace("+00:00", "Z"),
+        "elapsed_seconds": round(time.perf_counter() - started_clock, 6),
+        "timeout_seconds": timeout_seconds,
+        "timed_out": timed_out,
+        "exit_code": exit_code,
+        "stdout": stdout,
+        "stderr": stderr,
+        "result": "passed" if exit_code == 0 and not timed_out else "failed",
+    })
+    if metadata.get("kind") == "goal-verification" or "assertion" in metadata:
+        payload["assertion_passed"] = evaluate_assertion(stdout, metadata.get("assertion"))
+        if not payload["assertion_passed"]:
+            payload["result"] = "failed"
+    with temp.open("w", encoding="utf-8", newline="\n") as stream:
+        stream.write(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    if evidence_path.exists():
+        temp.unlink()
+        raise ValidationError(f"evidence file appeared concurrently: {evidence_path}")
+    os.replace(temp, evidence_path)
+    return payload, hashlib.sha256(evidence_path.read_bytes()).hexdigest()
+
+
+def verify_goal_outcome(goal_path, outcome_id, evidence_path):
+    with file_lock(str(goal_path) + ".runtime"):
+        meta, goal, problems = validate_goal_artifact(goal_path)
+        if problems:
+            raise ValidationError("goal is invalid:\n- " + "\n- ".join(problems))
+        if goal.get("status") == "complete":
+            raise ValidationError("a complete goal cannot be re-verified")
+        outcome = next((item for item in goal["outcomes"] if item.get("id") == outcome_id), None)
+        if not outcome:
+            raise ValidationError(f"unknown goal outcome: {outcome_id}")
+        project_root = goal_project_root(goal_path)
+        evidence_path = Path(evidence_path)
+        if ".." in evidence_path.parts:
+            raise ValidationError("goal evidence path cannot contain parent traversal")
+        resolved_evidence = evidence_path.resolve() if evidence_path.is_absolute() else (project_root / evidence_path).resolve()
+        allowed_root = (project_root / ".opencode" / "mvp" / "evidence").resolve()
+        try:
+            resolved_evidence.relative_to(allowed_root)
+        except ValueError as exc:
+            raise ValidationError("goal evidence must live under .opencode/mvp/evidence/") from exc
+        verification = outcome["verification"]
+        payload, evidence_hash = run_command_evidence(
+            verification["command"], project_root, resolved_evidence,
+            {
+                "kind": "goal-verification",
+                "goal_id": goal["id"],
+                "outcome_id": outcome_id,
+                "goal_definition_hash": goal_definition_hash(goal),
+                "assertion_kind": verification["assertion_kind"],
+                "empty_result_policy": verification["empty_result_policy"],
+                "expected": verification["expected"],
+                "assertion": verification["assertion"],
+            },
+            verification.get("timeout_seconds", 120),
+        )
+        updated = json.loads(json.dumps(goal))
+        updated_outcome = next(item for item in updated["outcomes"] if item["id"] == outcome_id)
+        if payload["result"] == "passed":
+            updated_outcome["status"] = "verified"
+            updated_outcome.pop("blocker", None)
+            updated_outcome["evidence"] = {
+                "path": resolved_evidence.relative_to(project_root).as_posix(),
+                "sha256": evidence_hash,
+            }
+        else:
+            updated_outcome["status"] = "blocked"
+            updated_outcome["blocker"] = "verification command failed; inspect " + resolved_evidence.relative_to(project_root).as_posix()
+            updated_outcome.pop("evidence", None)
+        updated["status"] = "blocked" if any(item["status"] == "blocked" for item in updated["outcomes"]) else "active"
+        updated_problems = validate_goal(updated)
+        if updated_problems:
+            raise ValidationError("verified goal would be invalid:\n- " + "\n- ".join(updated_problems))
+        target = Path(goal_path)
+        temp = target.with_suffix(target.suffix + ".tmp")
+        temp.write_text(render_goal(updated), encoding="utf-8", newline="\n")
+        os.replace(temp, target)
+        return updated, payload
+
+
+def finish_goal(goal_path):
+    with file_lock(str(goal_path) + ".runtime"):
+        meta, goal, problems = validate_goal_artifact(goal_path)
+        if problems:
+            raise ValidationError("goal is invalid:\n- " + "\n- ".join(problems))
+        if goal.get("status") == "complete":
+            return goal
+        if any(item.get("status") != "verified" for item in goal.get("outcomes", [])):
+            raise ValidationError("finish-goal requires every outcome to have engine-verified evidence")
+        updated = json.loads(json.dumps(goal))
+        updated["status"] = "complete"
+        problems = validate_goal(updated)
+        if problems:
+            raise ValidationError("finished goal is invalid:\n- " + "\n- ".join(problems))
+        target = Path(goal_path)
+        temp = target.with_suffix(target.suffix + ".tmp")
+        temp.write_text(render_goal(updated), encoding="utf-8", newline="\n")
+        os.replace(temp, target)
+        return updated
 
 
 def validate_contract_intake(contract_path, contract):
@@ -917,6 +1474,59 @@ def replay_plan_runtime(plan, events, problems):
     return expected
 
 
+def trusted_step_evidence_problems(event, verification, events=None):
+    problems = []
+    if verification.get("type") == "human":
+        owner = next((item for item in (events or []) if item.get("id") == event.get("owner_event")), {})
+        if (event.get("producer") != "check.py/record-human-step-v1"
+                or owner.get("type") != "owner-decision"
+                or owner.get("decision") != "human-verification"
+                or owner.get("result") != "accepted"
+                or not isinstance(owner.get("observation"), str)
+                or not owner.get("observation", "").strip()
+                or any(owner.get(key) != event.get(key) for key in (
+                    "step_id", "v_id", "contract_hash", "plan_structure_hash", "step_hash"))
+                or event.get("output_hash") != digest(owner, "human-step-owner-decision")):
+            return ["human verification lacks an appropriately bound owner decision proof"]
+        return []
+    if event.get("producer") != "check.py/verify-step-v1":
+        return ["passing verification was not generated by verify-step"]
+    raw_path = event.get("evidence_path")
+    if not isinstance(raw_path, str) or not raw_path.strip():
+        return ["verification evidence_path is missing"]
+    path = Path(raw_path)
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    try:
+        evidence_bytes = path.read_bytes()
+        payload = json.loads(evidence_bytes.decode("utf-8"))
+        actual_hash = hashlib.sha256(evidence_bytes).hexdigest()
+    except (OSError, ValueError, TypeError) as exc:
+        return [f"verification evidence is unavailable or invalid: {exc}"]
+    if not isinstance(payload, dict):
+        return ["verification evidence must be an object"]
+    if actual_hash != event.get("output_hash"):
+        problems.append("verification output_hash does not match evidence file")
+    if payload.get("event_id") != event.get("id"):
+        problems.append("verification evidence event_id mismatch")
+    for field in ("step_id", "v_id", "contract_hash", "plan_structure_hash", "step_hash"):
+        if payload.get(field) != event.get(field):
+            problems.append(f"verification evidence {field} mismatch")
+    if (payload.get("kind") != "step-verification"
+            or payload.get("command") != verification.get("command")
+            or payload.get("result") != "passed"
+            or type(payload.get("exit_code")) is not int
+            or payload.get("exit_code") != 0
+            or payload.get("timed_out") is not False):
+        problems.append("verification evidence does not prove an executed passing command")
+    if "assertion" in verification and (
+            payload.get("assertion") != verification["assertion"]
+            or payload.get("assertion_passed") is not True
+            or not evaluate_assertion(payload.get("stdout"), verification["assertion"])):
+        problems.append("verification evidence does not prove the assertion")
+    return problems
+
+
 def validate_plan(plan, contract, events=None):
     problems = []
     if plan.get("contract_hash") != contract_hash(contract):
@@ -965,6 +1575,10 @@ def validate_plan(plan, contract, events=None):
         if set(selection_events) != active_units or any(not selection_events.get(unit) for unit in active_units):
             problems.append("PLAN selected variants require selection event IDs")
     event_index = {event.get("id"): event for event in (events or [])}
+    verification_nodes = {
+        node.get("id"): node for node in contract.get("nodes", {}).get("V", [])
+        if isinstance(node, dict)
+    }
     if runtime.get("status") in {"building", "paused", "suspended", "done"} and events is None:
         problems.append("PLAN runtime validation requires the event ledger")
     for unit, event_id in selection_events.items():
@@ -1019,6 +1633,10 @@ def validate_plan(plan, contract, events=None):
                     or attempt.get("step_hash") != expected_step_hash):
                 problems.append(f"{step['id']}: attempt belongs to another contract, PLAN, or step spec")
                 continue
+            if contract.get("workflow_protocol") == "v0.2" and not (
+                    isinstance(attempt.get("subagent_id"), str) and attempt.get("subagent_id", "").strip()):
+                problems.append(f"{step['id']}: v0.2 attempt requires implementation subagent_id")
+                continue
             verified = set()
             for event_id in attempt.get("verification_events", []):
                 verification = event_index.get(event_id)
@@ -1028,6 +1646,13 @@ def validate_plan(plan, contract, events=None):
                         and verification.get("contract_hash") == plan.get("contract_hash")
                         and verification.get("plan_structure_hash") == plan.get("plan_structure_hash")
                         and verification.get("step_hash") == expected_step_hash):
+                    if contract.get("workflow_protocol") == "v0.2":
+                        evidence_problems = trusted_step_evidence_problems(
+                            verification, verification_nodes.get(verification.get("v_id"), {}), events,
+                        )
+                        if evidence_problems:
+                            problems.extend(f"{step['id']}: {item}" for item in evidence_problems)
+                            continue
                     verified.add(verification.get("v_id"))
             if not set(step.get("verifications", [])).issubset(verified):
                 problems.append(f"{step['id']}: final attempt lacks all required V evidence")
@@ -1341,6 +1966,23 @@ def load_ledger(path):
     return events
 
 
+def append_immutable_event(ledger_path, submitted):
+    ledger_path = Path(ledger_path)
+    with file_lock(ledger_path):
+        events = load_ledger(ledger_path)
+        recorded = next((event for event in events if event.get("id") == submitted["id"]), None)
+        if recorded:
+            if event_payload(recorded) != event_payload(submitted):
+                raise ValidationError(f"evidence event ID payload conflict: {submitted['id']}")
+            return recorded
+        ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        with ledger_path.open("a", encoding="utf-8", newline="\n") as stream:
+            stream.write(json.dumps(submitted, ensure_ascii=False, sort_keys=True) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        return submitted
+
+
 def record_evidence_event(ledger_path, event_path):
     ledger_path = Path(ledger_path)
     submitted = json.loads(Path(event_path).read_text(encoding="utf-8"))
@@ -1348,7 +1990,7 @@ def record_evidence_event(ledger_path, event_path):
     require(submitted, ("id", "type"), "evidence event", problems)
     if problems:
         raise ValidationError("; ".join(problems))
-    if submitted["type"] not in {
+    if not isinstance(submitted["type"], str) or submitted["type"] not in {
         "verification", "final-audit", "owner-decision", "evidence",
         "release-verification", "converge-audit",
         "variant-selection", "attempt", "step-verification",
@@ -1396,21 +2038,165 @@ def record_evidence_event(ledger_path, event_path):
             raise ValidationError("attempt subagent_id must be a non-empty string when present")
     if submitted["type"] == "step-verification":
         require(submitted, ("step_id", "v_id", "result", "output_hash", "contract_hash", "plan_structure_hash", "step_hash"), "step verification", problems)
+        if submitted.get("result") == "passed":
+            raise ValidationError("passing step-verification must be generated by verify-step or record-human-step")
     if problems:
         raise ValidationError("; ".join(problems))
-    with file_lock(ledger_path):
+    return append_immutable_event(ledger_path, submitted)
+
+
+def verify_step(plan_path, step_id, v_id, contract_path, ledger_path,
+                evidence_path, event_id, owner_event=None):
+    with file_lock(str(plan_path) + ".runtime"):
+        meta, plan = read_artifact(plan_path, "plan")
+        _, contract = read_checked_contract(
+            contract_path, require_released=True, ledger_path=ledger_path,
+        )
         events = load_ledger(ledger_path)
-        recorded = next((event for event in events if event.get("id") == submitted["id"]), None)
+        recorded = next((item for item in events if item.get("id") == event_id), None)
         if recorded:
-            if event_payload(recorded) != event_payload(submitted):
-                raise ValidationError(f"evidence event ID payload conflict: {submitted['id']}")
+            step = next((item for item in plan.get("steps", []) if item.get("id") == step_id), None)
+            verification = next((item for item in contract["nodes"]["V"]
+                                 if item.get("id") == v_id and item.get("status") == "active"), None)
+            if (not step or not verification or v_id not in step.get("verifications", [])
+                    or recorded.get("contract_hash") != contract_hash(contract)
+                    or plan.get("contract_hash") != contract_hash(contract)
+                    or recorded.get("plan_structure_hash") != plan_hash(plan)
+                    or plan.get("plan_structure_hash") != plan_hash(plan)
+                    or recorded.get("step_hash") != step_hash(step)):
+                raise ValidationError("recorded verification bindings are stale")
+            producer = "check.py/record-human-step-v1" if owner_event is not None else "check.py/verify-step-v1"
+            if (recorded.get("type") != "step-verification"
+                    or recorded.get("producer") != producer
+                    or recorded.get("step_id") != step_id
+                    or recorded.get("v_id") != v_id):
+                raise ValidationError(f"verification event ID payload conflict: {event_id}")
+            if owner_event is not None:
+                if (verification.get("type") != "human"
+                        or recorded.get("owner_event") != owner_event
+                        or recorded.get("result") != "passed"
+                        or trusted_step_evidence_problems(recorded, verification, events)):
+                    raise ValidationError("recorded human verification evidence is invalid")
+                return recorded
+            if verification.get("type") == "human":
+                raise ValidationError("human verification cannot use verify-step")
+            recorded_evidence = Path(recorded.get("evidence_path", ""))
+            if not recorded_evidence.is_absolute():
+                recorded_evidence = Path.cwd() / recorded_evidence
+            if recorded_evidence.resolve() != Path(evidence_path).resolve():
+                raise ValidationError("verification event ID evidence path conflict")
+            if (not recorded_evidence.is_file()
+                    or hashlib.sha256(recorded_evidence.read_bytes()).hexdigest() != recorded.get("output_hash")):
+                raise ValidationError("recorded verification evidence is missing or stale")
+            if recorded.get("result") == "passed" and trusted_step_evidence_problems(recorded, verification):
+                raise ValidationError("recorded verification evidence is invalid")
             return recorded
-        ledger_path.parent.mkdir(parents=True, exist_ok=True)
-        with ledger_path.open("a", encoding="utf-8", newline="\n") as stream:
-            stream.write(json.dumps(submitted, ensure_ascii=False, sort_keys=True) + "\n")
-            stream.flush()
-            os.fsync(stream.fileno())
-        return submitted
+
+        replay_problems = []
+        recovered = replay_plan_runtime(plan, events, replay_problems)
+        hard_replay_problems = [item for item in replay_problems if "does not match ledger replay" not in item]
+        if hard_replay_problems:
+            raise ValidationError("PLAN runtime ledger is invalid:\n- " + "\n- ".join(hard_replay_problems))
+        if recovered:
+            for field, value in recovered.items():
+                plan["runtime"][field] = value
+            meta["status"] = plan["runtime"]["status"]
+        problems = plan_artifact_problems(meta, plan, contract, events, require_building=True)
+        if problems:
+            raise ValidationError("PLAN is invalid:\n- " + "\n- ".join(problems))
+        step = next((item for item in plan.get("steps", []) if item.get("id") == step_id), None)
+        if not step:
+            raise ValidationError(f"unknown PLAN step: {step_id}")
+        if plan["runtime"].get("selected_variants", {}).get(step.get("unit")) != step.get("variant"):
+            raise ValidationError("verify-step requires a selected variant step")
+        if plan["runtime"].get("step_states", {}).get(step_id) != "verifying":
+            raise ValidationError("verify-step requires step state=verifying")
+        if v_id not in step.get("verifications", []):
+            raise ValidationError(f"{v_id} is not bound to PLAN step {step_id}")
+        verification = next(
+            (item for item in contract.get("nodes", {}).get("V", [])
+             if item.get("id") == v_id and item.get("status") == "active"),
+            None,
+        )
+        if not verification:
+            raise ValidationError(f"active contract verification not found: {v_id}")
+        if owner_event is not None:
+            if verification.get("type") != "human":
+                raise ValidationError("record-human-step requires a human verification")
+            owner = next((item for item in events if item.get("id") == owner_event), {})
+            event = {
+                "id": event_id, "type": "step-verification",
+                "producer": "check.py/record-human-step-v1", "result": "passed",
+                "step_id": step_id, "v_id": v_id, "owner_event": owner_event,
+                "contract_hash": plan["contract_hash"],
+                "plan_structure_hash": plan["plan_structure_hash"], "step_hash": step_hash(step),
+                "output_hash": digest(owner, "human-step-owner-decision"),
+            }
+            problems = trusted_step_evidence_problems(event, verification, events)
+            if problems:
+                raise ValidationError("; ".join(problems))
+            return append_immutable_event(ledger_path, event)
+        if verification.get("type") == "human":
+            raise ValidationError("human verification cannot use verify-step")
+        command = verification.get("command")
+        if not isinstance(command, str) or not command.strip():
+            raise ValidationError("automated verification command must be a non-empty string")
+        timeout_seconds = verification.get("timeout_seconds", 300)
+        if not isinstance(timeout_seconds, int) or isinstance(timeout_seconds, bool) or not 1 <= timeout_seconds <= 3600:
+            raise ValidationError("verification timeout_seconds must be 1..3600")
+
+        evidence_path = Path(evidence_path)
+        if ".." in evidence_path.parts:
+            raise ValidationError("step evidence path cannot contain parent traversal")
+        resolved_evidence = evidence_path.resolve() if evidence_path.is_absolute() else (Path.cwd() / evidence_path).resolve()
+        allowed_root = (Path(contract_path).resolve().parent / "evidence").resolve()
+        try:
+            resolved_evidence.relative_to(allowed_root)
+        except ValueError as exc:
+            raise ValidationError("step evidence must live under the contract package evidence directory") from exc
+        step_digest = step_hash(step)
+        payload, output_hash = run_command_evidence(
+            command, Path.cwd(), resolved_evidence,
+            {
+                "kind": "step-verification",
+                "event_id": event_id,
+                "step_id": step_id,
+                "v_id": v_id,
+                "contract_hash": plan["contract_hash"],
+                "plan_structure_hash": plan["plan_structure_hash"],
+                "step_hash": step_digest,
+                "expected": verification.get("expected"),
+                "assertion_kind": verification.get("assertion_kind"),
+                "empty_result_policy": verification.get("empty_result_policy"),
+                **({"assertion": verification["assertion"]} if "assertion" in verification else {}),
+            },
+            timeout_seconds, recover=True,
+        )
+        try:
+            recorded_evidence_path = resolved_evidence.relative_to(Path.cwd().resolve()).as_posix()
+        except ValueError:
+            recorded_evidence_path = str(resolved_evidence)
+        event = {
+            "id": event_id,
+            "type": "step-verification",
+            "producer": "check.py/verify-step-v1",
+            "step_id": step_id,
+            "v_id": v_id,
+            "result": payload["result"],
+            "command": command,
+            "exit_code": payload["exit_code"],
+            "timed_out": payload["timed_out"],
+            "started_at": payload["started_at"],
+            "finished_at": payload["finished_at"],
+            "elapsed_seconds": payload["elapsed_seconds"],
+            "evidence_path": recorded_evidence_path,
+            "output_hash": output_hash,
+            "contract_hash": plan["contract_hash"],
+            "plan_structure_hash": plan["plan_structure_hash"],
+            "step_hash": step_digest,
+        }
+        append_immutable_event(ledger_path, event)
+        return event
 
 
 def validate_workflow_event(state, event):
@@ -2152,12 +2938,125 @@ def report(label, problems):
 
 def selftest():
     failures = 0
+    _, goal_fixture = read_artifact(FIXTURES / "goal-valid.md", "goal")
+    failures += report("valid goal schema", validate_goal(goal_fixture))
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        goal_path = root / ".opencode" / "mvp" / "goal.md"
+        goal_path.parent.mkdir(parents=True)
+        for field_path in (
+                ("status",), ("rigor",), ("risk", "factors"), ("outcomes",),
+                ("outcomes", 0, "status"), ("outcomes", 0, "evidence"),
+                ("outcomes", 0, "verification"),
+                ("outcomes", 0, "verification", "assertion_kind"),
+                ("outcomes", 0, "verification", "assertion")):
+            for bad_value in (None, [], {}, True, 7):
+                malformed = json.loads(json.dumps(goal_fixture))
+                target = malformed
+                for key in field_path[:-1]:
+                    target = target[key]
+                target[field_path[-1]] = bad_value
+                if field_path[-1] == "evidence":
+                    malformed["outcomes"][0]["status"] = "verified"
+                goal_path.write_text(render_goal(malformed), encoding="utf-8")
+                failures += report("goal malformed " + str(field_path) + repr(bad_value),
+                                   [] if validate_goal_artifact(goal_path)[2] else ["accepted"])
+        for name, code, assertion, passed in (
+                ("literal", "print('Hello user')", {"type": "stdout-contains", "literal": "Hello user"}, True),
+                ("empty", "pass", {"type": "stdout-contains", "literal": "Hello user"}, False),
+                ("wrong", "print('wrong')", {"type": "stdout-contains", "literal": "Hello user"}, False),
+                ("exit", "print('Hello user'); raise SystemExit(1)", {"type": "stdout-contains", "literal": "Hello user"}, False),
+                ("timeout", "import time; time.sleep(2)", {"type": "stdout-contains", "literal": "Hello user"}, False),
+                ("json", "print('{\\\"ok\\\":true}')", {"type": "json-equals", "expected": {"ok": True}}, True),
+                ("json-wrong", "print('false')", {"type": "json-equals", "expected": True}, False),
+                ("json-invalid", "print('not JSON')", {"type": "json-equals", "expected": None}, False)):
+            goal = json.loads(json.dumps(goal_fixture))
+            verification = goal["outcomes"][0]["verification"]
+            verification.update(command=f'"{sys.executable}" -c "{code}"', assertion=assertion, timeout_seconds=1)
+            goal_path.write_text(render_goal(goal), encoding="utf-8")
+            evidence_path = root / ".opencode" / "mvp" / "evidence" / (name + ".json")
+            updated, payload = verify_goal_outcome(goal_path, "O-01", evidence_path)
+            failures += report("goal runner " + name, [] if
+                               (payload["result"] == "passed") == passed and
+                               (updated["outcomes"][0]["status"] == "verified") == passed
+                               else ["incorrect result"])
+            try:
+                finish_goal(goal_path)
+                finished = True
+            except ValidationError:
+                finished = False
+            failures += report("goal finish " + name, [] if finished == passed else ["incorrect gate"])
+            if not passed:
+                continue
+            baseline = goal_path.read_text(encoding="utf-8")
+            changed = json.loads(json.dumps(updated))
+            changed["demo"] = "changed definition"
+            goal_path.write_text(render_goal(changed), encoding="utf-8")
+            failures += report("goal stale definition", [] if validate_goal_artifact(goal_path)[2] else ["accepted"])
+            changed = json.loads(json.dumps(updated))
+            changed["outcomes"][0]["user_entry"] = False
+            # Re-run against the new definition to isolate the user-entry finish gate.
+            changed["outcomes"][0]["status"] = "pending"
+            changed["outcomes"][0].pop("evidence")
+            goal_path.write_text(render_goal(changed), encoding="utf-8")
+            verify_goal_outcome(goal_path, "O-01", evidence_path.with_name(name + "-internal.json"))
+            try:
+                finish_goal(goal_path)
+                failures += report("goal user-entry gate", ["accepted internal-only outcomes"])
+            except ValidationError:
+                print("[goal user-entry gate] OK")
+            goal_path.write_text(baseline, encoding="utf-8")
+            for field, value in (("timed_out", True), ("exit_code", False), ("result", "failed")):
+                forged_payload = dict(payload)
+                forged_payload[field] = value
+                evidence_path.write_text(json.dumps(forged_payload), encoding="utf-8")
+                _, altered = read_artifact(goal_path, "goal")
+                altered["outcomes"][0]["evidence"]["sha256"] = hashlib.sha256(evidence_path.read_bytes()).hexdigest()
+                goal_path.write_text(render_goal(altered), encoding="utf-8")
+                failures += report("goal evidence " + field, [] if validate_goal_artifact(goal_path)[2] else ["accepted"])
+            for bad_payload in ([], None, True):
+                evidence_path.write_text(json.dumps(bad_payload), encoding="utf-8")
+                failures += report("goal malformed evidence payload", [] if validate_goal_artifact(goal_path)[2] else ["accepted"])
+            goal_path.write_text(baseline, encoding="utf-8")
+            payload["stdout"] = "tampered"
+            evidence_path.write_text(json.dumps(payload), encoding="utf-8")
+            failures += report("goal output hash tamper", [] if validate_goal_artifact(goal_path)[2] else ["accepted"])
+            _, altered = read_artifact(goal_path, "goal")
+            altered["outcomes"][0]["evidence"]["sha256"] = hashlib.sha256(evidence_path.read_bytes()).hexdigest()
+            goal_path.write_text(render_goal(altered), encoding="utf-8")
+            failures += report("goal assertion revalidation", [] if validate_goal_artifact(goal_path)[2] else ["accepted"])
+    for output, expected in (("true", 1), ('{"x":1,"x":2}', {"x": 2}), ("NaN", None)):
+        failures += report("JSON assertion strictness", [] if not evaluate_assertion(
+            output, {"type": "json-equals", "expected": expected}) else ["accepted"])
     brief_meta, brief, expected_brief_hash, brief_problems = validate_brief_artifact(
         FIXTURES / "brief-valid.md"
     )
     if brief_meta.get("brief-hash") != expected_brief_hash:
         brief_problems.append("valid brief fixture frontmatter hash mismatch")
     failures += report("valid brief", brief_problems)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        goal_path = root / ".opencode" / "mvp" / "goal.md"
+        goal_path.parent.mkdir(parents=True)
+        for status, confirmed in (("final", True), ("draft", True), ("draft", False), ("final", False)):
+            source_brief = json.loads(json.dumps(brief))
+            source_brief["status"] = status
+            source_brief["owner_confirmation"]["confirmed"] = confirmed
+            source_hash = brief_hash(source_brief)
+            (root / "brief.md").write_text(
+                f"---\nstatus: {status}\nbrief-hash: {source_hash}\n---\n\n```json brief\n"
+                + json.dumps(source_brief) + "\n```\n", encoding="utf-8")
+            goal = json.loads(json.dumps(goal_fixture))
+            goal["source"] = {
+                "type": "brief", "path": "brief.md", "brief_hash": source_hash,
+                "coverage": [{"brief_id": item["id"], "disposition": "outcome", "outcome_ids": ["O-01"]}
+                             for item in source_brief["items"]],
+            }
+            goal_path.write_text(render_goal(goal), encoding="utf-8")
+            source_problems = validate_goal_artifact(goal_path)[2]
+            failures += report(f"goal source {status} confirmed={confirmed}", [] if
+                               bool(source_problems) == (status != "final" or not confirmed)
+                               else ["incorrect source gate"])
 
     missing_success = json.loads(json.dumps(brief))
     missing_success["items"] = [
@@ -2171,6 +3070,10 @@ def selftest():
         "schema_version": 1, "revision": 1, "status": [], "summary": "x",
         "items": [], "frontier": [[]], "owner_confirmation": {},
     }))
+    for bad_kind in ([], {}, None, True):
+        malformed = json.loads(json.dumps(brief))
+        malformed["items"][0]["kind"] = bad_kind
+        malformed_rejected = bool(validate_brief(malformed)) and malformed_rejected
     if missing_rejected and duplicate_rejected and malformed_rejected:
         print("[invalid brief] OK (independent rules and malformed types rejected)")
     else:
@@ -2283,6 +3186,76 @@ def selftest():
     else:
         failures += 1
         print("[tdd red_command] X human V with red_command accepted")
+
+    strict = json.loads(json.dumps(valid))
+    strict["workflow_protocol"] = "v0.2"
+    strict_v = strict["nodes"]["V"][0]
+    failures += report("v0.2 missing assertion", [] if any(
+        "assertion must be an object" in item for item in validate_contract(strict)) else ["accepted"])
+    for protocol in ("legacy", "v0.1"):
+        old = json.loads(json.dumps(valid))
+        old["workflow_protocol"] = protocol
+        failures += report(protocol + " assertion-free compatibility", validate_contract(old))
+    for assertion in (None, {}, {"type": "stdout-contains", "literal": " "},
+                      {"type": "stdout-contains", "literal": "ok", "extra": True},
+                      {"type": "json-equals"}, {"type": "json-equals", "expected": float("nan")}):
+        strict_v["assertion"] = assertion
+        failures += report("v0.2 invalid assertion", [] if validate_contract(strict) else ["accepted"])
+    for name, code, assertion, passed in (
+            ("wrong", "print('wrong')", {"type": "stdout-contains", "literal": "Hello user"}, False),
+            ("literal", "print('Hello user')", {"type": "stdout-contains", "literal": "Hello user"}, True),
+            ("json-wrong", "print('false')", {"type": "json-equals", "expected": True}, False),
+            ("json", "print('true')", {"type": "json-equals", "expected": True}, True)):
+        strict_v.update(command=f'"{sys.executable}" -c "{code}"', assertion=assertion)
+        failures += report("v0.2 schema " + name, validate_contract(strict))
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            contract_path, plan_path = root / "contract.md", root / "PLAN.md"
+            ledger_path, state_path = root / "events.jsonl", root / "workflow-state.json"
+            event_path = root / "event.json"
+            contract_path.write_text("---\nstatus: draft\nphase: intake\n---\n\n```json contract\n"
+                                     + json.dumps(strict) + "\n```\n", encoding="utf-8")
+            strict_plan = compile_plan(strict)
+            plan_path.write_text(render_plan(strict_plan, "test"), encoding="utf-8")
+            bindings = {"contract_hash": contract_hash(strict), "plan_structure_hash": plan_hash(strict_plan)}
+            event_path.write_text(json.dumps({"id": "EV-REVIEW", "to_status": "reviewing",
+                                             "to_phase": "final-audit-recorded"}), encoding="utf-8")
+            append_event(state_path, ledger_path, event_path, 0)
+            event_path.write_text(json.dumps({"id": "EV-AUDIT", "type": "final-audit", "result": "passed",
+                                             **bindings}), encoding="utf-8")
+            record_evidence_event(ledger_path, event_path)
+            event_path.write_text(json.dumps({"id": "EV-RELEASE", "to_status": "passed", "to_phase": "idle",
+                                             "final_audit_event": "EV-AUDIT", **bindings}), encoding="utf-8")
+            release_contract(contract_path, state_path, ledger_path, event_path, 1)
+            event_path.write_text(json.dumps({"id": "EV-OWNER", "type": "owner-decision",
+                                             "decision": "plan-confirmation", "result": "accepted", **bindings}), encoding="utf-8")
+            record_evidence_event(ledger_path, event_path)
+            event_path.write_text(json.dumps({"id": "EV-CONFIRM", "authorization": "owner-confirmed",
+                                             "owner_event": "EV-OWNER", "selections": {
+                                                 "I-01": {"variant": "base", "selector_evidence": "default"}}}), encoding="utf-8")
+            confirm_plan(plan_path, event_path, contract_path, ledger_path)
+            step = strict_plan["steps"][0]
+            for revision, state in enumerate(("selected", "executing", "verifying")):
+                event_path.write_text(json.dumps({"id": "EV-" + state.upper(), "type": "step-transition",
+                                                 "step_id": step["id"], "step_hash": step_hash(step),
+                                                 "to_state": state, "expected_revision": revision, **bindings}), encoding="utf-8")
+                apply_plan_event(plan_path, event_path, contract_path, ledger_path)
+            evidence_path = root / "evidence" / "step.json"
+            event = verify_step(plan_path, step["id"], "V-01", contract_path, ledger_path, evidence_path, "EV-V")
+            payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+            failures += report("v0.2 runner " + name, [] if event["exit_code"] == 0 and
+                               (event["result"] == "passed") == passed and payload.get("assertion") == assertion and
+                               payload.get("assertion_passed") is passed else ["incorrect assertion result"])
+            failures += report("v0.2 evidence " + name, [] if
+                               bool(trusted_step_evidence_problems(event, strict_v)) != passed else ["incorrect evidence gate"])
+            if passed:
+                for field, value in (("stdout", "wrong"), ("assertion_passed", False), ("assertion", {})):
+                    forged = dict(payload)
+                    forged[field] = value
+                    evidence_path.write_text(json.dumps(forged), encoding="utf-8")
+                    forged_event = dict(event, output_hash=hashlib.sha256(evidence_path.read_bytes()).hexdigest())
+                    failures += report("v0.2 assertion recheck " + field, [] if
+                                       trusted_step_evidence_problems(forged_event, strict_v) else ["accepted"])
 
     compiled = compile_plan(valid)
     plan_meta, plan = read_artifact(FIXTURES / "plan-valid.md", "plan")
@@ -2397,7 +3370,66 @@ def selftest():
             "output_hash": "test-output", "contract_hash": plan["contract_hash"],
             "plan_structure_hash": plan["plan_structure_hash"], "step_hash": step_digest,
         }), encoding="utf-8", newline="\n")
-        record_evidence_event(ledger_path, verification_path)
+        try:
+            record_evidence_event(ledger_path, verification_path)
+            failures += report("forged step pass", ["record accepted forged pass"])
+        except ValidationError:
+            print("[forged step pass] OK (rejected)")
+        step_evidence = plan_dir / "evidence" / "step.json"
+        generated = verify_step(plan_path, step_id, "V-01", contract_path,
+                                ledger_path, step_evidence, "EV-STEP-V-TEST")
+        failures += report("verify-step execution and retry", [] if generated["result"] == "passed" and
+                           verify_step(plan_path, step_id, "V-01", contract_path,
+                                       ledger_path, step_evidence, "EV-STEP-V-TEST") == generated
+                           else ["runner or idempotency failed"])
+        failures += report("verify-step CLI retry", [] if main([
+            "check.py", "verify-step", str(plan_path), step_id, "V-01",
+            "--contract", str(contract_path), "--ledger", str(ledger_path),
+            "--evidence", str(step_evidence), "--event-id", "EV-STEP-V-TEST",
+        ]) == 0 else ["CLI failed"])
+        original_ledger = ledger_path.read_text(encoding="utf-8")
+        for binding in ("contract_hash", "plan_structure_hash", "step_hash"):
+            altered_events = load_ledger(ledger_path)
+            next(item for item in altered_events if item["id"] == generated["id"])[binding] = "stale"
+            ledger_path.write_text("".join(json.dumps(item) + "\n" for item in altered_events), encoding="utf-8")
+            try:
+                verify_step(plan_path, step_id, "V-01", contract_path,
+                            ledger_path, step_evidence, "EV-STEP-V-TEST")
+                failures += report("step retry " + binding, ["accepted stale binding"])
+            except ValidationError:
+                print("[step retry " + binding + "] OK")
+            finally:
+                ledger_path.write_text(original_ledger, encoding="utf-8")
+        original_plan = plan_path.read_text(encoding="utf-8")
+        _, changed_plan = read_artifact(plan_path, "plan")
+        changed_plan["steps"][0]["artifacts"] = ["changed-artifact"]
+        plan_path.write_text(render_plan(changed_plan, "test"), encoding="utf-8")
+        try:
+            verify_step(plan_path, step_id, "V-01", contract_path,
+                        ledger_path, step_evidence, "EV-STEP-V-TEST")
+            failures += report("step retry changed plan", ["accepted"])
+        except ValidationError:
+            print("[step retry changed plan] OK")
+        finally:
+            plan_path.write_text(original_plan, encoding="utf-8")
+        original_evidence = step_evidence.read_bytes()
+        step_verification = valid["nodes"]["V"][0]
+        failures += report("strict step evidence", trusted_step_evidence_problems(generated, step_verification))
+        for malformed_payload in ([], None, {"result": "passed"}):
+            step_evidence.write_text(json.dumps(malformed_payload), encoding="utf-8")
+            failures += report("malformed step evidence", [] if trusted_step_evidence_problems(
+                generated, step_verification) else ["accepted"])
+            try:
+                verify_step(plan_path, step_id, "V-01", contract_path,
+                            ledger_path, step_evidence, "EV-STEP-V-TEST")
+                failures += report("step retry tampering", ["accepted"])
+            except ValidationError:
+                print("[step retry tampering] OK")
+        step_evidence.write_bytes(original_evidence)
+        forged = dict(generated)
+        forged.pop("producer")
+        failures += report("strict step producer marker", [] if trusted_step_evidence_problems(
+            forged, step_verification) else ["accepted"])
         attempt_path = plan_dir / "attempt.json"
         attempt_path.write_text(json.dumps({
             "id": "EV-ATTEMPT-TEST", "type": "attempt", "step_id": step_id,
@@ -2616,6 +3648,22 @@ def selftest():
     if validate_plan(clean_done, valid, done_events):
         failures += 1
         print("[reconcile closure] X fully evidenced done PLAN rejected")
+    strict_contract = json.loads(json.dumps(valid))
+    strict_contract["workflow_protocol"] = "v0.2"
+    strict_contract["nodes"]["V"][0]["assertion"] = {
+        "type": "stdout-contains", "literal": "compiler fixture PASS",
+    }
+    strict_plan = compile_plan(strict_contract)
+    strict_plan["runtime"] = json.loads(json.dumps(clean_done["runtime"]))
+    strict_events = json.loads(json.dumps(done_events))
+    for event in strict_events:
+        event["contract_hash"] = strict_plan["contract_hash"]
+        event["plan_structure_hash"] = strict_plan["plan_structure_hash"]
+        if event["type"] == "attempt":
+            event["subagent_id"] = "implementation-test"
+    strict_problems = validate_plan(strict_plan, strict_contract, strict_events)
+    failures += report("v0.2 rejects legacy passing evidence", [] if any(
+        "not generated by verify-step" in item for item in strict_problems) else ["legacy evidence accepted"])
     forged_runtime = json.loads(json.dumps(clean_done))
     forged_runtime["runtime"]["applied_event_ids"] = []
     forged_runtime["runtime"]["revision"] = 0
@@ -2858,6 +3906,8 @@ def selftest():
         if not tdd_ok:
             failures += 1
 
+    import runpy
+    failures += runpy.run_path(str(ROOT / "tests" / "final_review.py"))["run"](sys.modules[__name__])
     print("selftest " + ("FAIL" if failures else "PASS"))
     return 1 if failures else 0
 
@@ -2874,6 +3924,21 @@ def main(argv):
             meta, brief, expected, problems = validate_brief_artifact(argv[2])
             print(f"brief-hash: {expected}")
             return report("brief", problems)
+        if command == "goal":
+            _, _, problems = validate_goal_artifact(argv[2])
+            return report("goal", problems)
+        if command == "verify-goal" and len(argv) >= 4:
+            if "--evidence" not in argv:
+                raise ValidationError("verify-goal requires --evidence")
+            goal, payload = verify_goal_outcome(
+                argv[2], argv[3], argv[argv.index("--evidence") + 1],
+            )
+            print(f"goal outcome {argv[3]}: {payload['result']}")
+            return 0 if payload["result"] == "passed" else 1
+        if command == "finish-goal":
+            goal = finish_goal(argv[2])
+            print(f"finished goal {goal['id']} ({goal['status']})")
+            return 0
         if command == "contract":
             meta, contract = read_artifact(argv[2], "contract")
             expected = contract_hash(contract)
@@ -2893,6 +3958,8 @@ def main(argv):
             ledger_path = argv[argv.index("--ledger") + 1]
             recovery = argv[argv.index("--recovery-cr") + 1] if "--recovery-cr" in argv else None
             recovery_order = enforce_cr_gate(change_path, ledger_path, recovery)
+            if not recovery_order and Path(argv[3]).exists():
+                raise ValidationError("PLAN already exists; replacement requires scoped CR recovery")
             meta, contract = read_checked_contract(argv[2], require_released=True, ledger_path=ledger_path)
             plan = compile_plan(contract)
             if recovery_order:
@@ -2904,7 +3971,8 @@ def main(argv):
                     raise ValidationError("CR recovery requires the previous PLAN for scoped diff")
                 _, old_plan = read_artifact(argv[3], "plan")
                 enforce_recovery_scope(old_plan, plan, recovery_order)
-            Path(argv[3]).write_text(render_plan(plan, meta.get("project", "project")), encoding="utf-8", newline="\n")
+            with Path(argv[3]).open("w" if recovery_order else "x", encoding="utf-8", newline="\n") as stream:
+                stream.write(render_plan(plan, meta.get("project", "project")))
             print(f"wrote {argv[3]} ({len(plan['steps'])} variant-segments)")
             return 0
         if command == "confirm-plan" and len(argv) >= 4:
@@ -2925,6 +3993,30 @@ def main(argv):
             )
             print(f"PLAN runtime status: {plan['runtime']['status']}")
             return 0
+        if command == "record-human-step" and len(argv) >= 5:
+            for flag in ("--contract", "--ledger", "--owner-event", "--event-id"):
+                if flag not in argv:
+                    raise ValidationError("record-human-step requires --contract, --ledger, --owner-event, and --event-id")
+            event = verify_step(
+                argv[2], argv[3], argv[4], argv[argv.index("--contract") + 1],
+                argv[argv.index("--ledger") + 1], None, argv[argv.index("--event-id") + 1],
+                owner_event=argv[argv.index("--owner-event") + 1],
+            )
+            print(f"human step verification {event['id']}: passed (owner events and IDs are locally claimed, not authenticated)")
+            return 0
+        if command == "verify-step" and len(argv) >= 5:
+            for flag in ("--contract", "--ledger", "--evidence", "--event-id"):
+                if flag not in argv:
+                    raise ValidationError("verify-step requires --contract, --ledger, --evidence, and --event-id")
+            event = verify_step(
+                argv[2], argv[3], argv[4],
+                argv[argv.index("--contract") + 1],
+                argv[argv.index("--ledger") + 1],
+                argv[argv.index("--evidence") + 1],
+                argv[argv.index("--event-id") + 1],
+            )
+            print(f"step verification {event['id']}: {event['result']}")
+            return 0 if event["result"] == "passed" else 1
         if command == "finish-plan" and len(argv) >= 4:
             for flag in ("--contract", "--change-orders", "--ledger"):
                 if flag not in argv:

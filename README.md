@@ -1,142 +1,147 @@
-# contract-review & construction skills
+# MVP delivery skills
 
-这套 workflow 解决一件事：别让 agent 听着一句模糊需求就开始写代码。
+这套 OpenCode workflow 的目标是把想法变成真实可运行结果，而不是让 agent 只把
+问题问得很好、最后留下大量规划工件。
 
-它会先把需求问清，再做契约和计划，最后按计划施工。上一环的产物没通过
-机器校验，下一环不会启动。
+## 五个命令
 
-## 我现在该用哪个命令？
+公开入口只保留四个动作命令和一个恢复命令：
 
-只记住这条主线：
+| 命令 | 什么时候用 | 结果 |
+|---|---|---|
+| `/grill <idea>` | 想法还模糊，需要把目标问清 | 经确认的 `docs/brief.md` |
+| `/plan <goal-or-brief>` | 需要先看实现路径，不立即写代码 | 轻量目标卡；高风险时内部生成严格 PLAN |
+| `/build [goal]` | 开始交付；明确的小任务可直接带目标 | 可运行、经真实验证并持续补齐的结果 |
+| `/fix <problem>` | 已有功能报错、行为错误或契约与现实冲突 | 根因修复和回归验证 |
+| `/resume` | 上次执行中断 | 从持久状态继续到原始目标完成 |
+
+评审、测试作者、CR、终审和复盘仍然存在，但都是内部能力，不再要求用户记住或
+手工接力更多命令。
+
+## 推荐路径
+
+需求明确，直接做：
 
 ```text
-想法还模糊？ /grill（可选）
-        ↓ docs/brief.md
-/review
-        ↓ docs/contract.md (passed)
-/plan
-        ↓ docs/PLAN.md (confirmed)
-/build
-        ↓ 代码 + 验收证据
-/finish
+/build <goal>
 ```
 
-拿不准要不要 `/grill`，直接用 `/review`。如果目标、用户、约束或成功标准
-还不够清楚，它会先调用 grill，不会硬猜。
+需要先看计划：
 
-### 五个主命令
+```text
+/plan <goal>
+       ↓
+/build
+```
 
-- `/grill <idea>`：想法还很模糊，或者事情昂贵、不可逆、涉及隐私时用。
-  它只负责把需求问清，产出 `docs/brief.md`。
-- `/review <requirements>`：需求已经能说清楚时用。它产出经过独立评审的
-  `docs/contract.md`。
-- `/plan`：契约通过后用。它把契约编译成不能手改的 `docs/PLAN.md`。
-- `/build`：PLAN 确认后用。它逐步实现，每一步都跑验收命令并留证据。
-- `/finish`：所有步骤完成后用。它做最终对账，确认代码确实满足契约。
+想法模糊：
 
-### 遇到情况再用
+```text
+/grill <idea>
+       ↓
+/plan docs/brief.md
+       ↓
+/build
+```
 
-- `/resume`：施工中断后继续。
-- `/change <fact>`：发现契约和现实不符，例如“这个接口其实不存在”。
-- `/challenge <idea>`：只想找一个已说清想法的漏洞，不启动完整流程。
-- `/assess <idea>`：只想判断值不值得做。
-- `/debate <design>`：已经有设计，想看取舍是否站得住。
-- `/retro`：竣工后复盘，可选。
+出现 bug：
 
-自然语言也能触发，例如“帮我把需求问清楚”“评审这个方案”“继续施工”。
-英文命令是确定入口，自然语言是方便入口。
+```text
+/fix <problem or error>
+```
+
+会话中断后只需：
+
+```text
+/resume
+```
+
+## 为什么不会停在 MVP
+
+这里的 MVP 是交付顺序，不是永久缩减目标。`/build` 先实现最薄的真实端到端
+切片，验证后重新对照原始结果清单，再自动进入下一片，直到目标全部完成或出现
+必须由用户决定的阻塞。
+
+所有任务使用 `.opencode/mvp/<goal>.md` 的 schema-1 `json goal` 保存目标和验证状态，
+结果数量不设上限。brief 输入在所有风险档都必须 final、owner-confirmed 并通过
+`brief` 校验，且每个 brief ID 都有 coverage。`goal` 校验卡片，`verify-goal`
+逐项执行验证并保存引擎证据，`finish-goal` 才可完成；禁止手写 verified/complete。
+至少一个 `user_entry: true` 结果必须验证真实产品入口 demo。
+
+`/fix` 复用相关 active/blocked 卡片，不创建第二个 active 修复目标；已完成包保持
+不可变，修复基线不明确时先问。`/resume` 在没有未完成目标而有 draft brief 时继续
+grill frontier，不开始施工。
+
+## 按风险增加流程
+
+流程强度按当前切片选择，不让所有任务缴纳相同的文档成本：
+
+- Normal：可逆的工作区内改动，只需目标卡、相关测试和真实 demo。
+- Guarded：外部边界或较高返工风险，增加小探针、验收测试和必要的独立 review。
+- Audited：资金、隐私、安全、迁移或不可逆副作用，内部调用契约、PLAN、CR 和
+  reconcile gate。
+
+无论采用哪一档，公开入口仍是 `/plan`、`/build`、`/fix` 和 `/resume`。严格能力
+完成后会把控制权交回交付循环，不要求用户换命令。
+但自动接力不是预授权：每个 SI 仍需要 owner 对实际切片结果的验收、增量决定和
+新生成 PLAN 的确认；审批或风险命令授权可以暂停执行。新 Audited 契约声明顶层
+`workflow_protocol: v0.2`，非 human V 必须通过 `verify-step` 产生证据和事件。
+
+## 内部 skills
+
+- `mvp-delivery`：`plan/build/fix/resume` 的总控制器，负责持续收敛到原始目标。
+- `grill`：深度需求澄清，只生成 brief。
+- `contract-review`：Audited 切片的契约评审和 PLAN 编译。
+- `construction`：执行并收尾 Audited PLAN，处理 CR 恢复。
+- `test-author`：由 fresh subagent 调度时独立生成和冻结验收测试。
+- `reviewer`：由 fresh subagent 调度时进行只读评审。
+- `step-executor`：由 fresh subagent 隔离执行一个严格 PLAN 步骤。
+
+加载 skill 只会加入说明，不会自动创建独立身份。需要作者隔离时必须真实调度
+fresh subagent 或真实独立 session；不可用时记录 independence unavailable 并阻断
+Audited release，不能用 waiver 冒充独立评审。ID 只是声明，没有密码学身份验证。
 
 ## 安装
 
-在本仓库根目录运行，把 `<target-project>` 换成目标项目：
+需要 Python 3.10+。在本仓库根目录运行：
 
 ```powershell
 python scripts/install.py "E:/path/to/target-project"
 ```
 
-安装器会做三件事：把真实 command wrapper 复制到目标项目的
-`.opencode/commands/`，把校验引擎安装到 `.opencode/workflow/`，并在
-`opencode.json` 注册本仓库的 skills path。
-如果目标用 `opencode.jsonc`，安装器会保留注释、不自动改配置，并告诉你要
-手动添加哪一行。
+安装器会复制五个 command wrapper 和校验引擎，并在 `opencode.json` 注册本仓库的
+skills path。升级时会删除仍未被本地修改的旧命令；本地改过的旧命令会保留并提示，
+显式使用 `--force` 才会移除。
 
-需要 Python 3.10+，没有第三方依赖。安装后重启 OpenCode。
-安装器只会自动升级它上次安装且未被本地修改的文件；遇到同名自定义 command
-会拒绝覆盖。确认要替换时显式加 `--force`。
+使用 `opencode.jsonc` 时，安装器保留注释并提示手工添加 skills path。安装或修改
+skill 后必须重启 OpenCode。
 
-## 一个完整例子：做 TODO List
-
-需求还很粗时，从 `/grill` 开始：
-
-```text
-你：/grill 我想做一个团队待办工具，但细节还没想好
-agent：谁会用它？最近一次团队因为任务管理出问题是什么情况？
-你：五个人的小团队。上周有人漏了上线前的检查项。
-……
-agent：需求简报已确认，docs/brief.md 校验通过。下一步用 /review docs/brief.md。
-
-你：/review docs/brief.md
-agent：简报中的需求都已进入契约或说明了暂不处理的理由。
-       独立评审通过，docs/contract.md 状态为 passed。
-
-你：/plan
-agent：PLAN 已编译：数据层、界面、联调。请确认。
-你：确认。
-
-你：/build
-agent：开始数据层……验收通过，证据已保存。开始界面……
-
-你：/finish
-agent：最终对账 clean，独立审计无硬伤。PLAN 已置 done。
-```
-
-如果需求一开始就很明确，跳过第一段，直接 `/review <requirements>`。
-
-## 接力为什么不会丢需求？
-
-`brief.md`、`contract.md` 和 `PLAN.md` 都有机器可读的 JSON 核心和独立 hash。
-契约会记录它消费的是哪一版 brief，并要求 brief 里的每一项都有明确去处：
-进入了哪些契约节点、推迟到以后，或者为什么拒绝。漏掉任何一项，契约不能
-通过。
-
-contract hash 又进入 PLAN hash；施工和恢复前会重新检查整条链。brief 被契约
-消费后就冻结，后续变化必须走 `/change`，不能回头偷偷改。
-
-## 这五个 skill 各管什么
-
-- `grill`：需求澄清。问问题、查事实、产出 brief，不写契约和代码。
-- `contract-review`：评审 + 规划。把 brief/明确需求变成 contract，再编译 PLAN。
-- `construction`：纯施工。只按确认后的 PLAN 执行。
-- `reviewer`：只读独立评审，由主 skill 调用；`/challenge` 也会直接用它。
-- `step-executor`：隔离执行一个施工步骤，由 construction 调用。
-
-## 流程开关
-
-`direct` 适合明确、可逆的小改动，可以跳过 grill；`light` 是默认；`full` 用于
-跨模块、不可逆、涉及隐私或花钱的工作。
-
-交互上，`autonomous` 尽量少打扰，`checkpoints` 在关键节点问你，`stepwise`
-每步都问。涉及花钱、隐私、不可逆操作或增删需求时，无论选什么模式都会停
-下来确认。
-
-## 手动检查
-
-平时这些命令由 agent 调用。排查问题时可以自己运行：
+## 验证
 
 ```powershell
-python .opencode/workflow/scripts/check.py brief docs/brief.md
-python .opencode/workflow/scripts/check.py contract docs/contract.md
-python .opencode/workflow/scripts/check.py compile docs/contract.md docs/PLAN.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
-python .opencode/workflow/scripts/check.py plan docs/PLAN.md --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
-python .opencode/workflow/scripts/check.py confirm-plan docs/PLAN.md selection.json --contract docs/contract.md --ledger docs/workflow-events.jsonl
-python .opencode/workflow/scripts/check.py plan-event docs/PLAN.md event.json --contract docs/contract.md --ledger docs/workflow-events.jsonl
-python .opencode/workflow/scripts/check.py finish-plan docs/PLAN.md finish-event.json --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
-python .opencode/workflow/scripts/check.py reconcile docs/PLAN.md --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
-python .opencode/workflow/scripts/check.py --selftest
+python scripts/check.py --selftest
 ```
 
-完整合法示例在 `tests/fixtures/`；引擎规则以
-`contract-review/references/contract-schema.md` 为准。
+严格流程的单项排查命令仍可直接运行 `scripts/check.py`；合法示例位于
+`tests/fixtures/`。
+
+在目标项目根目录运行安装后的 `.opencode/workflow/scripts/check.py`；目标验证
+命令示例见 `mvp-delivery/SKILL.md`，步骤验证见 `construction/references/step-protocol.md`。
+验证命令通过 Python `shell=True` 使用系统 shell，Windows 是 `cmd.exe`，不是
+OpenCode 的 PowerShell。执行前检查命令，对破坏、付费、凭据/隐私或外部写入等风险
+取得明确授权；引擎不是沙箱。`verify-step` 使用调用者 cwd，必须从项目根运行。
+
+引擎检查结构、绑定、退出/超时和 goal stdout 断言；测试命令仍须真正检查产品行为。
+hash 不能防止有写权限者伪造工件，也不证明身份、独立性或真实可用性。`--selftest`
+只检验引擎，不是产品 usability 证明；goal 引用 draft brief 目前仍需控制器显式阻断。
+
+## 设计参考
+
+- [GitHub Spec Kit](https://github.com/github/spec-kit)：独立可验证的 MVP story。
+- [OpenSpec](https://github.com/Fission-AI/OpenSpec)：progressive rigor 和增量规格。
+- [Superpowers](https://github.com/obra/superpowers)：continuous execution 和真实
+  subagent 隔离。
+- [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD)：按任务规模选择流程。
 
 ## License
 

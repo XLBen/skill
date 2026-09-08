@@ -33,8 +33,14 @@ They may not weaken V or alter actions, interfaces, side effects, or rollback.
 
 ## User Confirmation
 
-For `checkpoints` and `stepwise`, show a generated summary containing scope,
+For every interaction mode (`autonomous`, `checkpoints`, and `stepwise`), show
+a generated summary containing scope,
 selected/default variants, irreversible side effects, human V, and exclusions.
+Include the intended user/interface, target versus verification environment,
+public-interface journeys covering all promised outcomes, representative
+input/output and retrieval, and repeatable setup/prerequisites and handoff.
+Derive this from existing contract/PLAN fields, not a second semantic artifact;
+expose missing coverage before confirmation rather than editing compiled PLAN.
 Confirmation changes runtime status from `planning` to `building`; it does not
 authorize semantic edits. The confirmation is always an immutable owner
 decision. `autonomous` reduces step interruptions but does not authorize a
@@ -66,3 +72,27 @@ python .opencode/workflow/scripts/check.py plan docs/PLAN.md --contract docs/con
 
 Checkboxes may be rendered as a view, but `runtime.step_states` and the event
 ledger are authoritative.
+
+## v0.2 Slice Gate
+
+For a new v0.2 Audited project, PLAN compilation is allowed only after contract-review has
+recorded one of the following in the contract and review log:
+
+- a passed Phase 0 record under `docs/evidence/phase-0-<id>.md`; or
+- a narrowly justified `not-needed` decision for a local, reversible direct
+  change with no material external assumption.
+
+The generated PLAN must represent the first thin end-to-end slice, not every
+future story. Before confirmation, show the owner the declared and measured
+slice budget: active P/F/I/V counts, PLAN segment count, contract non-blank
+line count, and estimated product code increment. A budget exception is a
+scope/value decision, not a silent compiler adjustment.
+
+After a slice is accepted, planned expansion is compiled from an SI delta into
+a new immutable package under
+`docs/audit-slices/<goal-slug>/<slice-id>/`. It contains only affected work and
+references the prior package's clean reconcile evidence through the goal card.
+Do not edit a completed PLAN, overwrite its path, compile unaffected completed
+steps into the new PLAN, or create a CR merely to add an already-planned story.
+Existing CR recovery remains scoped to the typed impact closure of an actual
+contract/reality mismatch.

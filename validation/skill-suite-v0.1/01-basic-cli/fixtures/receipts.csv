@@ -1,0 +1,6 @@
+receipt_id,category,amount_cents,status
+r-1,food,1200,paid
+r-2,books,2500,paid
+r-3,food,700,pending
+r-4,books,500,refunded
+r-5,food,300,paid

@@ -64,13 +64,25 @@
 
 所有任务使用 `.opencode/mvp/<goal>.md` 的 schema-1 `json goal` 保存目标和验证状态，
 结果数量不设上限。brief 输入在所有风险档都必须 final、owner-confirmed 并通过
-`brief` 校验，且每个 brief ID 都有 coverage。`goal` 校验卡片，`verify-goal`
+`brief` 校验，且每个 brief ID 都有 coverage。所有 `kind: success`（BS）只能映射为
+`outcome`，不能用 constraint/deferred/non-goal/rejected 隐藏必需成功；其它类型保留
+既有 disposition。`goal` 校验卡片，`verify-goal`
 逐项执行验证并保存引擎证据，`finish-goal` 才可完成；禁止手写 verified/complete。
-至少一个 `user_entry: true` 结果必须验证真实产品入口 demo。
+任意状态的 goal 都至少有一个 `user_entry: true` 结果，且应验证真实产品入口 demo。
+ID 和布尔标记只提供结构约束，不自动证明语义覆盖或真实边界。
 
 `/fix` 复用相关 active/blocked 卡片，不创建第二个 active 修复目标；已完成包保持
-不可变，修复基线不明确时先问。`/resume` 在没有未完成目标而有 draft brief 时继续
-grill frontier，不开始施工。
+不可变，没有匹配未完成卡时先建新修复卡，不能用读取旧 complete 卡代替当前卡的
+`goal` 校验。产品修改前将受影响 outcomes 置 pending 并清除运行态证据引用/blockers，
+保留证据文件；定义变化仍全量失效，不重开 complete。修复基线不明确时先问。
+失效处理后同步 JSON/frontmatter 状态：仍有 blocked 结果则保持 blocked，否则置 active，
+重新校验后再修改产品。
+`/resume` 在没有未完成目标而有 draft brief 时继续 grill revision/frontier，不开始施工。
+grill 每次问下一轮（含首轮）或暂停前保存并校验 draft，记录访谈模式，默认 stepwise
+每轮一题，checkpoints 最多三题，绝对不超过五题。draft 的
+`owner_confirmation.confirmed` 必须是 bool，`summary` 必须是 string 但可空；
+final 必须 confirmed 为 true 且确认 summary 非空。顶层 summary 仍需真实非空。
+frontier ID 唯一且只指 open question，不要求列出全部 open question。
 
 ## 按风险增加流程
 
@@ -86,6 +98,12 @@ grill frontier，不开始施工。
 但自动接力不是预授权：每个 SI 仍需要 owner 对实际切片结果的验收、增量决定和
 新生成 PLAN 的确认；审批或风险命令授权可以暂停执行。新 Audited 契约声明顶层
 `workflow_protocol: v0.2`，非 human V 必须通过 `verify-step` 产生证据和事件。
+切片 clean 不等于全目标完成。总控制器在 finish 对照原始请求/brief 全部 BS、整个
+goal、deferred 和真实入口，按需复用 reviewer，不新增公开命令。缺实现与缺验证分别
+记录，原始设备/API 边界不能换成样例目录/mock；必需结果 pending/blocked 阻止 complete。
+可选愿望不应假装 BS 再静默删除，范围改变需重新明确确认并尊重冻结包。
+交付时缺 README/quickstart 则创建，已有则更新可执行 setup 和依赖，并按声明产物在
+隔离环境复跑；借用现有全局依赖不算干净安装。披露所测范围，不用“无局限”掩盖缺口。
 
 ## 内部 skills
 
@@ -133,7 +151,7 @@ skill 后必须重启 OpenCode。
 
 ```powershell
 python scripts/check.py --selftest
-python -B -m unittest discover -s tests -p test_install.py
+python -B -m unittest discover -s tests -p "test_*.py"
 ```
 
 严格流程的单项排查命令仍可直接运行 `scripts/check.py`；合法示例位于
@@ -147,7 +165,18 @@ OpenCode 的 PowerShell。执行前检查命令，对破坏、付费、凭据/�
 
 引擎检查结构、绑定、退出/超时和 goal stdout 断言；测试命令仍须真正检查产品行为。
 hash 不能防止有写权限者伪造工件，也不证明身份、独立性或真实可用性。`--selftest`
-只检验引擎，不是产品 usability 证明；goal 引用 draft brief 目前仍需控制器显式阻断。
+只检验引擎，不是产品 usability 证明。读取 source brief 时，引擎已有拒绝 draft 或
+未确认来源的规则，控制器仍需显式验证 final brief 并核对语义，不能把它说成仅提示层约束。
+
+更严格的 confirmation 类型、frontier 唯一/open、任意状态 user-entry 和 BS
+disposition 校验可能拒绝旧 active/blocked 卡或 draft。schema 1 和 hash 算法不变，
+不自动重写历史卡：继续工作前显式修正未完成工件，定义变化按全量失效规则重新验证；
+涉及冻结输入则走 CR/新包。complete 卡和冻结历史保持不可变，即使不满足新规则也不能
+伪造“已按新规则重验”，后续修复另建当前卡并保留历史证据。
+当前引擎没有自动产品源码 fingerprint，也没有真实边界的自动语义证明。测试仍须检查每次
+子进程状态、操作前相关输入 snapshot、结果内容和重复运行稳定性，并按风险用少量故障
+注入验证断言能失败；不能把文件名集合未变当作未写入或正确增量。Audited approval
+依然不能替代 controller 对最终版本、原始范围、真实入口及安装可复现性的核实职责。
 
 ## 设计参考
 

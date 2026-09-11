@@ -333,15 +333,25 @@ def validate_brief(brief):
     if not isinstance(frontier, list):
         problems.append("brief.frontier must be an array")
         frontier = []
+    seen_frontier = set()
     for ident in frontier:
         if not isinstance(ident, str) or ident not in by_id or by_id[ident].get("kind") != "question":
             problems.append(f"brief.frontier: unknown question {ident}")
+            continue
+        if ident in seen_frontier:
+            problems.append(f"brief.frontier: duplicate question {ident}")
+        seen_frontier.add(ident)
+        if by_id[ident].get("status") != "open":
+            problems.append(f"brief.frontier: {ident} must be an open question")
 
     confirmation = brief.get("owner_confirmation", {})
     if not isinstance(confirmation, dict):
         problems.append("brief.owner_confirmation must be an object")
         confirmation = {}
-    require(confirmation, ("confirmed", "summary"), "brief.owner_confirmation", problems)
+    if not isinstance(confirmation.get("confirmed"), bool):
+        problems.append("brief.owner_confirmation.confirmed must be a boolean")
+    if not isinstance(confirmation.get("summary"), str):
+        problems.append("brief.owner_confirmation.summary must be a string (may be empty for draft)")
     if brief.get("status") == "final":
         if frontier:
             problems.append("final brief must have an empty frontier")
@@ -519,9 +529,9 @@ def validate_goal(goal):
                 for ref in item.get("outcome_ids", []) if isinstance(item.get("outcome_ids"), list) else []:
                     if not isinstance(ref, str) or ref not in outcome_ids:
                         problems.append(f"goal.source.coverage references unknown outcome {ref}")
-    if goal.get("status") == "complete" and not any(
+    if not any(
             isinstance(item, dict) and item.get("user_entry") is True for item in outcomes):
-        problems.append("complete goal requires at least one user-entry outcome")
+        problems.append("goal requires at least one user-entry outcome")
     if goal.get("status") == "complete" and any(
             item.get("status") != "verified" for item in outcomes if isinstance(item, dict)):
         problems.append("complete goal requires every outcome to be verified")
@@ -884,6 +894,17 @@ def validate_goal_artifact(path):
                         problems.append("goal source has no coverage for: " + ", ".join(sorted(brief_ids - covered)))
                     if covered - brief_ids:
                         problems.append("goal source coverage has unknown brief IDs: " + ", ".join(sorted(covered - brief_ids)))
+                    success_ids = {
+                        item.get("id") for item in brief.get("items", [])
+                        if isinstance(item, dict) and item.get("kind") == "success"
+                        and isinstance(item.get("id"), str)
+                    }
+                    for item in source["coverage"]:
+                        if item["brief_id"] in success_ids and item["disposition"] != "outcome":
+                            problems.append(
+                                f"goal source success {item['brief_id']} must map to outcomes; "
+                                "keep required later work pending or blocked"
+                            )
                 except (OSError, ValidationError, TypeError, AttributeError, ValueError) as exc:
                     problems.append(f"goal source brief is unavailable or invalid: {exc}")
 
@@ -2995,11 +3016,17 @@ def selftest():
             failures += report("goal stale definition", [] if validate_goal_artifact(goal_path)[2] else ["accepted"])
             changed = json.loads(json.dumps(updated))
             changed["outcomes"][0]["user_entry"] = False
-            # Re-run against the new definition to isolate the user-entry finish gate.
+            # Reject a missing entry before executing any verification command.
             changed["outcomes"][0]["status"] = "pending"
             changed["outcomes"][0].pop("evidence")
             goal_path.write_text(render_goal(changed), encoding="utf-8")
-            verify_goal_outcome(goal_path, "O-01", evidence_path.with_name(name + "-internal.json"))
+            internal_evidence = evidence_path.with_name(name + "-internal.json")
+            try:
+                verify_goal_outcome(goal_path, "O-01", internal_evidence)
+                failures += report("goal user-entry preflight", ["executed internal-only goal"])
+            except ValidationError:
+                failures += report("goal user-entry preflight", [] if not internal_evidence.exists()
+                                   else ["wrote evidence for an invalid goal"])
             try:
                 finish_goal(goal_path)
                 failures += report("goal user-entry gate", ["accepted internal-only outcomes"])
@@ -3034,6 +3061,27 @@ def selftest():
     if brief_meta.get("brief-hash") != expected_brief_hash:
         brief_problems.append("valid brief fixture frontmatter hash mismatch")
     failures += report("valid brief", brief_problems)
+    draft = json.loads(json.dumps(brief))
+    draft["status"] = "draft"
+    draft["owner_confirmation"] = {"confirmed": False, "summary": ""}
+    failures += report("draft empty confirmation summary", validate_brief(draft))
+    for field, bad_values in (
+            ("confirmed", (None, 0, 1, "false", [], {})),
+            ("summary", (None, False, 7, [], {}))):
+        for value in bad_values:
+            malformed = json.loads(json.dumps(draft))
+            malformed["owner_confirmation"][field] = value
+            failures += report(f"draft confirmation {field} {value!r}", [] if any(
+                f"owner_confirmation.{field}" in error for error in validate_brief(malformed)) else ["accepted"])
+    draft["items"].append({"id": "BQ-01", "kind": "question", "question": "Next decision?", "status": "open"})
+    draft["frontier"] = ["BQ-01"]
+    failures += report("draft open frontier", validate_brief(draft))
+    for frontier in (["BQ-01", "BQ-01"], ["BQ-99"], [[]], [{}]):
+        malformed = json.loads(json.dumps(draft))
+        malformed["frontier"] = frontier
+        failures += report(f"draft invalid frontier {frontier!r}", [] if validate_brief(malformed) else ["accepted"])
+    draft["items"][-1]["status"] = "deferred"
+    failures += report("draft deferred frontier", [] if validate_brief(draft) else ["accepted"])
     with tempfile.TemporaryDirectory() as temp_dir:
         root = Path(temp_dir)
         goal_path = root / ".opencode" / "mvp" / "goal.md"
@@ -3057,6 +3105,17 @@ def selftest():
             failures += report(f"goal source {status} confirmed={confirmed}", [] if
                                bool(source_problems) == (status != "final" or not confirmed)
                                else ["incorrect source gate"])
+            if status == "final" and confirmed:
+                for disposition in ("constraint", "deferred", "non-goal", "rejected"):
+                    weakened = json.loads(json.dumps(goal))
+                    success = next(item for item in source_brief["items"] if item["kind"] == "success")
+                    coverage = next(item for item in weakened["source"]["coverage"] if item["brief_id"] == success["id"])
+                    coverage.pop("outcome_ids")
+                    coverage.update(disposition=disposition, reason="Required in a later slice")
+                    goal_path.write_text(render_goal(weakened), encoding="utf-8")
+                    failures += report("goal success disposition " + disposition, [] if any(
+                        f"success {success['id']} must map to outcomes" in error
+                        for error in validate_goal_artifact(goal_path)[2]) else ["accepted scope removal"])
 
     missing_success = json.loads(json.dumps(brief))
     missing_success["items"] = [

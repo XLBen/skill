@@ -47,16 +47,24 @@ JSON output into the audit event; do not calculate them manually.
 - inspect the final integrated state, not only changed units or demo labels.
   Require actual public-interface journeys covering every promised user-facing
   outcome in the current slice and affected existing journeys, from representative
-  input to useful output and retrieval; do not demand deferred future slices. Shared
+  input to useful output and retrieval; only this slice audit does not demand
+  deferred future slices. This exemption never applies to whole-goal finish. Shared
   scenarios and CLI/library interfaces are valid. Check repeatable delivered
-  setup, dependencies/access, target versus verification environment, and
-  handoff instructions. Missing prerequisites or untested target conditions
+  setup and declared dependencies replayed in isolation from delivered artifacts
+  (not borrowed global packages), target versus verification environment, and
+  created/updated README or quickstart. Missing prerequisites or untested target conditions
   must remain explicit gaps, not readiness claims;
 - a confirmed gap is `hard` and must become a blocking CR before `done`; a
   residual non-factual risk follows the owner-decision path;
 - a v0.2 acceptance is not sufficient when it reports only exit 0, accepts an
   empty required result, lacks a concrete Given/When/Then assertion, or has no
   traceable test-author/frozen-hash record;
+- check every subprocess status, pre-operation snapshots of all relevant inputs,
+  result contents and repeated-run stability. For data-copy risks, require
+  applicable same-name/different-content, partial I/O failure and source/destination
+  overlap tests; an unchanged filename set proves neither no writes nor correct
+  incremental behavior. Inspect a few safe isolated fault-injection results showing
+  critical assertions can fail; keep domain cases in product tests, not the engine;
 - a third consecutive attempt with the same normalized failure signature is a
   circuit-break event. The fourth ordinary retry is not allowed; the audit
   checks the escalation payload and at least two costed options;
@@ -65,6 +73,22 @@ JSON output into the audit event; do not calculate them manually.
 - record the audit as an event and cite the reconcile output hash fields
   (`contract_hash`, `plan_structure_hash`) so the judgment is bound to the
   exact closure matrix it audited.
+
+### Whole-Goal Boundary
+
+A clean reconcile and passed slice `converge-audit` close only that slice. Before
+`finish-goal`, mvp-delivery remains responsible for comparing the original request
+or brief (every BS), the whole goal, deferred work and real public-entry journeys
+with the final integrated product. Reuse this reviewer capability for the broader
+scope check with those inputs and report concrete findings; do not invent a new
+mode, public command, role or event schema, or bind a whole-goal claim to a slice
+audit event. Required BS items must remain outcome dispositions, not hidden in
+deferred or other dispositions. Record missing implementation separately from
+missing verification; required original-boundary outcomes stay pending/blocked
+and prevent complete. Samples/mocks cannot replace required device/API behavior.
+Scope changes require explicit renewed confirmation and respect frozen packages.
+Coverage IDs and boolean markers provide structure, not automatic semantic proof;
+Audited approval does not discharge the controller's whole-goal responsibility.
 
 ## Materiality
 

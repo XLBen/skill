@@ -55,6 +55,17 @@ not infer a new product requirement from implementation code.
 - Use concrete data and a meaningful observable assertion: content, invariant,
   schema, count, or user-visible behavior. A test that only checks exit 0,
   process existence, a tautology, or a non-empty log is not an acceptance test.
+- Check every subprocess status, including setup and intermediate commands; a
+  final success marker must not hide an earlier failure. Snapshot all relevant
+  inputs before each operation, not after potentially destructive work, and assert
+  result contents, protected input/state invariants and repeated-run stability.
+  For data-copy risks, add applicable same-name/different-content, partial I/O
+  failure and destination/source overlap cases. Unchanged filenames do not prove
+  no writes or correct incremental behavior; compare contents and relevant state,
+  observing writes when the specification forbids them. Use a few safe isolated
+  fault injections to show critical assertions can fail, not merely run green.
+  These are risk-based product tests, not sample-tool requirements for the generic
+  engine; do not alter product code or frozen acceptance semantics to inject faults.
 - Default to failure when the required artifact is missing, empty, or has zero
   rows. Permit zero only when the scenario explicitly describes a semantic
   zero and asserts why it is correct.

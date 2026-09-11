@@ -23,7 +23,10 @@ dispatch, create a fresh reviewer subagent, and have it load this skill. They su
 Follow the matching mode contract and structured JSON output format in
 `../contract-review/references/reviewer-protocol.md`. Natural-language idea
 challenges use the lightweight exception under Direct Use and do not invent a
-contract.
+contract. For mvp-delivery's whole-goal finish check, use the same review capability
+with the original request/brief, entire goal, deferred work and final evidence;
+return concrete findings without inventing a contract, role, or ledger event.
+This scope check does not replace any required contract-bound audit.
 
 ## Invariants
 
@@ -53,18 +56,36 @@ contract.
   and the final V contains a content/state assertion rather than only exit 0.
   Optional `red_command` does not waive independent behavior-red for new or
   changed behavior; baseline regression tests may start green.
+  Inspect every subprocess status, not just the last command or wrapper's exit;
+  require snapshots of all relevant inputs before the operation, result-content
+  assertions and repeated-run stability. For data-copy risks, look for same-name
+  different-content cases, partial I/O failure, and destination/source overlap
+  as applicable. An unchanged filename set proves neither no writes nor correct
+  incremental behavior; inspect contents and relevant state/write observations.
+  A few safe, isolated fault injections should demonstrate that critical tests
+  actually fail on the claimed defect, without changing product requirements or
+  weakening frozen tests. Keep domain-specific cases out of the generic engine.
 - For new Audited contracts require top-level `workflow_protocol: v0.2` and
   engine-generated `verify-step` evidence for automated V. For goal completion,
   inspect `verify-goal` evidence, all brief-ID coverage, final brief validation,
-  and a real `user_entry: true` demo. Hash/exit checks and selftest do not prove
+  and a real `user_entry: true` demo. Every BS must map to an outcome, never a
+  deferred/constraint/non-goal/rejected disposition. IDs and boolean markers are
+  structural, not semantic proof. Hash/exit checks and selftest do not prove
   product usability; assess whether commands actually exercise the claimed path.
 - Inspect the final integrated state and actual public-interface journeys for
   every promised user-facing outcome, not just labels or unit-only demos.
   Shared scenarios, CLI commands, and library API calls are valid; do not impose
   a GUI or deployment. Check intended user, representative input, useful output
-  and retrieval, repeatable delivered setup, dependencies/access, target versus
-  verification environment, and handoff. Report material gaps without claiming
-  readiness in an unverified environment.
+  and retrieval, created/updated README or quickstart with executable setup and
+  declared dependencies, isolated replay from delivered artifacts, target versus
+  verification environment, and handoff. Borrowed global dependencies are not a
+  clean install. Report missing implementation separately from missing verification;
+  do not replace required device/API boundaries with sample directories or mocks.
+  Slice clean covers only its scope. At whole-goal finish compare the original
+  request, every brief BS, all outcomes and deferred work; required pending/blocked
+  outcomes prevent completion. Scope changes require explicit reconfirmation and
+  respect frozen packages. Neither Audited approval nor a "no limitations" claim
+  removes controller responsibility or proves readiness in an untested environment.
 - Treat an SI as planned scope growth only after the current slice passed real
   verification and owner acceptance. Treat factual, interface, acceptance,
   or safety mismatches as CR findings.

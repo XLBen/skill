@@ -10,6 +10,13 @@ $ARGUMENTS
 Resolve and reuse the matching active/blocked goal card; do not create a second
 active fix goal. Ask if the target or completed Audited repair base is ambiguous.
 Preserve completed packages; use a new affected-only FIX package for their repair.
+If no matching unfinished card exists, create a repair card before product edits.
+Pass `goal` and any final source `brief` validation on that current unfinished
+card; reading/validating the old complete card does not satisfy this gate. Before
+product changes reset affected outcomes to pending and clear runtime evidence
+references/blockers while keeping evidence files; reconcile card status and
+revalidate under `mvp-delivery`. Definition changes require full
+invalidation under `mvp-delivery`; never reopen a complete card.
 Inspect the repository and reproduce the defect before editing when feasible.
 Determine expected behavior from the request, existing tests, and public
 interfaces; ask only when those sources leave a material product ambiguity.
@@ -22,6 +29,12 @@ Audited V. Never manually mark verified/complete or bypass required approvals.
 
 Reproduce and verify through the affected public user path, not just an internal
 helper. Apply `mvp-delivery`'s Finish With Evidence gate to the final integrated
-state. Report the delivery location, verified setup/use steps and working directory,
+state against the original request/all brief BS, whole goal and deferred work;
+slice clean is not whole-goal acceptance. Keep required real-boundary outcomes
+pending/blocked for missing implementation or verification, recording these gaps
+separately rather than deferring or substituting mock/sample scope. Create missing
+README/quickstart or update it and replay declared setup/dependencies in isolation;
+existing global dependencies do not prove a clean install.
+Report the delivery location, verified setup/use steps and working directory,
 prerequisites, a sample result, tested environment and remaining limitations;
 if blocked, identify what is still unusable and the smallest required owner action.

@@ -70,6 +70,9 @@ than overwrite or silently switch. Create a card only for a genuinely new goal.
 Completed cards/packages remain history; a repair gets a new card only when no
 matching unfinished goal exists. Ask which completed package is the repair base
 if the request and durable pointers do not identify it uniquely; never pick by mtime.
+Establish and successfully validate the current unfinished card before any product
+change. Reading or validating an old complete card is not validation of a new
+repair card; never reopen history to satisfy this gate.
 
 The card has matching `status` frontmatter and one authoritative `json goal`
 fence, using schema 1 from `tests/fixtures/goal-valid.md` and `check.py`:
@@ -86,11 +89,12 @@ fence, using schema 1 from `tests/fixtures/goal-valid.md` and `check.py`:
   Brief source is `{"type":"brief","path":"docs/brief.md","brief_hash":"<hash>",
   "coverage":[{"brief_id":"BS-01","disposition":"outcome","outcome_ids":["O-01"]}]}`.
   Cover **every** brief ID exactly once, with no unknown IDs, in every risk mode.
-  Dispositions are `outcome` with valid `outcome_ids`, or `constraint`, `deferred`,
-  `non-goal`, `rejected` with a nonempty `reason`. Do not silently drop scope.
+  Every source item with `kind: success` (BS) requires disposition `outcome` with
+  valid `outcome_ids`. Other kinds retain the choices `outcome`, or `constraint`,
+  `deferred`, `non-goal`, `rejected` with a nonempty `reason`. Do not silently drop scope.
 - Each outcome has unique `id: O-NN`, `statement`, `status: pending`, and
-  `verification`. There is **no outcome-count cap**. At least one outcome must
-  set `user_entry: true` and exercise the real product entry/demo, not a fixture
+  `verification`. There is **no outcome-count cap**. In every goal status, at least
+  one outcome must set `user_entry: true` and exercise the real product entry/demo, not a fixture
   print, mock, selftest, or a label on an internal unit test.
 - Every promised user-facing outcome must be covered by an actual public-interface
   journey from representative input to useful output/retrieval. A shared journey
@@ -104,10 +108,16 @@ fence, using schema 1 from `tests/fixtures/goal-valid.md` and `check.py`:
   `timeout_seconds` is an integer 1..3600 (default 120). Commands must assert
   actual behavior; narrative expectations do not execute assertions.
 
+When platform line endings are not part of the product contract, compare parsed
+output in the acceptance runner and emit structured results for `json-equals`.
+Preserve raw engine evidence and byte-exact contracts; do not change product output
+merely to satisfy a platform-specific fixture literal.
+
 For brief input, require owner-confirmed `status: final`, matching hash, and a
-successful `check.py brief` **before planning/building in any risk mode**. The
-current goal validator alone does not reject a draft source. Resume validates
-the source again. Audited packages also preserve their exact brief snapshot.
+successful `check.py brief` **before planning/building in any risk mode**. When
+reading a brief source, the goal engine also rejects draft or unconfirmed sources;
+this does not replace the controller's source/scope checks. Resume validates the
+source again. Audited packages also preserve their exact brief snapshot.
 
 Run from the project root (installed engine path shown):
 
@@ -127,8 +137,13 @@ card after every outcome is engine-verified, including a real user-entry outcome
 Definition changes invalidate evidence bindings: reset all outcomes to pending,
 remove their evidence references/blockers, and set JSON/frontmatter status active
 before validation and reruns; retain old evidence files as history. Never reopen
-a completed card this way. Product changes also require relevant reruns even if
-hashes match.
+a completed card this way. Before product changes, even if definitions/hashes
+match, reset affected outcomes to pending and clear their runtime evidence
+references and blockers, retaining evidence files. Keep JSON/frontmatter status
+blocked if any unaffected outcome is still blocked; otherwise set both to active.
+Then validate the unfinished card before editing the product.
+If impact is uncertain, reset all outcomes. Definition changes still require
+the full invalidation above, not only affected-outcome invalidation.
 
 Audited cards may add package paths and contract/PLAN/reconcile hashes as recovery
 pointers, not as substitutes for goal verification. Keep detailed ledgers inside
@@ -256,7 +271,10 @@ outcome/evidence it supersedes while retaining the old package as history. Use
 engine CR recovery only while the mismatching package is still active.
 
 实现中发现的新想法默认不扩张目标。原始目标内被首片延后的内容必须继续处理，
-不能静默丢弃。MVP 是排序机制，不是永久的 scope cut。
+不能静默丢弃。必需成功结果不能藏入 `deferred`，也不能把真实设备/API 目标改成
+样例目录或 mock。分别记录缺实现与缺验证；原始边界所需 outcome 保持 pending/blocked，
+阻止 complete。可选愿望不应假装成 BS 后静默删除；范围改变必须重新明确确认，
+冻结 brief/契约仍按 CR 或新包规则处理。MVP 是排序机制，不是永久的 scope cut。
 
 ## 5. Finish With Evidence
 
@@ -268,18 +286,27 @@ engine CR recovery only while the mismatching package is still active.
 敏感 diff 写入日志。这是控制器检查，当前引擎不会自动绑定产品源码版本。
 
 检查实际 diff，确认没有为跑绿而弱化测试、硬编码样例、吞错或留下未接通路径。
-新产品、缺少运行说明或使用方式改变时，更新现有 README/quickstart，包含前提、
-工作目录、安装/初始化/启动或调用步骤、配置变量名、具体样例和预期结果/输出位置。
-在安全且已授权的隔离环境中按这些说明复跑，避免依赖当前会话的隐式准备；不为模拟
-干净环境删除用户数据。无法复跑时说明具体缺口、已验证环境与目标环境的差异，不把
+新产品缺 README/quickstart 时创建，已有说明则按交付变化更新，包含可执行的 setup、
+声明的依赖、工作目录、安装/初始化/启动或调用步骤、配置变量名、具体样例和预期结果/输出位置。
+在安全且已授权的隔离环境中仅按声明产物和这些说明复跑；借用现有全局依赖不算干净安装。
+避免依赖当前会话的隐式准备；不为模拟干净环境删除用户数据。
+无法复跑时说明具体缺口、已验证环境与目标环境的差异，不把
 本地运行表述为已部署，不把缺凭据/外部服务的验证记为通过。
 
-Run `finish-goal` only after all applicable Audited gates and actual owner
+Before `finish-goal`, the controller compares the original request or brief
+(every BS), the entire goal, deferred work, and real user-entry journeys against
+the final deliverable. A clean slice reconcile/converge audit is not whole-goal
+acceptance and cannot exempt future slices here. Reuse the `reviewer` capability
+for this scope check when independent review applies, passing the original source,
+whole card and final evidence; no new public command, role or audit-event schema.
+Run `finish-goal` only after this check, all applicable Audited gates and actual owner
 acceptance are satisfied. If the engine or independent seat is unavailable,
 report a blocker rather than simulate success. Hashes detect stale bindings, not
 malicious rewriting or product correctness. Session/author IDs are claims, with
 no cryptographic identity verification; real session/subagent provenance must
-be inspected. Selftest checks the engine, not product usability.
+be inspected. Coverage IDs and `user_entry: true` are structural markers, not
+automatic proof of semantic coverage or real boundaries. Audited approval does
+not remove these controller duties. Selftest checks the engine, not product usability.
 
 最终只报告：
 
@@ -287,7 +314,8 @@ be inspected. Selftest checks the engine, not product usability.
 - 交付路径和已复跑的 setup/use 步骤（可链接持久 quickstart），具体样例及预期输出；
 - 关键验证命令、所测版本/环境及结果，区分自动验证、人工验收和未验证部分；
 - 为推进而作出的重要可逆决定；
-- 未完成项或真实阻塞（没有则明确说没有）。
+- 缺实现、缺验证、真实阻塞及已验证范围；仅在证据支持时说没有未完成项，不能用
+  “无局限”掩盖未测环境或未实现边界。
 
 若阻塞，明确哪部分仍不可用、原因和用户需要采取的最小下一步；不能将其包装为完成。
 

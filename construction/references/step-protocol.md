@@ -154,16 +154,21 @@ S0 may select only a variant already compiled in PLAN. The selector consumes a
 named E result and must choose exactly one variant. An unlisted wheel, custom
 implementation, interface change, or ambiguous selector creates blocking CR.
 
-## Isolated Execution (Optional)
+## Isolated Execution
 
-Enabled when the contract interaction is `checkpoints`/`stepwise` or the
-profile is `full`. For v0.1 acceptance work, the controller first dispatches a
-fresh subagent that loads `test-author`, then dispatches a different fresh
-subagent that loads `step-executor` for each selected step, passing only that
-step's spec, its exact V, and the acceptance manifest. Loading a skill in
-the controller session is not an independent dispatch. The controller stays
-responsible for state, the ledger, and event recording, and the attempt event
-carries the executor's real `subagent_id` as implementation author.
+The implementation seat follows the authoritative Audited Execution Seat
+Selection table in
+`../../mvp-delivery/references/subagent-orchestration.md`: `direct` stays
+in-session; any non-`direct` profile with `full` or
+`checkpoints`/`stepwise` interaction dispatches `step-executor`; only
+`light + autonomous` stays in-session. For acceptance work, the controller
+first dispatches a fresh subagent that loads `test-author`, then (when the
+seat table dispatches one) a different fresh subagent that loads
+`step-executor` for each selected step, passing only that step's spec, its
+exact V, and the acceptance manifest. Loading a skill in the controller
+session is not an independent dispatch. The controller stays responsible for
+state, the ledger, and event recording, and the attempt event carries the
+executor's real `subagent_id` as implementation author.
 
 Three gates close every step:
 
@@ -179,10 +184,12 @@ Three gates close every step:
    issue blocks `complete` exactly like a failed V; soft issues are logged for
    retro.
 
-A `direct` profile or `autonomous` interaction stays in-session by default;
-the v0.1 test-integrity and acceptance gates still apply whenever a product V
-exists. Only the separate subagent dispatch can be skipped for an explicitly
-owner-approved no-test direct change.
+Seat selection is not decided "by default" here; it follows the Audited
+Execution Seat Selection table in orchestration (only `direct`, or
+`light + autonomous`, stays in-session). The v0.1 test-integrity and
+acceptance gates still apply whenever a product V exists. Only the separate
+test-author dispatch can be skipped for an explicitly owner-approved no-test
+direct change.
 
 ## Failure Signature And Circuit Break
 

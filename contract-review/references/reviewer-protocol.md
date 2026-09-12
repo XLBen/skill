@@ -128,17 +128,29 @@ blocked/suspended result, not a guessed verdict.
 
 ```json
 {
-  "mode": "question",
+  "mode": "review",
   "contract_hash": "...",
+  "checked_scope": ["what was actually inspected"],
+  "not_checked": ["declared gaps, or none"],
   "issues": [
     {
       "id": "ISSUE-01",
       "fingerprint": "stable semantic key",
+      "classification": "hard | soft | owner-tradeoff",
       "scope": "contract-item",
       "affected": ["P-01", "F-01", "I-01", "V-01"],
       "failure": "observable consequence",
+      "evidence": ["path or command reference"],
       "evidence_needed": [],
       "smallest_repair": "contract change"
+    }
+  ],
+  "resolved": [
+    {
+      "issue_id": "ISSUE-00",
+      "fingerprint": "original semantic key",
+      "disposition": "resolved",
+      "basis": "evidence reference"
     }
   ],
   "pua_acceptance": {
@@ -151,6 +163,21 @@ blocked/suspended result, not a guessed verdict.
   }
 }
 ```
+
+Field contract:
+
+- Every review-mode issue carries `classification` (`hard`, `soft`, or
+  `owner-tradeoff`) plus its `evidence`; the controller maps this JSON to the
+  existing audit events and may not relabel a classification (see
+  `verdict-rules.md`).
+- A previously raised issue that the answer or new evidence settles goes to
+  `resolved` with `disposition: resolved | invalid` and the original
+  `issue_id`/`fingerprint` — it is not silently dropped.
+- `checked_scope` and `not_checked` are required so an empty `issues` list
+  distinguishes "fully inspected, no findings" from "could not inspect". A
+  return missing `mode`, `issues`, `checked_scope`, or a review issue's
+  `classification` is needs_context; the controller never infers a pass from a
+  malformed or empty return.
 
 Do not use prose-only output when the controller expects an event payload.
 When no PUA acceptance handoff was supplied, omit `pua_acceptance` rather than

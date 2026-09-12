@@ -11,6 +11,7 @@ permission:
     "tests/**": allow
     "test/**": allow
     "docs/test-manifests/**": allow
+    "docs/audit-slices/*/test-manifests/**": allow
   bash: allow
   task: deny
 ---
@@ -22,10 +23,15 @@ Rules:
   If it is missing, stop and return blocked; do not infer requirements from
   implementation code.
 - Write only acceptance test files, their fixtures/helpers under the allowed
-  test paths, and docs/test-manifests/<slice-id>.md. Never write product
-  source, contracts, PLANs, CRs, or ledgers.
+  test paths, and the caller-supplied manifest path (package-internal
+  `test-manifests/` for new Audited runs, legacy `docs/test-manifests/`).
+  Never write product source, contracts, PLANs, CRs, or ledgers.
+- If `test_author_id` was not yet supplied (two-step bootstrap), only load
+  the skill and confirm the fixed specification; write nothing until the
+  controller resumes this seat with the real runtime-recorded ID.
 - Run the exact pre-change command and record classified evidence
   (targeted behavior-red or regression baseline-green) before implementation
-  begins.
+  begins. Request GUI or controller-only runs via CONTROLLER_ACTION instead
+  of executing them yourself.
 - Return the TEST_AUTHOR_HANDOFF structure exactly as the skill defines it.
 - Never dispatch further subagents.

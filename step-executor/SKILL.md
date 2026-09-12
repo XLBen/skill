@@ -28,12 +28,14 @@ as an independent test or engine verification.
 
 ## PUA Acceptance: `step-verification`
 
-Before returning raw step results, load `../pua/SKILL.md` and execute the
-`step-verification` card in `../pua/references/stage-checks.md`. Ask “这一步是
-真的跑了，还是你手写了一个 passing event？” Check the exact V, every
-manifest scenario, subprocess status, input snapshot, content/state assertion,
-cleanup and failure signature. Return `[PUA-ACCEPTANCE]` with evidence and
-gaps; never turn the check into a `complete` claim or write the ledger.
+Before returning the hand-back, load `../pua/SKILL.md` and execute the
+`step-verification` card in `../pua/references/stage-checks.md` against the
+evidence you actually hold: the manifest check, protected-path integrity and
+any diagnostic run. Ask “这一步是真的跑了，还是你手写了一个 passing
+event？” The engine-generated `verify-step` evidence and failure signature are
+produced by the controller after your return; do not wait for them and do not
+fabricate them. Return `[PUA-ACCEPTANCE]` with evidence and gaps inside the
+hand-back; never turn the check into a `complete` claim or write the ledger.
 
 Work only on that step:
 
@@ -50,25 +52,32 @@ Work only on that step:
    changes require explicit approved CR authorization, independent test-author
    revision/revalidation, reviewer review, and refreshed manifest hashes; never
    revise protected acceptance files yourself.
-3. Coordinate with the controller to run the exact V through `check.py verify-step`
-   after it records the attempt and transitions the step to `verifying`. You do
-   not write the ledger. Any diagnostic V run you perform is not engine gate
-   evidence and must not duplicate risky effects without authorization. Do not
-   weaken, substitute, or skip it. If it fails, normalize and record the
-   failure signature before any repair. Repair only inside the segment and
-   follow the third-identical-failure circuit break; never perform a fourth
-   ordinary retry or touch other segments/contract artifacts. Follow the bounded
-   owned-instance lifecycle in construction's step-protocol for long-running
-   verification: readiness, actual journey assertions, and cleanup even on
-   failure/timeout. Never attach to or kill an arbitrary listener. Check all
-   manifest-required scenarios actually execute without skip/filter/empty-suite
-   false greens and with the declared boundary/mock policy. Existing regression
-   baseline-green needs no fabricated red; targeted behavior-red must be real.
-4. Report raw outputs, not conclusions: implementation files touched, test
-   files verified unchanged, commands run, the full V output, failure
-   signature/timing if failed, and any deviation or blocker. Never declare the
-   step `complete` — the controller owns state, the ledger, and event
-    recording.
+3. The formal exact-V run belongs to the controller: after you return the
+   STEP_HANDBACK below, the controller records the attempt, transitions the
+   step to `verifying`, and runs `check.py verify-step` exactly once per
+   attempt. You never write the ledger, and you never need the formal V
+   output before returning — do not wait for the controller inside this
+   task. Any diagnostic V run you perform is not engine gate evidence and
+   must not duplicate risky effects without authorization. Repair rounds
+   arrive as a FIX-ROUND carrying the controller-recorded V evidence path,
+   raw output, failure signature and remaining budget; only after that may
+   you modify the segment again. Never weaken, substitute, or skip the V.
+   Follow the third-identical-failure circuit break; never perform a fourth
+   ordinary retry or touch other segments/contract artifacts. Follow the
+   bounded owned-instance lifecycle in construction's step-protocol for
+   long-running verification: readiness, actual journey assertions, and
+   cleanup even on failure/timeout. Never attach to or kill an arbitrary
+   listener. Check all manifest-required scenarios actually execute without
+   skip/filter/empty-suite false greens and with the declared boundary/mock
+   policy. Existing regression baseline-green needs no fabricated red;
+   targeted behavior-red must be real.
+4. Return the `STEP_HANDBACK` structured result defined in
+   `../mvp-delivery/references/subagent-templates.md`: implementation files
+   touched, protected test files verified unchanged, diagnostic commands with
+   raw output locations, deviations, blockers, and the pending exact V the
+   controller must run. Never declare the step `complete`, never claim the
+   formal V passed, and never attach engine evidence — the controller owns
+   state, the ledger, and event recording.
 
 New Audited contracts use top-level `workflow_protocol: v0.2`; v0.1 test-author
 protections also apply. Commands use `shell=True`, the system shell (`cmd.exe`

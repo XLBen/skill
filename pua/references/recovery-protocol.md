@@ -7,14 +7,17 @@ owner 升级上。它不创建第二套状态机。
 
 只统计同一子目标的**实际方案实验**：方案执行到预先定义的验收信号仍未满足，且有
 可归因的失败结果。沿用 construction 的 normalized failure signature 和
-mvp-delivery 的 no-progress 规则。
+mvp-delivery 的 no-progress 规则。计数归属“子目标 + 归一化失败签名”，跨
+task、seat 与 resume 累计；换 fresh seat 不重置也不清除计数。
 
 不计入失败：
 
 - 读取文件成功或失败、搜索没有匹配、预期的 behavior-red；
 - 等待 owner、等待授权、缺少尚未提供的外部服务；
 - 仍在执行的任务、取消的任务或安全拒绝；
-- 只换了 attempt ID、措辞、绝对路径、时间戳或随机 ID 的同一结果；
+- 重复读取或转述同一次已记录执行的结果（无论 attempt ID、措辞、绝对
+  路径、时间戳或随机 ID 如何变化）。与之相对，**再次真实执行并失败必须
+  计数**，即使输出与上次完全相同；
 - 没有改变方案也没有执行实验的旁白。
 
 ## Escalation

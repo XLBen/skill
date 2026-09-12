@@ -4,7 +4,7 @@ description: Use when the user types /grill or says 拷问我、盘问我或帮�
 license: MIT
 metadata:
   language: "zh-CN"
-  produces: "docs/brief.md"
+  produces: "the active brief version (docs/brief.md, or versioned docs/brief-vN.md once the base is consumed/frozen)"
   next-skill: "contract-review"
   calls-skills: "i-have-adhd, pua"
   commands: "/grill <idea>"
@@ -111,6 +111,17 @@ Do not hand off an invalid or unconfirmed brief. Once contract-review consumes
 its hash, the brief is frozen; later semantic correction enters `/fix`, which
 routes an Audited run through CR instead of quietly editing the brief.
 
+### Brief Versioning
+
+`docs/brief.md` 是当前活动版本。当它被消费/冻结（goal source 绑定其
+hash，或严格包保存了 snapshot）后，新一轮 `/grill` 或对已冻结需求的语义
+修正不得原地改写：以 `docs/brief-v2.md`、`docs/brief-v3.md`…（按现存
+最大版本递增）创建新版本文件，旧版本字节保持不变；既有 goal 的
+`source.path`/hash 与已冻结包的 snapshot 继续指向旧版本，不受影响。
+draft（未被任何 goal 消费、未被 snapshot）的 brief 续写当前 revision，
+不换文件。对已消费 brief 的语义修正走 `/fix`（Audited 走 CR/新包），
+不通过新版本悄悄改既有目标。
+
 ### PUA Acceptance: `brief-final`
 
 Before the final owner-confirmation prompt, use `../i-have-adhd/SKILL.md` to show an
@@ -128,7 +139,10 @@ owner confirmation.
 
 ## Handoff
 
-After the brief passes, tell the user to run `/plan docs/brief.md`. In every risk
+After the brief passes, tell the user to run `/plan <actual brief version
+path>` — the active version file, e.g. `docs/brief.md` or the next-versioned
+`docs/brief-vN.md` created under Brief Versioning, never an already-consumed
+frozen version. In every risk
 mode, mvp-delivery validates the final brief and covers every ID in the JSON
 goal's `source.coverage`; there is no ten-outcome cap. Its Audited path also
 loads `contract-review` and accounts for every item in contract dispositions.

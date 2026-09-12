@@ -210,6 +210,42 @@ class InstallTests(unittest.TestCase):
                 self.run_install(str(target))
             copy.assert_not_called()
 
+    def test_local_jsonc_inline_agent_conflict_fails_before_copying(self):
+        target = self.repo / "localjsonc"
+        local_dir = target / ".opencode"
+        local_dir.mkdir(parents=True)
+        (local_dir / "opencode.jsonc").write_text(
+            '{\n  // project-local config\n'
+            '  "agent": {"mvp-worker": {"description": "existing"}}\n'
+            '}\n',
+            encoding="utf-8",
+        )
+        with mock.patch.object(install.shutil, "copy2") as copy:
+            with self.assertRaisesRegex(SystemExit, "conflicting inline agents"):
+                self.run_install(str(target))
+            copy.assert_not_called()
+
+    def test_singular_agent_dir_conflict_fails_before_copying(self):
+        target = self.repo / "singularagent"
+        agent_dir = target / ".opencode" / "agent"
+        agent_dir.mkdir(parents=True)
+        (agent_dir / "mvp-reviewer.md").write_text("local version\n", encoding="utf-8")
+        with mock.patch.object(install.shutil, "copy2") as copy:
+            with self.assertRaisesRegex(
+                SystemExit, "conflicting agents exist under .opencode/agent/"
+            ):
+                self.run_install(str(target))
+            copy.assert_not_called()
+
+    def test_singular_agent_dir_without_conflict_installs(self):
+        target = self.repo / "singularclean"
+        agent_dir = target / ".opencode" / "agent"
+        agent_dir.mkdir(parents=True)
+        (agent_dir / "unrelated-agent.md").write_text("local\n", encoding="utf-8")
+        self.run_install(str(target))
+        self.assertTrue((target / ".opencode/agents/mvp-worker.md").is_file())
+        self.assertTrue((agent_dir / "unrelated-agent.md").is_file())
+
     def test_refuses_unowned_agent_overwrite_and_force_replaces(self):
         target = self.repo / "owned"
         (target / ".opencode/agents").mkdir(parents=True)

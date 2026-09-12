@@ -88,8 +88,15 @@ reviewer 仪式，只在实质验收交接或受影响范围变化时派发。�
   加入有价值的回归测试并验证。若严格契约与现实冲突，内部执行 CR 恢复，不要求
   用户换命令。
 - **Resume Mode (`/resume`)**：从持久目标卡和适用的严格状态恢复，不从聊天猜进度。
-   从第一个 pending/blocked 结果继续；无未完成目标且有 draft brief 时加载 `grill`
-   从持久 frontier 继续访谈，不创建目标卡或开始施工。目标或基线不明确时先问。
+   恢复候选按固定次序发现：(1) `.opencode/mvp/` 下的 unfinished goal
+   （含 blocked）；(2) 无卡时，可识别的未完成严格包（legacy 根级
+   `docs/PLAN.md` 或 `docs/audit-slices/` 下非 done 的 PLAN），沿用
+   `/build` 的建卡规则，恢复施工前先建立并校验当前 goal 卡，不放宽
+   gate；(3) 无目标且无严格包、而有 draft brief 时加载 `grill` 从持久
+   frontier 继续访谈，不创建目标卡或开始施工。多个互不相关的候选
+   （多个 active 卡、严格包与无关 draft 并存且关系不明）时询问用户，
+   不按 mtime 或新旧猜测。从第一个 pending/blocked 结果继续；目标或
+   基线不明确时先问。
 
 ## 1. Establish The Target
 
@@ -192,9 +199,14 @@ Then validate the unfinished card before editing the product.
 If impact is uncertain, reset all outcomes. Definition changes still require
 the full invalidation above, not only affected-outcome invalidation.
 
-Audited cards may add package paths and contract/PLAN/reconcile hashes as recovery
-pointers, not as substitutes for goal verification. Keep detailed ledgers inside
-the package; Normal/Guarded need no contract graph or event ledger.
+Audited package paths and contract/PLAN/reconcile hashes are recovery pointers
+and live in the goal's dispatch record (`active_slice.package`, see
+`references/subagent-orchestration.md`), never inside the goal JSON: the
+engine rewrites the card on every verification and binds evidence to the
+definition hash, so a runtime pointer in the JSON would be lost or would
+invalidate verified outcomes. They are not substitutes for goal verification.
+Keep detailed ledgers inside the package; Normal/Guarded need no contract
+graph or event ledger.
 
 Verification commands execute with Python `shell=True` in the system shell
 (`cmd.exe` on Windows, not the OpenCode PowerShell shell). Use that shell's
@@ -224,6 +236,13 @@ sandbox, and approval may stop the delivery loop.
 
 风险下降后的下一片可以回到较轻强度。提高强度是增加当前风险需要的证据，不是把
 工作交还给文档流水线。
+
+goal 顶层的 `rigor`/`risk` 是累计风险下限，由引擎的 `risk.factors` 校验
+约束；它不等于当前切片的执行强度。当前切片的强度、依据、活动包指针与
+brief 版本路径持久化在 dispatch record 的 `active_slice`。每次切片结束
+先重判下一片风险，再选择轻量执行或 SI/新严格包；`/resume` 用同一记录
+恢复当前分支，不因历史出现过 Audited 切片而永久锁档。降档必须核对高风险
+部分不受当前切片影响，否则按受影响范围维持原档。
 
 ## 2. Choose A Walking Skeleton
 
@@ -257,9 +276,13 @@ sandbox, and approval may stop the delivery loop.
 5. 运行最窄相关测试，再运行真实 smoke/demo。测试必须检查内容、状态或不变量，
    不能只检查退出码、文件存在或日志非空。
 6. 若必要产物缺失、为空或为零，默认失败；只有目标明确规定 semantic zero 才通过。
-7. 实现失败时先读错误并修根因。同一失败方式连续三次且没有产生新证据或缩小
-   根因范围时，视为 no-progress blocker：停止机械重试，汇总尝试、证据和两个
-    具体方案后向用户升级。若有可说明的新证据，按新根因继续而不是重放同一动作。
+7. 实现失败时先读错误并修根因。失败计数绑定当前子目标和归一化失败签名：
+   每次真实执行且失败都计数，跨 task、seat 与 resume 累计；重复读取已记录
+   的同一结果、预期的 behavior-red、等待 owner/授权或外部服务不计数。同一
+   失败方式累计三次实际失败且没有产生新证据或缩小根因范围时，视为
+   no-progress blocker：停止机械重试（换 fresh seat 不是重试授权），汇总
+   尝试、证据和两个具体方案后向用户升级。若有可说明的新证据，按新根因
+   继续而不是重放同一动作。
 
    Before escalating, load `../pua/references/recovery-protocol.md`: the first
    failed experiment is L0, the second same-signature failure is L1 and must
@@ -368,8 +391,12 @@ acceptance and cannot exempt future slices here. Reuse the `reviewer` capability
 for this scope check when independent review applies, passing the original source,
 whole card and final evidence; no new public command, role or audit-event schema.
 Run `finish-goal` only after this check, all applicable Audited gates and actual owner
-acceptance are satisfied. If the engine or independent seat is unavailable,
-report a blocker rather than simulate success. Hashes detect stale bindings, not
+acceptance are satisfied. If the engine is unavailable, report a blocker in every
+rigor mode. If an independent seat is unavailable, apply the tiering in
+Communication And Acceptance Handoff: an Audited independence gate blocks; a
+Normal/Guarded reviewer seat records capability-unavailable, is replaced by the
+disclosed controller check, and does not by itself block finish. Never simulate
+success. Hashes detect stale bindings, not
 malicious rewriting or product correctness. Session/author IDs are claims, with
 no cryptographic identity verification; real session/subagent provenance must
 be inspected. Coverage IDs and `user_entry: true` are structural markers, not

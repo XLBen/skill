@@ -1,6 +1,7 @@
-# v0.1 MVP Observation Report
+# MVP Observation Report
 
-> Use for the first real project run after the v0.1 prompt-layer changes. This
+> Use for any Audited run's observation record; read the protocol version from
+> the contract itself (`v0.1` legacy or `v0.2`). This
 > report measures whether the workflow was actually followed; it is not a
 > replacement for `check.py` or the append-only event ledger.
 
@@ -9,11 +10,11 @@
 | Field | Value |
 |---|---|
 | Project | `<name>` |
-| Workflow protocol | `v0.1` |
+| Workflow protocol | `<read from the contract: v0.1 or v0.2>` |
 | Run ID | `<stable run ID>` |
 | First-slice contract hash | `<hash>` |
 | PLAN structure hash | `<hash>` |
-| Phase 0 record | `docs/evidence/phase-0-<id>.md` or `not-needed` |
+| Phase 0 record | `docs/evidence/phase-0-<id>.md`, package `evidence/`, or `not-needed` |
 | Observation status | `draft` / `supported` / `refuted` / `undetermined` |
 | Owner acceptance event | `<event ID, or pending>` |
 
@@ -36,7 +37,7 @@ event, file, command output hash, or explicit owner record.
 | Circuit-break escalation included two costed options |  |  |  |
 | Test author and implementation author were different |  |  |  |
 | Frozen test files were not modified by implementation |  |  |  |
-| Red evidence preceded implementation and green evidence |  |  |  |
+| Classified pre-change evidence (targeted red / regression baseline-green) preceded implementation and green evidence |  |  |  |
 | Real data path completed |  |  |  |
 | Owner accepted the usable result in a real scenario |  |  |  |
 
@@ -59,15 +60,15 @@ necessary. Do not silently replace the declared budget with the actual value.
 
 | Field | Value |
 |---|---|
-| Test manifest | `docs/test-manifests/<slice-id>.md` |
+| Test manifest | `<manifest_path from the test-author dispatch: package test-manifests/ or legacy docs/test-manifests/>` |
 | Spec source | `<contract/SI path and IDs>` |
 | Spec hash | `<hash>` |
 | Test author ID | `<subagent/session ID>` |
 | Implementation author ID | `<subagent/session ID>` |
 | Frozen test files | `<paths>` |
 | Frozen test hashes | `<path=hash>` |
-| Red evidence | `<event/output hash>` |
-| Green evidence | `<event/output hash>` |
+| Pre-change evidence | `<event/output hash, classified targeted behavior-red or regression baseline-green>` |
+| Post-change (green) evidence | `<event/output hash>` |
 | Test-file diff after freeze | `none` / `<CR and evidence>` |
 
 ## Failure History
@@ -101,13 +102,18 @@ Exclude `node_modules`, `vendor`, generated files, caches, and binaries. If the
 denominator is zero while workflow documents were added, record a direct
 warning. This is advisory and does not override the owner or machine gates.
 
-## BA-01 Decision
+## Hypothesis Decision (project-specific, optional)
 
-Choose exactly one:
+Fill this section only when the project's brief/contract actually declares
+named hypotheses with coupled constraints and success signals (for example
+BA-01 with BC-02 and BS-01). A project without such IDs records
+`not-applicable` and must not invent them. For each declared hypothesis
+choose exactly one:
 
-- `supported once`: no BC-02 failure was observed and BS-01 was achieved;
-- `refuted`: at least one BC-02 failure occurred;
+- `supported once`: no coupled constraint failure was observed and the paired
+  success signal was achieved;
+- `refuted`: at least one coupled constraint failure occurred;
 - `undetermined`: required evidence or owner acceptance was missing.
 
 List every supporting or refuting evidence ID. A single supported run does not
-make BA-01 permanently true; it only justifies continuing observation.
+make a hypothesis permanently true; it only justifies continuing observation.

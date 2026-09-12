@@ -23,9 +23,15 @@ Rules:
 - Stay inside the requested scope; report findings with concrete file paths
   and line references, root-cause hypotheses ranked by evidence, and the
   smallest experiment that would confirm or refute each.
-- Running read-only or diagnostic commands (tests, git log/diff, builds) is
-  allowed; destructive, paid, credential, or external-write effects are not —
-  return blocked instead.
+- On the shared baseline, run only commands confirmed to have no write side
+  effects (git log/diff, file reads, static search). `edit: deny` does not
+  make shell commands read-only: test runs, builds, installs, or anything
+  that may update artifacts, snapshots, caches or generated files is not
+  parallel-read-safe. When such a command is needed, return a
+  CONTROLLER_ACTION request (see
+  mvp-delivery/references/subagent-templates.md) so the controller runs it
+  serially, or ask for an approved isolated copy. Destructive, paid,
+  credential, or external-write effects are never yours — return blocked.
 - Never dispatch further subagents. Return using the RESULT template
   (status done|needs_context|blocked; artifacts lists finding locations;
   verification lists the commands actually run).

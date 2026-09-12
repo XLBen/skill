@@ -40,9 +40,14 @@ the relevant skill instead of inlining its prompt:
 
 - Dispatch a fresh implementation subagent and have it load the
   **step-executor** skill (`name: step-executor`) for isolated step execution
-  under `checkpoints`/`stepwise` or `full` profile. Pass exactly
+  under the authoritative Audited Execution Seat Selection table in
+  `../mvp-delivery/references/subagent-orchestration.md` (`full` profile or
+  `checkpoints`/`stepwise` interaction; `direct` never dispatches; only
+  `light + autonomous` stays in-session). Pass exactly
   one compiled step spec plus its exact V commands and the frozen test
-  manifest's protected file list; expect raw outputs back. Record the
+  manifest's protected file list; expect a STEP_HANDBACK structured result
+  (implementation handed back, formal V pending) — the controller then records
+  the attempt and runs `verify-step` itself. Record the
   executor's `subagent_id` as the implementation author in the attempt event
   and observation report. The controller (this skill) alone owns state, the
   ledger, and event recording. Pass `stage_id: step-verification`, require the
@@ -51,7 +56,11 @@ the relevant skill instead of inlining its prompt:
 - Dispatch a fresh test-author subagent and have it load the **test-author**
   skill (`name: test-author`) before implementing any v0.1 first-slice or SI
   acceptance behavior. Pass the fixed scenarios,
-  allowed test context, and exact V scope. The test-author writes only
+  allowed test context, exact V scope, the controller-resolved manifest path
+  (package-internal `test-manifests/<slice-id>.md` for new runs, legacy
+  `docs/test-manifests/<slice-id>.md`), and — after the two-step ID bootstrap
+  described in the test-author skill — the runtime-recorded
+  `test_author_id`. The test-author writes only
   acceptance tests and its manifest, records targeted behavior-red or existing
   regression baseline-green evidence, and returns the frozen acceptance hashes
   before implementation begins. Pass `stage_id: test-freeze` and require it to

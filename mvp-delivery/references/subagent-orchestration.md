@@ -21,10 +21,28 @@
 | 多个可独立复现的故障 | 按问题域并行派 research/worker | 默认派发 |
 | 每个实质切片验收交接 | 派 fresh reviewer（见 SKILL.md 验收章节） | 能力可用即必须 |
 | 全目标 finish 检查 | 派 reviewer 复用 review 能力做 whole-goal 检查 | 能力可用即必须 |
-| Audited 测试冻结/步骤执行/评审 | test-author / step-executor / reviewer 按既有严格规则 | 必须且阻塞 |
-| `direct` profile 的 Audited 施工 | 主控同会话执行，不派 step-executor | 禁止派发 |
+| Audited 测试冻结/评审 | test-author / reviewer 独立席位 | 必须且阻塞 |
+| Audited 步骤实现席位 | 按 Audited Execution Seat Selection 决策表 | 按决策表 |
 
 同一版本产物已被终审覆盖且未再变化时，可复用该终审结果，不重复派发。
+
+### Audited Execution Seat Selection
+
+实现席位由本表唯一决定；construction 与 step-protocol 只引用本表，不另行
+定义。test-author 与 reviewer 席位独立于本表判定（见上行与 reviewer
+协议），不因实现席位在会话内而消失。
+
+| profile | interaction | 实现席位 |
+|---|---|---|
+| `direct` | 任意 | 主控同会话；禁止派 step-executor |
+| `full` | `autonomous` | step-executor（fresh 子代理） |
+| `full` | `checkpoints`/`stepwise` | step-executor（fresh 子代理） |
+| `light` | `checkpoints`/`stepwise` | step-executor（fresh 子代理） |
+| `light` | `autonomous` | 主控同会话 |
+
+判定次序：先看 profile 是否 `direct`；再检查 `full` 或
+`checkpoints`/`stepwise`；仅 `light + autonomous` 留在主控同会话。存在
+产品 acceptance V 时，独立 test-author 席位与 review gate 仍然必须。
 
 ## Role To Agent Mapping
 
@@ -69,6 +87,11 @@ preflight 失败按 Failure Branches 降级或阻塞，并在 dispatch record �
 - 新任务一律 fresh dispatch，不继承主控或先前作者的上下文。
 - 同一实现任务的返修轮可以 resume 原执行者（携带 findings）；超过
   轻量上限（3 轮）后换 fresh seat 并附上全部 findings 与已试记录。
+  换 seat 是调度策略，不是重试授权：实际失败计数绑定“子目标 +
+  归一化失败签名”，跨 task、seat 与 resume 累计。达到三次同签名
+  实际失败的 no-progress 熔断后，fresh seat 只可用于有界只读诊断；
+  重新写入或重放失败方案必须先满足 owner 升级或新证据恢复条件
+  （见 mvp-delivery Build Continuously 与 `../pua/references/recovery-protocol.md`）。
 - reviewer 与被评实现的作者必须是不同 session；worker 不能评审自己的
   产出，主控不能在采纳前改写 reviewer 的 findings。
 - 真实 session/task 标识由主控从 dispatch 工具结果记录；子代理自报的
@@ -77,12 +100,30 @@ preflight 失败按 Failure Branches 降级或阻塞，并在 dispatch record �
 ## Dispatch Record
 
 每个 goal 维护 `.opencode/mvp/<goal-slug>.dispatch.json`（与目标卡同目录、
-同 slug），仅由主控写入：
+同 slug），仅由主控写入。它是该 goal 的**运行态**：当前切片路由、派发、
+失败计数与验收裁决都存这里。goal 卡 JSON 保持纯定义——engine 在每次验证时
+重写卡片并把证据绑定到定义 hash，任何运行态指针写入 goal JSON 要么被重写
+丢失、要么使已验证证据失效。
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "goal_id": "G-NAME",
+  "active_slice": {
+    "slice_id": "<slice-id or first-slice slug>",
+    "rigor": "normal|guarded|audited",
+    "basis": "<选择该强度的一句依据>",
+    "package": "<docs/audit-slices/<goal-slug>/<slice-id>/ 或 null>",
+    "brief_path": "<本 goal 消费的 brief 版本路径或 null>"
+  },
+  "failure_counters": [
+    {
+      "target": "<子目标/step/outcome>",
+      "signature": "<normalized failure signature>",
+      "actual_failures": 2,
+      "evidence_refs": ["<原始输出/证据路径>"]
+    }
+  ],
   "tasks": [
     {
       "task_id": "T-01",
@@ -90,8 +131,12 @@ preflight 失败按 Failure Branches 降级或阻塞，并在 dispatch record �
       "depends_on": [],
       "status": "done",
       "provenance": {"session_id": "<runtime-reported>", "agent": "mvp-worker"},
-      "artifact_baseline": "<commit或产物hash>",
-      "review_scope": "<task或goal>",
+      "dispatch_ref": "<保存的派发正文路径，如 .opencode/mvp/dispatch-archive/<goal>-T-01.md>",
+      "result_ref": "<保存的返回正文/证据路径>",
+      "artifact_baseline": {"pre": "<派发前 commit/产物hash>", "post": "<返回后 commit/产物hash 或 null>"},
+      "review_scope": "<task 或 goal>",
+      "acceptance": {"verdict": "satisfied|repair|owner|blocked|null", "pending_actions": ["<未决 controller/owner 动作>"]},
+      "rounds": 1,
       "skip_reason": null
     }
   ]
@@ -100,10 +145,29 @@ preflight 失败按 Failure Branches 降级或阻塞，并在 dispatch record �
 
 - `status`: pending | dispatched | done | failed | skipped。
 - 跳过委派必须写 `skip_reason`（如 mechanical-batch、capability-unavailable）。
+- **done 只表示席位执行结束，不等于验收通过**。reviewer/PUA 裁决记入
+  `acceptance.verdict`；复用一个 done 评审必须同时满足：裁决为
+  satisfied、`review_scope` 覆盖当前范围、其绑定的制品身份仍有效。
+  `owner`/`blocked` 裁决的 `pending_actions` 在恢复时必须先执行，不得因
+  产品文件未变而跳过。
+- `artifact_baseline.pre` 是派发前基线，`post` 是席位返回后基线；timeout
+  后 post 为 null 时必须先检查实际改动，再决定复用还是重放。
+- `failure_counters` 与返修轮数是两回事：计数绑定“子目标 + 签名”并跨
+  seat/task/resume 累计（见 Fresh Session Semantics）。
+- 派发与返回正文持久化到 dispatch archive（或等价不可变引用），
+  `dispatch_ref`/`result_ref` 指向它们；resume 不得只凭 status 标签重建
+  结论。缺 `result_ref` 的 done 任务按“需重建上下文”处理：可先只读核对
+  产物，不得把状态标签当作可复用成果或研究结论。
 - 该记录只服务恢复与观测；完成判定仍归 goal/engine gate，不替代
   `verify-goal`/`finish-goal` 证据。
-- resume 时先核对 dispatch record 与实际产物：done 且产物未失效的任务
-  不重复派发；timeout 不等于未执行，重新派发写入任务前必须检查实际改动。
+- **legacy v1 记录**（无 `schema_version` 或为 1）：`status`/`provenance`
+  可作恢复线索，但缺少 `result_ref`/`acceptance`/`baseline` 时不得据此
+  跳过重派或复用评审；主控首次续写时升级为 schema_version 2，只回填可
+  核实的字段，不伪造历史裁决。已完成 goal 的旧记录保持原样。
+
+resume 时先核对 dispatch record 与实际产物：done 且产物未失效、且（对
+评审类任务）裁决仍满足的任务不重复派发；timeout 不等于未执行，重新派发
+写入任务前必须检查实际改动。
 
 ## Failure Branches
 
@@ -113,7 +177,7 @@ preflight 失败按 Failure Branches 降级或阻塞，并在 dispatch record �
 | 权限拒绝 | 不换更宽权限代理绕过；按不可用处理并记录 |
 | 子代理返回 needs_context | 补充输入后继续同一任务，不新建任务 |
 | 子代理返回 blocked | 主控核实原因；属目标级阻塞按 SKILL.md 停止条件升级 |
-| 返修连续无新证据 | 轻量流程 3 轮上限后换 fresh seat；仍失败按 no-progress blocker 升级；严格流程遵守既有熔断 |
+| 返修连续无新证据 | 轻量流程 3 轮返修上限后换 fresh seat；实际失败熔断（同签名三次）优先于返修轮数与换 seat，先触发者先生效；严格流程遵守既有熔断 |
 | 并行任务产物冲突 | 串行重放冲突任务；冲突检测在集成时执行 |
 
 ## Integration Duties

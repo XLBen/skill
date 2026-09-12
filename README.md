@@ -63,7 +63,8 @@
 必须由用户决定的阻塞。
 
 所有任务使用 `.opencode/mvp/<goal>.md` 的 schema-1 `json goal` 保存目标和验证状态，
-结果数量不设上限。brief 输入在所有风险档都必须 final、owner-confirmed 并通过
+结果数量不设上限。运行态（当前切片强度、派发记录、失败计数与验收裁决）保存在
+同目录的 `<goal>.dispatch.json`（schema 2），goal JSON 保持纯定义。brief 输入在所有风险档都必须 final、owner-confirmed 并通过
 `brief` 校验，且每个 brief ID 都有 coverage。所有 `kind: success`（BS）只能映射为
 `outcome`，不能用 constraint/deferred/non-goal/rejected 隐藏必需成功；其它类型保留
 既有 disposition。`goal` 校验卡片，`verify-goal`

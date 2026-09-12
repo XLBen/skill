@@ -4,18 +4,29 @@ agent: build
 ---
 
 Load the `mvp-delivery` skill in Resume Mode. Find the active goal card under
-`.opencode/mvp/` (blocked cards are unfinished too). If no unfinished goal exists
-and `docs/brief.md` is draft, validate it, load `grill` and resume its persisted
-revision/frontier and recorded mode (default stepwise if not recorded). Save and
-validate the updated draft before asking the next round or pausing;
-do not start construction. If no target exists, ask what to resume.
+`.opencode/mvp/` (blocked cards are unfinished too). If no unfinished goal
+exists, look for a recognizable unfinished strict package (legacy root
+`docs/PLAN.md` or a non-done `docs/audit-slices/` PLAN) and resume it under
+mvp-delivery's Build rules: establish and validate the current goal card
+first, then load the construction phase internally. Only when no goal and no
+strict package exists and `docs/brief.md` is draft, validate it, load `grill`
+and resume its persisted revision/frontier and recorded mode (default stepwise
+if not recorded). Save and validate the updated draft before asking the next
+round or pausing; do not start construction. If multiple unrelated candidates
+exist (several active cards, or a strict package plus an unrelated draft),
+ask which target to resume; never pick by mtime. If no target exists, ask
+what to resume.
 
 Load `i-have-adhd` for resumed progress, acceptance-preview, delivery and
 blocker output. Before re-dispatching, reconcile
 `.opencode/mvp/<goal-slug>.dispatch.json` with actual artifacts per
-`mvp-delivery/references/subagent-orchestration.md`: tasks marked
-done whose product is unchanged are not re-dispatched; a timeout is not proof
-of non-execution, so verify the working tree before replaying write tasks.
+`mvp-delivery/references/subagent-orchestration.md`: a task marked done is
+reused only when its product is unchanged and, for review tasks, its recorded
+acceptance verdict still holds — pending owner/controller actions from an
+`owner`/`blocked` verdict must run first, even if product files are
+unchanged. A timeout is not proof of non-execution, so verify the working
+tree before replaying write tasks; records missing result references are
+rebuilt, not trusted from their status label.
 On each material handoff, dispatch a fresh reviewer and pass the full
 `ACCEPTANCE_HANDOFF` with `pua_stage_id` before reporting completion; stale
 review results are not evidence for changed artifacts.

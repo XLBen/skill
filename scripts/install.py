@@ -115,6 +115,14 @@ def main():
         raise SystemExit(
             "conflicting commands exist under .opencode/command/: " + ", ".join(legacy_conflicts)
         )
+    legacy_agent_dir = target / ".opencode" / "agent"
+    legacy_agent_conflicts = sorted(
+        path.name for path in legacy_agent_dir.glob("*.md") if path.stem in agent_names
+    ) if legacy_agent_dir.exists() else []
+    if legacy_agent_conflicts:
+        raise SystemExit(
+            "conflicting agents exist under .opencode/agent/: " + ", ".join(legacy_agent_conflicts)
+        )
 
     json_path = target / "opencode.json"
     jsonc_path = target / "opencode.jsonc"
@@ -153,12 +161,7 @@ def main():
         except OSError as exc:
             raise SystemExit(f"cannot inspect {local_jsonc}: {exc}") from exc
         local_data = parse_jsonc(local_text, local_jsonc)
-        inline = local_data.get("command", {}) if isinstance(local_data, dict) else {}
-        if isinstance(inline, dict) and command_names.intersection(inline):
-            raise SystemExit(
-                f"conflicting inline commands in {local_jsonc}: "
-                + ", ".join(sorted(command_names.intersection(inline)))
-            )
+        reject_inline_conflicts(local_data, str(local_jsonc))
 
     def file_hash(path):
         return hashlib.sha256(Path(path).read_bytes()).hexdigest()

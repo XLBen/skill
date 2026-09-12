@@ -4,7 +4,7 @@ description: Use when an Audited first slice, slice increment, or FIX package ne
 license: MIT
 metadata:
   language: "zh-CN"
-  produces: "acceptance test files and docs/test-manifests/<slice-id>.md"
+  produces: "acceptance test files and the caller-supplied manifest (package test-manifests/ for new Audited runs, legacy docs/test-manifests/)"
   called-by: "construction"
   calls-skills: "pua"
   public-command: "none"
@@ -29,9 +29,17 @@ The caller supplies:
 - the exact Given/When/Then scenarios and real input data;
 - the allowed test framework, test directory, and test command;
 - the implementation files that are out of scope for you;
-- a stable `test_author_id` and the manifest path; the ID must come from the
+- a stable `test_author_id` and the manifest path. The ID must come from the
   runtime dispatch provenance (recorded by the controller from the task tool
-  result), never self-invented by the subagent;
+  result), never self-invented by the subagent. Runtime task tools typically
+  report the session/task ID only in the completed dispatch result, so the
+  controller uses a two-step bootstrap: the first dispatch only establishes
+  the seat (load the skill, confirm the fixed spec; no test or manifest
+  writes); the controller records the real ID from the tool result and
+  resumes the same seat passing `test_author_id`, after which tests and the
+  manifest are written. If the runtime offers neither pre-allocated IDs nor
+  same-seat continuation, report the independence prerequisite as blocked;
+  never fabricate an ID;
 - any existing test harness or fixture files that may be reused.
 
 The controller owns minimal scoped setup/harness readiness before dispatch.
@@ -40,9 +48,13 @@ return a setup blocker; do not repair product code or count setup failure as red
 
 For GUI scenarios, author the test independently but have the main controller
 serialize the pre-change runner or interactive `computer-use` observation on the
-shared desktop. Do not take desktop control from this subagent. Preserve actual
-test authorship and raw run provenance; interactive observation cannot replace
-required executable red/green evidence or an owner's human acceptance.
+shared desktop. Do not take desktop control from this subagent. Request the
+run through a CONTROLLER_ACTION block
+(`../mvp-delivery/references/subagent-templates.md`); awaiting that evidence
+is a controller round-trip, not a blocker and not a reason to freeze early.
+Preserve actual test authorship and raw run provenance; interactive observation
+cannot replace required executable red/green evidence or an owner's human
+acceptance.
 
 If the caller does not supply a frozen specification, stop and ask for it. Do
 not infer a new product requirement from implementation code.
@@ -114,10 +126,16 @@ or skipped scenario into a passing freeze.
    Capture the full relevant output, exit status, and output hash. A red test
    may fail because the feature is absent, but not because the test cannot
    parse, the fixture is missing, or the command was skipped.
-5. Write `docs/test-manifests/<slice-id>.md` from the manifest template below.
-   Include the specification source/hash, scenarios, test paths/hashes,
-   `test_author_id`, classified pre-change evidence, allowed implementation
-   write set, and a `frozen_at` timestamp.
+5. Write the manifest at the caller-supplied `manifest_path`, using the
+    manifest template below. For a new five-command Audited package this is
+    the package-internal
+    `docs/audit-slices/<goal-slug>/<slice-id>/test-manifests/<slice-id>.md`;
+    legacy runs keep the root `docs/test-manifests/<slice-id>.md`. Do not
+    recompute or override the path yourself; if no manifest path was supplied,
+    return needs_context instead of guessing a location. Include the
+    specification source/hash, scenarios, test paths/hashes,
+    `test_author_id`, classified pre-change evidence, allowed implementation
+    write set, and a `frozen_at` timestamp.
 6. Return only the test-author handoff. Do not implement, repair, or mark the
    step complete.
 
@@ -182,6 +200,7 @@ pre_change_command: <exact command>
 pre_change_result: <per-scenario targeted behavior-red or regression baseline-green>
 pre_change_output_hash: <hash>
 implementation_write_set: <paths>
+pua_result: <[PUA-ACCEPTANCE] block from the test-freeze card>
 blockers: <none or concrete issue>
 ```
 

@@ -48,7 +48,9 @@ for an independence claim.
 - Read-only: never edit `docs/` artifacts or the event ledger.
 - For GUI evidence, inspect target/build identity, observed postconditions and
   actual provenance under `../computer-use/SKILL.md`. Do not operate the shared
-  desktop. Request a controller-run scenario if evidence is insufficient;
+  desktop. Request a controller-run scenario via a CONTROLLER_ACTION block
+  (`../mvp-delivery/references/subagent-templates.md`) if evidence is
+  insufficient; awaiting it is a controller round-trip, not a blocker.
   screenshots/MCP receipts alone are neither engine passes nor owner acceptance.
 - Use primary evidence. Do not invent requirements, preferences, future
   scale, or objections to fill a quota.
@@ -117,7 +119,11 @@ but do not edit artifacts, choose for the owner or declare the goal complete.
 ## PUA-backed Acceptance Handoff
 
 When a caller supplies `pua_stage_id` and `ACCEPTANCE_HANDOFF`, execute the matching
-card from `../pua/references/stage-checks.md` before returning the verdict. Inspect the
+card from `../pua/references/stage-checks.md` before returning the verdict. Cards
+separate pre-gate from post-gate evidence (see Card Roles And Gate Phases there):
+consume only evidence that already exists, and request missing controller-owned
+gate outputs via CONTROLLER_ACTION instead of waiting for them or running them.
+Inspect the
 full handoff, not only the user-facing ADHD preview. Keep the normal reviewer mode and
 return material findings in `issues`; also append the optional `pua_acceptance` object
 defined in `../pua/SKILL.md` with `stage_id`, `result`, evidence references, gaps and one

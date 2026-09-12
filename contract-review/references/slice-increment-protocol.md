@@ -77,9 +77,27 @@ SI record.
 
 The SI must name its affected closure before implementation. Only affected
 steps receive new work. Unaffected steps are not replayed for ceremony, and
-their existing evidence remains attached to the base revision. If the delta
-changes an interface, a fact, or the meaning of an existing V, stop and route
-it through CR instead of silently widening the SI.
+their existing evidence remains attached to the base revision.
+
+Delta routing has exactly three branches; this section is the authority and
+verdict-rules/construction only reference it:
+
+1. **A planned, owner-approved change to the working baseline** — including a
+   backward-compatible interface extension or an owner-approved versioned
+   behavior change — is an SI. Record the compatibility impact, superseded
+   semantics, and affected regression V in the SI record; the completed base
+   package stays immutable.
+2. **An active, unfinished package deviating from its currently approved
+   specification** — a mismatched interface or fact, an incompatible change,
+   or a missing acceptance criterion — is a blocking CR inside that package;
+   engine CR recovery applies only while that package is still active.
+3. **A completed package discovered to not meet its own approved
+   specification** is a defect: open a sibling `FIX-<nn>-<slug>` replacement
+   package per the rules below — never a same-package CR, never an SI that
+   hides the defect.
+
+Do not widen an SI with an undisclosed change, and do not route a planned
+compatible increment to CR merely because it touches an interface.
 
 For the five-command workflow, every Audited slice has an immutable package:
 

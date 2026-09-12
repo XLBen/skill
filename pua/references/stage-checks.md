@@ -5,8 +5,29 @@ reviewer 或 owner gate 决定。
 
 ## Card Format
 
-进入检查卡时先记录：`stage_id`、目标/切片、当前制品身份、检查范围和已有证据。
+进入检查卡时先记录：`stage_id`、执行角色、目标/切片、当前制品身份、检查范围和已有证据。
 随后执行“质询与动作”，返回 `acceptance-protocol.md` 的格式。
+
+## Card Roles And Gate Phases
+
+每张卡区分两类证据，执行者不得混淆：
+
+- **门前证据**（pre-gate）：检查卡执行时必须已经存在的证据。由主控在派发
+  前准备，或由卡的执行席位自己产生。
+- **门后证据**（post-gate）：卡的检查通过后、由主控执行的 engine/owner
+  gate 所产生的证据（release、confirm-plan、verify-step、finish-goal 等）。
+  它们只用于最终交付核对，**不作为任何检查卡（包括由 reviewer 执行的卡）
+  的必需输入**。
+
+卡的执行角色分两种：
+
+- **执行席位**（grill / mvp-delivery / construction / test-author /
+  step-executor 的当前会话或其子代理）：执行质询动作，可运行自己有权运行
+  的命令。
+- **只读席位**（reviewer 子代理）：只消费门前证据；缺少 gate 输出时通过
+  CONTROLLER_ACTION（`../../mvp-delivery/references/subagent-templates.md`）
+  请求主控补证，不自行执行 engine 命令，也不把“未来的 gate 输出缺失”
+  记为缺口或形成等待循环。
 
 ## 1. `brief-final`
 
@@ -53,7 +74,7 @@ reviewer 或 owner gate 决定。
 - “refuted 就是 refuted，谁允许你乐观编译？”逐项核对 probe verdict、真实边界和 stop condition。
 - 检查 reviewer 的幸存 issue 是否真的清空；不能通过改措辞、重复相同实验或消除记录来过门。
 - 核对每个用户可见结果都有公共接口旅程、E hash、预算实际值和可复跑 handoff。
-- 运行现有 contract/release gate；PUA 不能代替独立 reviewer、owner decision 或 engine event。
+- 运行现有 contract/release gate 归主控（门后证据，不作为本卡前置输入）；PUA 不能代替独立 reviewer、owner decision 或 engine event。由 reviewer 席位执行本卡时，只核对已存在的 gate 输出，缺失的经 CONTROLLER_ACTION 请求主控补齐。
 
 **证据**：Phase 0 原始观察、reviewer 结论、contract/release 命令输出、事件和 hash。
 
@@ -70,7 +91,7 @@ reviewer 或 owner gate 决定。
 - “你确认的是刚生成的 PLAN，还是聊天里某个旧版本？”核对 contract hash、PLAN 结构和展示摘要。
 - 预算、variant、风险和人工 V 的影响必须显式展示；口头“嗯”不算确认事件。
 - 不得因想尽快施工而手写、重编译或静默修改 compiler output。
-- 运行 `confirm-plan`/`plan --require-building` 所需 gate，确认后才交给 construction。
+- `confirm-plan`/`plan --require-building` gate 由主控执行（门后证据），确认后才交给 construction。由 reviewer 席位执行本卡时，只核对已存在的输出。
 
 **证据**：生成文件 hash、展示摘要、owner 决定、`confirm-plan` 和 `plan` 输出。
 
@@ -101,7 +122,7 @@ reviewer 或 owner gate 决定。
 
 **质询与动作**：
 
-- “这一步是真的跑了，还是你手写了一个 passing event？”只接受 engine 生成的 evidence/event。
+- “这一步是真的跑了，还是你手写了一个 passing event？”只接受 engine 生成的 evidence/event。executor 席位只检查自己持有的证据（manifest、保护路径、诊断运行）；engine 生成的 `verify-step` evidence/event 属门后证据，由主控在 construction 侧执行本卡时核对。
 - 检查所有 manifest-required 场景、子进程状态、输入快照、内容断言、重复运行和 cleanup。
 - 失败一次读根因；第二次同类失败换实质方法；第三次按既有熔断，不做第四次普通重试。
 - executor 只返回原始结果、偏差和 blocker；不宣布 step complete、不写 ledger、不修改冻结测试。
@@ -178,9 +199,9 @@ artifact identity、范围和证据；test manifest、工作树 diff、reconcile
 - “所有结果都拿到了，还是只把首片包装成 MVP 完成？”逐项对照原始范围、每个 outcome、deferred 和真实用户旅程。
 - 检查最后版本的集成路径、受影响回归、setup/use 隔离复跑、README、依赖和环境差异。
 - 再跑一次主动查漏：测试是否被弱化、是否硬编码样例、吞错、漏接线、同类问题未扫。
-- 只有 PUA 检查、适用 Audited gate、owner acceptance 和 `finish-goal` 全部满足，才允许完成；engine/独立席位不可用就报告 blocker。
+- 只有 PUA 检查、适用 Audited gate、owner acceptance 和 `finish-goal` 全部满足，才允许完成；engine 不可用一律 blocker；独立席位不可用按 mvp-delivery 验收章节分档（Audited 独立性 gate 阻塞，Normal/Guarded 记录 capability-unavailable 后按控制器检查披露收尾）。
 
-**证据**：最终版本身份、integrated/user-entry 输出、隔离复跑、reviewer 范围检查和 `finish-goal` 输出。
+**证据**：门前——最终版本身份、integrated/user-entry 输出、隔离复跑、reviewer 范围检查；门后——`finish-goal` 输出（主控执行 gate 后补记，不作为本卡前置输入，reviewer 席位不得因它缺失而阻塞）。
 
 **出口**：缺实现与缺验证分别记录；阻塞不能包装完成，完成不能只靠流程工件数量证明。
 
@@ -191,3 +212,6 @@ artifact identity、范围和证据；test manifest、工作树 diff、reconcile
 - GUI 观察属于对应的 `step-verification`、`goal-verification` 或 `slice-acceptance`，截图不是 engine pass。
 - `/fix` 复用受影响的检查卡，并额外执行 `recovery-protocol.md` 的同类根因范围检查。
 - `/resume` 从持久状态定位当前未完成 `stage_id`，不从聊天里的“已通过”推断。
+- 同一 stage、同一范围、同一制品身份下已记录的 PUA 结果可复用；制品实际
+  改动、受影响范围扩大或新失败信号才触发重查（见 `acceptance-protocol.md`
+  结束条件），不重复制造验收仪式。

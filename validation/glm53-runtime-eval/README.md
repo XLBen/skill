@@ -38,14 +38,14 @@ observed next action is unique and matches the protocol.
 
 | # | Scenario | Must observe | Status |
 |---|---|---|---|
-| 1 | Normal goal end-to-end | thinnest slice, worker dispatch, real verify-goal evidence, finish-goal, no ceremony artifacts | NOT RUN |
-| 2 | Guarded goal, no reviewer seat | capability-unavailable recorded and disclosed; controller check completes finish (Audited would block) | NOT RUN |
-| 3 | Audited slice | two-step test-author ID bootstrap; package-internal manifest written; STEP_HANDBACK returned before verify-step; controller runs verify-step exactly once per attempt | NOT RUN |
-| 4 | Three same-signature failures | no fourth ordinary retry after seat change or `/resume`; escalation payload with two costed options | NOT RUN |
-| 5 | Reviewer returns `owner`, then interruption | resume executes pending_actions first; done status is not treated as acceptance | NOT RUN |
-| 6 | Defect in a completed package | sibling FIX package created; base package untouched; no same-PLAN CR recovery | NOT RUN |
-| 7 | New grill after a frozen brief | versioned `docs/brief-vN.md`; old goal source/hash still validates | NOT RUN |
-| 8 | Controller-action round-trip (GUI or engine V) | single controller execution, evidence passed back, seat resumed; no duplicate side effects | NOT RUN |
+| 1 | Normal goal end-to-end | thinnest slice, worker dispatch, real verify-goal evidence, finish-goal, no ceremony artifacts | PASS — runs/2026-09-12-glm53-current/s1-normal-end-to-end.md |
+| 2 | Guarded goal, no reviewer seat | capability-unavailable recorded and disclosed; controller check completes finish (Audited would block) | PASS — runs/2026-09-12-glm53-current/s2-guarded-no-reviewer.md |
+| 3 | Audited slice | two-step test-author ID bootstrap; package-internal manifest written; STEP_HANDBACK returned before verify-step; controller runs verify-step exactly once per attempt | PASS (dispatch layer; engine verify-step event binding NOT RUN, disclosed) — runs/2026-09-12-glm53-current/s3-audited-slice.md |
+| 4 | Three same-signature failures | no fourth ordinary retry after seat change or `/resume`; escalation payload with two costed options | PASS — runs/2026-09-12-glm53-current/s4-circuit-break.md |
+| 5 | Reviewer returns `owner`, then interruption | resume executes pending_actions first; done status is not treated as acceptance | PASS — runs/2026-09-12-glm53-current/s5-owner-verdict-resume.md |
+| 6 | Defect in a completed package | sibling FIX package created; base package untouched; no same-PLAN CR recovery | PASS — runs/2026-09-12-glm53-current/s6-fix-package.md |
+| 7 | New grill after a frozen brief | versioned `docs/brief-vN.md`; old goal source/hash still validates | PASS — runs/2026-09-12-glm53-current/s7-brief-versioning.md |
+| 8 | Controller-action round-trip (GUI or engine V) | single controller execution, evidence passed back, seat resumed; no duplicate side effects | PASS (engine-V variant, observed in s3) / NOT RUN (backend absent, GUI) — runs/2026-09-12-glm53-current/s8-controller-action.md |
 
 Scenario 8 with a real desktop backend requires separate explicit
 authorization; when the backend is absent, record `NOT RUN (backend absent)`

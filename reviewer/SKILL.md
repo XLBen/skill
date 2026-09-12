@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Independent internal review seat dispatched by contract-review and construction for scout, question, review, final-audit, cr-audit, or converge-audit. Also handles natural-language requests to challenge an idea. Read-only; never decides owner values or edits artifacts.
+description: Independent read-only review seat for acceptance handoffs and audits. Dispatched by mvp-delivery for material slice acceptance review (no-contract Normal/Guarded), whole-goal finish checks, and by contract-review/construction for scout, question, review, final-audit, cr-audit, or converge-audit. Also handles natural-language requests to challenge an idea. Never decides owner values or edits artifacts.
 license: MIT
 metadata:
   language: "zh-CN"

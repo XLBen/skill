@@ -11,7 +11,10 @@ Load `i-have-adhd` for the plan preview, owner decision prompt and final handoff
 Keep the complete `ACCEPTANCE_HANDOFF` for PUA/reviewer; a concise preview is
 not evidence or PLAN confirmation.
 
-Inspect the repository and produce a right-sized goal card with observable
+Inspect the repository (dispatch read-only research seats for unfamiliar
+modules or dependency questions per
+`mvp-delivery/references/subagent-orchestration.md`; planning never
+dispatches writers) and produce a right-sized goal card with observable
 success, the first runnable slice, deferred outcomes, and engine-executable
 verification in the schema-1 `json goal` fence. Reuse a matching unfinished
 card. No outcome-count cap; cover all IDs of any explicitly supplied final,

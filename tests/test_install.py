@@ -39,6 +39,8 @@ class InstallTests(unittest.TestCase):
         self.repo = Path(temporary.name).resolve()
         self.sources = {
             ".opencode/commands/build.md": "command\n",
+            ".opencode/agents/mvp-worker.md": "agent\n",
+            ".opencode/agents/mvp-reviewer.md": "agent\n",
             "scripts/check.py": "# check\n",
             "tests/final_review.py": "# review\n",
             "tests/fixtures/example.md": "fixture\n",
@@ -87,7 +89,7 @@ class InstallTests(unittest.TestCase):
             source = self.repo / relative
             key = relative.removeprefix(".opencode/")
             expected[key] = hashlib.sha256(source.read_bytes()).hexdigest()
-            destination = source if key.startswith("commands/") else engine / key
+            destination = source if key.startswith(("commands/", "agents/")) else engine / key
             self.assertEqual(destination.read_bytes(), source.read_bytes())
         self.assertEqual(manifest, {"files": expected})
         config = json.loads((self.repo / "opencode.json").read_text(encoding="utf-8"))
@@ -113,6 +115,7 @@ class InstallTests(unittest.TestCase):
             sorted(path.relative_to(target).as_posix() for path in target.rglob("*") if path.is_file()),
             sorted([
                 "opencode.json", ".opencode/commands/build.md",
+                ".opencode/agents/mvp-reviewer.md", ".opencode/agents/mvp-worker.md",
                 ".opencode/workflow/install-manifest.json",
                 ".opencode/workflow/scripts/check.py",
                 ".opencode/workflow/tests/final_review.py",
@@ -196,6 +199,41 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(path.read_text(encoding="utf-8"), original)
         self.assertNotIn("registered skills", output)
         self.assertNotIn("add or merge", output)
+
+    def test_inline_agent_conflict_fails_before_copying(self):
+        target = self.repo / "conflict"
+        target.mkdir()
+        config = {"agent": {"mvp-worker": {"description": "existing"}}}
+        (target / "opencode.json").write_text(json.dumps(config), encoding="utf-8")
+        with mock.patch.object(install.shutil, "copy2") as copy:
+            with self.assertRaisesRegex(SystemExit, "conflicting inline agents"):
+                self.run_install(str(target))
+            copy.assert_not_called()
+
+    def test_refuses_unowned_agent_overwrite_and_force_replaces(self):
+        target = self.repo / "owned"
+        (target / ".opencode/agents").mkdir(parents=True)
+        existing = target / ".opencode/agents/mvp-worker.md"
+        existing.write_text("local version\n", encoding="utf-8")
+        with self.assertRaisesRegex(SystemExit, "refusing to overwrite unowned file"):
+            self.run_install(str(target))
+        self.assertEqual(existing.read_text(encoding="utf-8"), "local version\n")
+        self.run_install(str(target), "--force")
+        self.assertEqual(existing.read_bytes(), (self.repo / ".opencode/agents/mvp-worker.md").read_bytes())
+
+    def test_upgrade_retires_removed_agent_files(self):
+        target = self.repo / "retire"
+        target.mkdir()
+        self.run_install(str(target))
+        retired = target / ".opencode/agents/mvp-reviewer.md"
+        self.assertTrue(retired.is_file())
+        (self.repo / ".opencode/agents/mvp-reviewer.md").unlink()
+        output = self.run_install(str(target))
+        self.assertFalse(retired.exists())
+        self.assertIn("removed retired commands: mvp-reviewer", output)
+        manifest = json.loads((target / ".opencode/workflow/install-manifest.json").read_text(encoding="utf-8"))
+        self.assertNotIn("agents/mvp-reviewer.md", manifest["files"])
+        self.assertIn("agents/mvp-worker.md", manifest["files"])
 
     def test_invalid_manifest_files_type_fails_before_copying(self):
         manifest = self.repo / ".opencode/workflow/install-manifest.json"

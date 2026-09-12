@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install this repository's OpenCode skills path and command wrappers."""
+"""Install this repository's OpenCode skills path, command wrappers, and subagent definitions."""
 
 import argparse
 import hashlib
@@ -72,7 +72,9 @@ def main():
         raise SystemExit(f"target project does not exist: {target}")
 
     source = repo / ".opencode" / "commands"
+    agents_source = repo / ".opencode" / "agents"
     destination = target / ".opencode" / "commands"
+    agents_destination = target / ".opencode" / "agents"
     destination.mkdir(parents=True, exist_ok=True)
     engine_root = target / ".opencode" / "workflow"
     manifest_path = engine_root / "install-manifest.json"
@@ -86,6 +88,25 @@ def main():
             raise SystemExit("cannot verify previous installation manifest: files must be an object")
     installed_files = {}
     command_names = {path.stem for path in source.glob("*.md")}
+    agent_names = (
+        {path.stem for path in agents_source.glob("*.md")} if agents_source.is_dir() else set()
+    )
+
+    def reject_inline_conflicts(data, config_label):
+        if not isinstance(data, dict):
+            return
+        inline_commands = data.get("command", {})
+        if isinstance(inline_commands, dict) and command_names.intersection(inline_commands):
+            raise SystemExit(
+                f"conflicting inline commands in {config_label}: "
+                + ", ".join(sorted(command_names.intersection(inline_commands)))
+            )
+        inline_agents = data.get("agent", {})
+        if isinstance(inline_agents, dict) and agent_names.intersection(inline_agents):
+            raise SystemExit(
+                f"conflicting inline agents in {config_label}: "
+                + ", ".join(sorted(agent_names.intersection(inline_agents)))
+            )
     legacy_command_dir = target / ".opencode" / "command"
     legacy_conflicts = sorted(
         path.name for path in legacy_command_dir.glob("*.md") if path.stem in command_names
@@ -109,18 +130,14 @@ def main():
             raise SystemExit(f"cannot safely update {json_path}: skills must be an object")
         if "paths" in preflight_skills and not isinstance(preflight_skills["paths"], list):
             raise SystemExit(f"cannot safely update {json_path}: skills.paths must be an array")
-        inline = preflight_config.get("command", {})
-        if isinstance(inline, dict) and command_names.intersection(inline):
-            raise SystemExit("conflicting inline commands in opencode.json: " + ", ".join(sorted(command_names.intersection(inline))))
+        reject_inline_conflicts(preflight_config, str(json_path))
     if jsonc_path.exists():
         try:
             jsonc_text = jsonc_path.read_text(encoding="utf-8")
         except OSError as exc:
             raise SystemExit(f"cannot inspect {jsonc_path}: {exc}") from exc
         jsonc_data = parse_jsonc(jsonc_text, jsonc_path)
-        inline = jsonc_data.get("command", {}) if isinstance(jsonc_data, dict) else {}
-        if isinstance(inline, dict) and command_names.intersection(inline):
-            raise SystemExit("conflicting inline commands in opencode.jsonc: " + ", ".join(sorted(command_names.intersection(inline))))
+        reject_inline_conflicts(jsonc_data, str(jsonc_path))
     for local_config in (target / ".opencode" / "opencode.json",):
         if not local_config.exists():
             continue
@@ -128,12 +145,7 @@ def main():
             local_data = json.loads(local_config.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError) as exc:
             raise SystemExit(f"cannot inspect {local_config}: {exc}") from exc
-        inline = local_data.get("command", {}) if isinstance(local_data, dict) else {}
-        if isinstance(inline, dict) and command_names.intersection(inline):
-            raise SystemExit(
-                f"conflicting inline commands in {local_config}: "
-                + ", ".join(sorted(command_names.intersection(inline)))
-            )
+        reject_inline_conflicts(local_data, str(local_config))
     local_jsonc = target / ".opencode" / "opencode.jsonc"
     if local_jsonc.exists():
         try:
@@ -168,16 +180,21 @@ def main():
         (command, destination / command.name, f"commands/{command.name}")
         for command in sorted(source.glob("*.md"))
     ]
+    if agents_source.is_dir():
+        copy_jobs.extend(
+            (agent, agents_destination / agent.name, f"agents/{agent.name}")
+            for agent in sorted(agents_source.glob("*.md"))
+        )
     retired_command_jobs = []
     for key, owned_hash in previous_files.items():
         relative = Path(key)
-        if (
-            len(relative.parts) == 2
-            and relative.parts[0] == "commands"
-            and relative.suffix == ".md"
-            and relative.stem not in command_names
-        ):
+        if len(relative.parts) != 2 or relative.suffix != ".md":
+            continue
+        folder, stem = relative.parts[0], relative.stem
+        if folder == "commands" and stem not in command_names:
             retired_command_jobs.append((destination / relative.name, key, owned_hash))
+        elif folder == "agents" and stem not in agent_names:
+            retired_command_jobs.append((agents_destination / relative.name, key, owned_hash))
     copy_jobs.append((repo / "scripts" / "check.py", engine_root / "scripts" / "check.py", "scripts/check.py"))
     copy_jobs.append((repo / "tests" / "final_review.py", engine_root / "tests" / "final_review.py", "tests/final_review.py"))
     copy_jobs.extend(
@@ -227,6 +244,11 @@ def main():
             safe_copy(command, destination / command.name, f"commands/{command.name}")
             copied.append(command.stem)
 
+        if agents_source.is_dir():
+            agents_destination.mkdir(parents=True, exist_ok=True)
+            for agent in sorted(agents_source.glob("*.md")):
+                safe_copy(agent, agents_destination / agent.name, f"agents/{agent.name}")
+
         engine_scripts = engine_root / "scripts"
         engine_fixtures = engine_root / "tests" / "fixtures"
         safe_copy(repo / "scripts" / "check.py", engine_scripts / "check.py", "scripts/check.py")
@@ -261,6 +283,9 @@ def main():
         raise
 
     print(f"installed commands: {', '.join(copied)}")
+    if agents_source.is_dir():
+        installed_agents = sorted(agent_names)
+        print(f"installed subagents (.opencode/agents/): {', '.join(installed_agents)}")
     if retired:
         print(f"removed retired commands: {', '.join(sorted(retired))}")
     if preserved_retired:

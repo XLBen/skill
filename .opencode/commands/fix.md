@@ -7,10 +7,13 @@ Load the `mvp-delivery` skill in Fix Mode for:
 
 $ARGUMENTS
 
-Load `i-have-adhd` for concise user-facing progress and final delivery. Before a
-material acceptance handoff, send its preview first, then pass the full
-`ACCEPTANCE_HANDOFF` and `pua_stage_id` to the existing fresh reviewer; do not
-hide unresolved gaps in the final summary.
+Load `i-have-adhd` for concise user-facing progress and final delivery. When
+the root cause is unclear, first dispatch a read-only research seat to
+reproduce and diagnose, then dispatch the fix as a bounded work package per
+`mvp-delivery/references/subagent-orchestration.md`. Before a material
+acceptance handoff, send its preview first, then dispatch a fresh reviewer
+with the full `ACCEPTANCE_HANDOFF` and `pua_stage_id`, and consume its
+structured result; do not hide unresolved gaps in the final summary.
 
 Resolve and reuse the matching active/blocked goal card; do not create a second
 active fix goal. Ask if the target or completed Audited repair base is ambiguous.

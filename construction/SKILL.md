@@ -77,10 +77,18 @@ the relevant skill instead of inlining its prompt:
 
 Loading a skill only adds instructions to the current agent; it does not create
 an independent identity. Use the runtime's task/subagent capability for the
-fresh dispatches above. If unavailable, obtain a real separate-session review
-or mark independence unavailable and block Audited release/completion. Never
-waive the gate or invent distinct IDs. IDs are claims, not cryptographic identity
-verification; preserve and inspect actual session provenance.
+fresh dispatches above, following the role-to-agent mapping, dispatch
+preflight, and failure branches in
+`../mvp-delivery/references/subagent-orchestration.md`: prefer the installed
+project agents `mvp-step-executor` / `mvp-test-author` / `mvp-reviewer`, with
+the skill loaded inside the dispatched seat. If unavailable, obtain a real
+separate-session review or mark independence unavailable and block Audited
+release/completion. Never waive the gate or invent distinct IDs. IDs are
+claims, not cryptographic identity verification; preserve and inspect actual
+session provenance. The `direct` profile overrides interaction settings
+(`checkpoints`/`stepwise`) and keeps execution in-session: no step-executor
+dispatch happens under `direct` regardless of interaction value, while
+product acceptance still invokes the separate test-author seat.
 
 ## Gate
 

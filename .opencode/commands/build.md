@@ -8,9 +8,12 @@ Load the `mvp-delivery` skill in Build Mode for:
 $ARGUMENTS
 
 Load `i-have-adhd` for user-facing progress, acceptance-preview, delivery and
-blocker output. At each material acceptance handoff, pass the full
-`ACCEPTANCE_HANDOFF` to the existing fresh reviewer with its `pua_stage_id`; do
-not announce completion from the preview alone.
+blocker output. Delegate substantial implementation work per
+`mvp-delivery/references/subagent-orchestration.md` (worker/research seats,
+one writer at a time); the controller integrates and re-verifies. At each
+material acceptance handoff, dispatch a fresh reviewer, pass the full
+`ACCEPTANCE_HANDOFF` with its `pua_stage_id`, and consume its structured
+result before continuing; do not announce completion from the preview alone.
 
 Resolve and reuse a matching unfinished goal even when arguments are supplied;
 never create a second active card for the same work. Otherwise find the single

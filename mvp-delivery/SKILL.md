@@ -6,7 +6,7 @@ metadata:
   language: "zh-CN"
   commands: "/plan <goal>, /build [goal], /fix <problem>, /resume"
   produces: "working product code and verification evidence"
-  calls-skills: "i-have-adhd, pua, grill, contract-review, construction, reviewer, computer-use"
+  calls-skills: "i-have-adhd, pua, grill, contract-review, construction, task-worker, reviewer, computer-use"
 ---
 
 # MVP Delivery
@@ -26,6 +26,13 @@ metadata:
 不要把内部评审、测试、施工和终审能力重新暴露成一串用户命令。不要在每片之间问
 “是否继续”。用户请求交付目标时，默认授权的是可逆的工作区内实现与测试，而
 不是只交付第一片。
+
+主控是协调者，不是默认实现者：实质任务（改变产品行为、公开接口、修复缺陷、
+跨文件逻辑、需要独立正确性判断）默认派发子代理执行；只有单点机械小改或
+合并后的机械工作包由主控直接处理。所有派发决定、并发限制、角色映射、
+失败分支和恢复记录统一遵循 `references/subagent-orchestration.md`，
+派发与返回格式遵循 `references/subagent-templates.md`。每个 goal 维护
+`.opencode/mvp/<goal-slug>.dispatch.json`，跳过委派必须记录原因。
 
 只有以下情况停下来问：
 
@@ -50,11 +57,12 @@ engine gate、owner 决定或 reviewer 独立性。用户看到的是短视图�
    当前产物身份、证据、已知缺口、owner 决定和真实用户入口。
 2. 用 `i-have-adhd` 的 `acceptance-preview` 告知用户正在验收什么；不能在 reviewer
    返回前宣布阶段通过或整个目标完成。普通实现中的无实质进展不发送重复消息。
-3. 阶段达到实质验收点时，自动 fresh-dispatch reviewer，任务正文同时传入
-   `pua_stage_id`、完整交接包、对应 PUA 检查卡和既有 mode；若没有既有 review gate，
-   使用 reviewer 的通用 read-only acceptance review 能力，不新增 mode、角色或 event
-   schema。reviewer 必须加载 `pua` 并返回结构化 `issues` 与 `pua_acceptance`。加载
-   skill 不能冒充独立身份。
+3. 阶段达到实质验收点时，dispatch fresh reviewer（能力可用即必须，不受
+   成本裁量豁免），任务正文同时传入 `pua_stage_id`、完整交接包、对应 PUA
+   检查卡和既有 mode；若没有既有 review gate，使用 reviewer 的通用
+   read-only acceptance review 能力，不新增 mode、角色或 event schema。
+   reviewer 必须加载 `pua` 并返回结构化 `issues` 与 `pua_acceptance`。加载
+   skill 不能冒充独立身份。Normal 的普通进度消息不触发本条。
 4. 控制器核对 reviewer 的证据：`repair` 就修复并复验受影响范围，`owner` 就保留
    owner gate，`blocked` 就停止并报告阻塞；只有既有 engine/owner gate 和 reviewer
    结果都满足后才继续。
@@ -62,8 +70,10 @@ engine gate、owner 决定或 reviewer 独立性。用户看到的是短视图�
    `progress` 或 `blocker`。完整交接包不能被五项展示上限裁剪。
 
 没有可用 fresh reviewer seat 时，仍执行当前阶段的 PUA card，但必须明确这是控制器检查，
-不能声称独立评审；Audited 的独立性要求不能降级。不要为 Normal 的每条进度消息制造
-reviewer 仪式，只在实质验收交接或受影响范围变化时派发。
+不能声称独立评审；Normal/Guarded 记录 capability-unavailable 后继续，Audited 的
+独立性要求不能降级、按阻塞处理。不要为 Normal 的每条进度消息制造
+reviewer 仪式，只在实质验收交接或受影响范围变化时派发。上述矩阵优先于
+任何成本或风险裁量；唯一豁免是 mechanical-batch（机械小改合并）。
 
 ## Command Modes
 
@@ -205,7 +215,8 @@ sandbox, and approval may stop the delivery loop.
 
 - Normal：可逆的工作区内改动；目标卡、相关测试、真实 demo。
 - Guarded：外部边界、兼容性或较高返工风险；加有预算探针、验收测试和一次独立
-  review（仅在可真实调度 fresh subagent 时）。
+  review（fresh reviewer 能力可用即必须派发；不可用时记录
+  capability-unavailable 并按控制器检查披露）。
 - Audited：资金、隐私、安全、迁移、不可逆副作用或用户明确要求；加载
   `contract-review`，在 `docs/audit-slices/<goal-slug>/<slice-id>/` 建立只覆盖当前片的
   不可变契约、PLAN、ledger 和 CR 文件。本 skill 仍是总控制器，完成 gate 后自动
@@ -237,13 +248,16 @@ sandbox, and approval may stop the delivery loop.
 需属于当前 write set，否则走 CR。缺依赖或服务不是行为 red，不能用 mock 冒充真实边界。
 
 1. 为当前切片创建少量可执行 todo，不为完整远期路线展开大计划。
-2. 先实现最短正确路径，遵循仓库现有结构；避免无关重构和预防性抽象。
-3. 测试策略与风险相称。行为明确且适合自动化时先写一个会因缺失行为而失败的
+2. 实质实现任务默认派 worker 子代理执行（触发矩阵与工作包划分见
+   `references/subagent-orchestration.md`）；主控负责拆解、交接、集成与
+   复验，不把 worker 的返回直接当作验证通过。机械小改合并后主控直接处理。
+3. 先实现最短正确路径，遵循仓库现有结构；避免无关重构和预防性抽象。
+4. 测试策略与风险相称。行为明确且适合自动化时先写一个会因缺失行为而失败的
    验收测试；微小修复可复用现有测试。不要为了角色仪式强制生成独立 manifest。
-4. 运行最窄相关测试，再运行真实 smoke/demo。测试必须检查内容、状态或不变量，
+5. 运行最窄相关测试，再运行真实 smoke/demo。测试必须检查内容、状态或不变量，
    不能只检查退出码、文件存在或日志非空。
-5. 若必要产物缺失、为空或为零，默认失败；只有目标明确规定 semantic zero 才通过。
-6. 实现失败时先读错误并修根因。同一失败方式连续三次且没有产生新证据或缩小
+6. 若必要产物缺失、为空或为零，默认失败；只有目标明确规定 semantic zero 才通过。
+7. 实现失败时先读错误并修根因。同一失败方式连续三次且没有产生新证据或缩小
    根因范围时，视为 no-progress blocker：停止机械重试，汇总尝试、证据和两个
     具体方案后向用户升级。若有可说明的新证据，按新根因继续而不是重放同一动作。
 
@@ -270,9 +284,11 @@ Web/服务类验证必须是有界的：启动本次待交付实例，等待 rea
 不自动安装、开放权限或把缺能力记为通过。GUI 操作记录只是辅助证据，仍需真实可执行
 runner 通过 goal/step gate；Audited human V 仍需真实 owner 决定，不能替代 goal 验证。
 
-独立测试作者或 reviewer 只在风险值得其成本且运行环境真的支持 fresh subagent 时
-使用。加载另一个 skill 只是加载说明，不会创造独立身份；不得伪造 session ID、
-作者隔离或审计证据。
+独立测试作者与 reviewer 的使用由 `references/subagent-orchestration.md`
+的触发矩阵统一决定：实质验收能力可用即必须派发，机械小改与
+mechanical-batch 豁免；不再按“风险值得成本”裁量。加载另一个 skill
+只是加载说明，不会创造独立身份；不得伪造 session ID、作者隔离或审计
+证据。回退与降级规则见该协议的 Failure Branches。
 
 Normal/Guarded 默认不创建 `contract.md`、`PLAN.md`、ledger、review log、
 observation report 或 ceremony ratio。轻量目标卡不是过程日志。已有项目要求这些
@@ -383,3 +399,12 @@ verification, owner decisions and external blockers remain distinct.
 若阻塞，明确哪部分仍不可用、原因和用户需要采取的最小下一步；不能将其包装为完成。
 
 不要用流程工件数量证明成功；以用户目标的可观察结果证明成功。
+
+## References
+
+| Need | Read |
+|---|---|
+| 委派触发矩阵、角色映射、并发、失败分支、dispatch record | `references/subagent-orchestration.md` |
+| 派发/返回/返修模板 | `references/subagent-templates.md` |
+| 独立评审协议（reviewer modes 与输出 schema） | `../contract-review/references/reviewer-protocol.md` |
+| 轻量实现席位（worker 子代理加载） | `../task-worker/SKILL.md` |

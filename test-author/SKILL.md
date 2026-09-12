@@ -29,7 +29,9 @@ The caller supplies:
 - the exact Given/When/Then scenarios and real input data;
 - the allowed test framework, test directory, and test command;
 - the implementation files that are out of scope for you;
-- a stable `test_author_id` and the manifest path;
+- a stable `test_author_id` and the manifest path; the ID must come from the
+  runtime dispatch provenance (recorded by the controller from the task tool
+  result), never self-invented by the subagent;
 - any existing test harness or fixture files that may be reused.
 
 The controller owns minimal scoped setup/harness readiness before dispatch.

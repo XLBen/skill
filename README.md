@@ -107,12 +107,14 @@ goal、deferred 和真实入口，按需复用 reviewer，不新增公开命令�
 
 ## 内部 skills
 
-- `mvp-delivery`：`plan/build/fix/resume` 的总控制器，负责持续收敛到原始目标。
+- `mvp-delivery`：`plan/build/fix/resume` 的总控制器，负责持续收敛到原始目标；
+  实质任务默认派发子代理，规则见其 `references/subagent-orchestration.md`。
 - `grill`：深度需求澄清，只生成 brief。
 - `contract-review`：Audited 切片的契约评审和 PLAN 编译。
 - `construction`：执行并收尾 Audited PLAN，处理 CR 恢复。
+- `task-worker`：由 fresh subagent 调度时执行一个有界 Normal/Guarded 实现工作包。
 - `test-author`：由 fresh subagent 调度时独立生成和冻结验收测试。
-- `reviewer`：由 fresh subagent 调度时进行只读评审。
+- `reviewer`：由 fresh subagent 调度时进行只读评审，含轻量验收与 whole-goal 检查。
 - `step-executor`：由 fresh subagent 隔离执行一个严格 PLAN 步骤。
 - `computer-use`：主控制器按需执行真实桌面 GUI 路径，观察、操作、验证；需要另行授权的 MCP。
 - `pua`：每个阶段验收前的主动质询、证据闭环和有界失败恢复；不替代 engine gate 或 owner 决定。
@@ -126,9 +128,14 @@ event schema。先 preview、再 PUA/reviewer、最后 delivery 或 blocker。No
 进度不制造 reviewer 仪式，且任何简洁格式都不能替代 engine、owner 或独立性 gate。
 `i-have-adhd` 不提供公开命令、hook 或全局状态。
 
-加载 skill 只会加入说明，不会自动创建独立身份。需要作者隔离时必须真实调度
-fresh subagent 或真实独立 session；不可用时记录 independence unavailable 并阻断
-Audited release，不能用 waiver 冒充独立评审。ID 只是声明，没有密码学身份验证。
+安装器会把 `mvp-researcher`、`mvp-worker`、`mvp-reviewer`、`mvp-test-author`、
+`mvp-step-executor` 五个项目子代理安装到目标项目 `.opencode/agents/`，分别绑定
+调研、轻量实现、只读评审、测试冻结和严格步骤执行，并带各自的最小权限边界
+（reviewer 无写入；子代理禁止再派发）。主控按触发矩阵选择席位：实质任务默认
+派发，机械小改例外。加载 skill 只会加入说明，不会自动创建独立身份；安装的
+agents 才提供真实独立 session。需要作者隔离但子代理能力不可用时，记录
+independence unavailable 并阻断 Audited release，不能用 waiver 冒充独立评审；
+Normal/Guarded 可在明确披露后由主控降级执行。ID 只是声明，没有密码学身份验证。
 
 ## 安装
 
@@ -138,8 +145,8 @@ Audited release，不能用 waiver 冒充独立评审。ID 只是声明，没有
 python scripts/install.py "E:/path/to/target-project"
 ```
 
-安装器会复制五个 command wrapper 和校验引擎，并在 `opencode.json` 分别注册本仓库
-当前顶层 skill 目录，避免扫描 `validation/` 的冻结旧版同名 skill。升级时替换原先
+安装器会复制五个 command wrapper、五个子代理定义（`.opencode/agents/`）和校验
+引擎，并在 `opencode.json` 分别注册本仓库当前顶层 skill 目录，避免扫描 `validation/` 的冻结旧版同名 skill。升级时替换原先
 精确匹配的仓库根 skills path，保留其他配置。旧命令仍未被本地修改时会删除；本地改过的旧命令会保留并提示，
 显式使用 `--force` 才会移除。
 

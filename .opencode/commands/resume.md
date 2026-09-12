@@ -10,9 +10,15 @@ revision/frontier and recorded mode (default stepwise if not recorded). Save and
 validate the updated draft before asking the next round or pausing;
 do not start construction. If no target exists, ask what to resume.
 
-Load `i-have-adhd` for resumed progress, acceptance-preview, delivery and blocker
-output. On each material handoff, keep the full `ACCEPTANCE_HANDOFF` and pass it
-with `pua_stage_id` to the applicable fresh reviewer before reporting completion.
+Load `i-have-adhd` for resumed progress, acceptance-preview, delivery and
+blocker output. Before re-dispatching, reconcile
+`.opencode/mvp/<goal-slug>.dispatch.json` with actual artifacts per
+`mvp-delivery/references/subagent-orchestration.md`: tasks marked
+done whose product is unchanged are not re-dispatched; a timeout is not proof
+of non-execution, so verify the working tree before replaying write tasks.
+On each material handoff, dispatch a fresh reviewer and pass the full
+`ACCEPTANCE_HANDOFF` with `pua_stage_id` before reporting completion; stale
+review results are not evidence for changed artifacts.
 For an Audited goal, reconcile its named package and load the appropriate
 planning or construction phase internally. Validate `goal` and its final source
 brief before product edits; do not substitute a complete history card. Reset

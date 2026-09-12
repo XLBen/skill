@@ -3,11 +3,13 @@
 > When to read: before every reviewer dispatch and when adjudicating a run
 > (scout / question / review / final-audit / cr-audit / converge-audit).
 
-Dispatch a fresh reviewer subagent, then have it load the `reviewer` skill
-(skill tool, `name: reviewer`). Supply an explicit mode, fixed contract
-snapshot/hash when the mode is contract-bound, or the artifact identity from the
-full handoff for a Normal/Guarded acceptance review without a contract, and an
-output budget. Loading a skill in the controller is not
+Dispatch a fresh reviewer subagent (prefer the installed `mvp-reviewer`
+project agent; run the dispatch preflight and follow the failure branches in
+`../../mvp-delivery/references/subagent-orchestration.md`), then have it load
+the `reviewer` skill (skill tool, `name: reviewer`). Supply an explicit mode,
+fixed contract snapshot/hash when the mode is contract-bound, or the artifact
+identity from the full handoff for a Normal/Guarded acceptance review without
+a contract, and an output budget. Loading a skill in the controller is not
 dispatch or independence; if no fresh subagent is available, use a real separate
 session with recorded provenance or block Audited release.
 For v0.2 (and existing v0.1) first-slice and construction audits, also pass the

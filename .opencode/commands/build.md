@@ -7,6 +7,11 @@ Load the `mvp-delivery` skill in Build Mode for:
 
 $ARGUMENTS
 
+Load `i-have-adhd` for user-facing progress, acceptance-preview, delivery and
+blocker output. At each material acceptance handoff, pass the full
+`ACCEPTANCE_HANDOFF` to the existing fresh reviewer with its `pua_stage_id`; do
+not announce completion from the preview alone.
+
 Resolve and reuse a matching unfinished goal even when arguments are supplied;
 never create a second active card for the same work. Otherwise find the single
 active `.opencode/mvp/` goal card or confirmed strict PLAN; if neither exists
@@ -37,4 +42,6 @@ Create missing README/quickstart or update existing instructions and replay setu
 from declared artifacts/dependencies in isolation, not borrowed global packages.
 Report location, prerequisites, working directory and exact use steps
 (or the verified quickstart), sample input/result, tested environment and limitations.
-If blocked, say what remains unusable and the smallest required owner action.
+Before `verify-goal` and `finish-goal`, load the `pua` skill and execute the
+`goal-verification` and `goal-finish` cards. If blocked, say what remains
+unusable and the smallest required owner action.

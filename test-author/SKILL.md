@@ -6,6 +6,7 @@ metadata:
   language: "zh-CN"
   produces: "acceptance test files and docs/test-manifests/<slice-id>.md"
   called-by: "construction"
+  calls-skills: "pua"
   public-command: "none"
 ---
 
@@ -86,8 +87,18 @@ not infer a new product requirement from implementation code.
   record the acceptance-relevant settings and revalidate their semantics and
   scenario execution. Any acceptance semantics change needs explicit approved
   CR authorization, independent test-author revision/revalidation, reviewer
-  review, and refreshed manifest hashes before implementation continues. Never
-  silently weaken tests, discovery, wrappers, or boundary/mock policy.
+   review, and refreshed manifest hashes before implementation continues. Never
+   silently weaken tests, discovery, wrappers, or boundary/mock policy.
+
+## PUA Acceptance: `test-freeze`
+
+Before returning the manifest, load `../pua/SKILL.md` and execute the
+`test-freeze` card in `../pua/references/stage-checks.md`. Ask “永远绿的测试
+也是交付？” against each critical scenario. Check behavior-red versus
+baseline-green classification, content/state assertions, real-boundary policy,
+actual scenario execution and protected hashes. Return the structured PUA result
+with the pre-change evidence; do not convert an unexpected green, setup failure
+or skipped scenario into a passing freeze.
 
 ## Procedure
 

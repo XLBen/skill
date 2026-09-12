@@ -9,6 +9,10 @@ and `docs/brief.md` is draft, validate it, load `grill` and resume its persisted
 revision/frontier and recorded mode (default stepwise if not recorded). Save and
 validate the updated draft before asking the next round or pausing;
 do not start construction. If no target exists, ask what to resume.
+
+Load `i-have-adhd` for resumed progress, acceptance-preview, delivery and blocker
+output. On each material handoff, keep the full `ACCEPTANCE_HANDOFF` and pass it
+with `pua_stage_id` to the applicable fresh reviewer before reporting completion.
 For an Audited goal, reconcile its named package and load the appropriate
 planning or construction phase internally. Validate `goal` and its final source
 brief before product edits; do not substitute a complete history card. Reset
@@ -29,4 +33,6 @@ the clean current slice. Required success and original real boundaries stay in
 outcomes; missing implementation/verification remain distinct pending/blocked gaps.
 Report delivery location, prerequisites,
 working directory/use steps or verified quickstart, sample result, tested environment
-and limitations; on blockage, state what remains unusable and the next owner action.
+and limitations; load the `pua` skill for the resumed `stage_id` before each
+handoff and for `goal-finish` before completion. On blockage, state what remains
+unusable and the next owner action.

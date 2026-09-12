@@ -130,6 +130,8 @@ class InstallTests(unittest.TestCase):
         config = json.loads((target / "opencode.json").read_text(encoding="utf-8"))
         roots = [Path(path) for path in config["skills"]["paths"]]
         self.assertIn(source / "computer-use", roots)
+        self.assertIn(source / "i-have-adhd", roots)
+        self.assertIn(source / "pua", roots)
         names = []
         for root in roots:
             self.assertEqual(root.parent, source)

@@ -6,6 +6,7 @@ metadata:
   language: "zh-CN"
   commands: "/plan <goal>, /build [goal], /fix <problem>, /resume"
   produces: "working product code and verification evidence"
+  calls-skills: "i-have-adhd, pua, grill, contract-review, construction, reviewer, computer-use"
 ---
 
 # MVP Delivery
@@ -36,6 +37,33 @@ metadata:
 
 其余不确定性由 agent 作最小、可逆、符合现有代码模式的决定，简短记录在最终
 报告中并继续。
+
+## Communication And Acceptance Handoff
+
+用户沟通默认加载 `../i-have-adhd/SKILL.md`。它只改变展示方式，不改变目标、证据、
+engine gate、owner 决定或 reviewer 独立性。用户看到的是短视图，reviewer 收到的是
+完整交接包。
+
+每个有实质结果的阶段交接按下面顺序执行：
+
+1. 主控制器先建立完整 `ACCEPTANCE_HANDOFF`，列出原始目标、当前完成声明、验收项、
+   当前产物身份、证据、已知缺口、owner 决定和真实用户入口。
+2. 用 `i-have-adhd` 的 `acceptance-preview` 告知用户正在验收什么；不能在 reviewer
+   返回前宣布阶段通过或整个目标完成。普通实现中的无实质进展不发送重复消息。
+3. 阶段达到实质验收点时，自动 fresh-dispatch reviewer，任务正文同时传入
+   `pua_stage_id`、完整交接包、对应 PUA 检查卡和既有 mode；若没有既有 review gate，
+   使用 reviewer 的通用 read-only acceptance review 能力，不新增 mode、角色或 event
+   schema。reviewer 必须加载 `pua` 并返回结构化 `issues` 与 `pua_acceptance`。加载
+   skill 不能冒充独立身份。
+4. 控制器核对 reviewer 的证据：`repair` 就修复并复验受影响范围，`owner` 就保留
+   owner gate，`blocked` 就停止并报告阻塞；只有既有 engine/owner gate 和 reviewer
+   结果都满足后才继续。
+5. 用 `delivery` 输出结果、关键验证、位置、限制和一个下一步；未满足时用
+   `progress` 或 `blocker`。完整交接包不能被五项展示上限裁剪。
+
+没有可用 fresh reviewer seat 时，仍执行当前阶段的 PUA card，但必须明确这是控制器检查，
+不能声称独立评审；Audited 的独立性要求不能降级。不要为 Normal 的每条进度消息制造
+reviewer 仪式，只在实质验收交接或受影响范围变化时派发。
 
 ## Command Modes
 
@@ -107,6 +135,15 @@ fence, using schema 1 from `tests/fixtures/goal-valid.md` and `check.py`:
   or `{"type":"json-equals","expected":<finite JSON value>}`. Optional
   `timeout_seconds` is an integer 1..3600 (default 120). Commands must assert
   actual behavior; narrative expectations do not execute assertions.
+
+### PUA Acceptance: `goal-validation`
+
+Before editing or resuming a product goal, load `../pua/SKILL.md` and execute
+the `goal-validation` card. Ask “BS 被悄悄缩水、改名或塞进 deferred 了吗？”
+against every source coverage item and outcome. Verify that the executable
+assertions, real `user_entry`, target environment and original external boundary
+remain intact. Return the PUA acceptance result alongside `check.py goal`; it
+does not authorize manual status or evidence changes.
 
 When platform line endings are not part of the product contract, compare parsed
 output in the acceptance runner and emit structured results for `json-equals`.
@@ -210,6 +247,12 @@ sandbox, and approval may stop the delivery loop.
    根因范围时，视为 no-progress blocker：停止机械重试，汇总尝试、证据和两个
     具体方案后向用户升级。若有可说明的新证据，按新根因继续而不是重放同一动作。
 
+   Before escalating, load `../pua/references/recovery-protocol.md`: the first
+   failed experiment is L0, the second same-signature failure is L1 and must
+   switch to a materially different method, and the existing third-failure
+   no-progress blocker remains authoritative. PUA L2 is the evidence checklist
+   for that escalation, not permission for a fourth ordinary retry.
+
 新增或修复行为的测试应复现对应缺失/缺陷；既有回归可以初始即绿，记录为基线通过，
 不伪造 red。确认关键场景实际执行，未被 skip、过滤、空测试集或替换脚本绕过。
 成功标记只能在产品断言通过后输出；测试辅助文件、fixtures、runner 配置和命令入口
@@ -260,6 +303,15 @@ then confirmation of the newly generated PLAN. A goal approval is not future
 acceptance or preauthorization of unseen PLANs. Pause for these gates; resume
 internally after approval, without asking merely to continue approved steps.
 
+### PUA Acceptance: `slice-acceptance`
+
+Before requesting the SI decision, load `../pua/SKILL.md` and execute the
+`slice-acceptance` card. Ask “clean 了当前 slice，整件事也交付了吗？” Show
+the owner the real input, output, environment, limitations and evidence for the
+observed slice. Keep goal-level pending outcomes visible; the original goal
+approval is not future acceptance or construction preauthorization. A missing
+owner decision is `待 owner 决定`, not a retry or a pass.
+
 Fixing a defect in an already completed Audited package is not an SI, cannot use
 the engine's same-PLAN CR recovery, and never mutates that package. Create a
 sibling `docs/audit-slices/<goal-slug>/FIX-<nn>-<slug>/` replacement package.
@@ -293,7 +345,7 @@ engine CR recovery only while the mismatching package is still active.
 无法复跑时说明具体缺口、已验证环境与目标环境的差异，不把
 本地运行表述为已部署，不把缺凭据/外部服务的验证记为通过。
 
-Before `finish-goal`, the controller compares the original request or brief
+Before `finish-goal`, the controller builds an `ACCEPTANCE_HANDOFF` and compares the original request or brief
 (every BS), the entire goal, deferred work, and real user-entry journeys against
 the final deliverable. A clean slice reconcile/converge audit is not whole-goal
 acceptance and cannot exempt future slices here. Reuse the `reviewer` capability
@@ -307,6 +359,17 @@ no cryptographic identity verification; real session/subagent provenance must
 be inspected. Coverage IDs and `user_entry: true` are structural markers, not
 automatic proof of semantic coverage or real boundaries. Audited approval does
 not remove these controller duties. Selftest checks the engine, not product usability.
+
+### PUA Acceptance: `goal-verification` and `goal-finish`
+
+Before treating any outcome as verified, load `../pua/SKILL.md` and execute the
+`goal-verification` card against the current product identity, fresh evidence,
+real boundary and user-entry journey. Before `finish-goal`, execute the
+`goal-finish` card: compare the original request or every brief BS, the whole
+goal, deferred work, final integrated path, isolated setup/use replay and the
+remaining limitations. “证据呢？” means locate the actual output; it never
+means add a second unbounded ceremony. Missing implementation, missing
+verification, owner decisions and external blockers remain distinct.
 
 最终只报告：
 

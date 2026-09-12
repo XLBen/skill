@@ -5,7 +5,9 @@
 
 Dispatch a fresh reviewer subagent, then have it load the `reviewer` skill
 (skill tool, `name: reviewer`). Supply an explicit mode, fixed contract
-snapshot/hash, and output budget. Loading a skill in the controller is not
+snapshot/hash when the mode is contract-bound, or the artifact identity from the
+full handoff for a Normal/Guarded acceptance review without a contract, and an
+output budget. Loading a skill in the controller is not
 dispatch or independence; if no fresh subagent is available, use a real separate
 session with recorded provenance or block Audited release.
 For v0.2 (and existing v0.1) first-slice and construction audits, also pass the
@@ -13,13 +15,21 @@ Phase 0 record, slice-budget report, test-author manifest, and implementation
 diff when they exist. The reviewer never edits artifacts or makes owner
 decisions.
 
+When the dispatch is an acceptance handoff, also pass the complete
+`ACCEPTANCE_HANDOFF` and `pua_stage_id`. The handoff includes the original goal,
+claims, acceptance gate, artifact identity, evidence, known gaps, owner decisions
+and real user entry. The short ADHD preview is only a user-facing view and never
+replaces this input. The reviewer loads `pua`, reads the matching stage card and
+returns the normal structured `issues` plus the optional `pua_acceptance` object;
+the controller owns repair, revalidation and the final user-facing result.
+
 ## Modes
 
 | Mode | Input | Output |
 |---|---|---|
 | scout | Active P/B, repository, existing W/E | Candidate W, gaps, primary sources |
 | question | Current contract and resolved issue fingerprints | New material issues |
-| review | Issue, answer, contract diff, evidence | resolved / hard / soft / owner-tradeoff / invalid |
+| review | Issue, answer, contract diff, evidence, or mvp acceptance handoff | resolved / hard / soft / owner-tradeoff / invalid |
 | final-audit | Fixed contract and evidence manifest only | Structural result plus surviving semantic issues |
 | cr-audit | CR, typed impact closure, candidate contract | Missing affected nodes or safe approval |
 | converge-audit | `check.py reconcile` matrix, working tree, build-log | Whether the built code actually satisfies the contract intent; gaps become hard issues or CRs |
@@ -97,6 +107,8 @@ Each issue declares one of:
 - `contract-item`: affected P/T/B and F/I/V, concrete failure, smallest repair;
 - `protocol-invariant`: affected HASH/STATE/CR/AUTH/COMPILER invariant,
   concrete loss of correctness or recovery, smallest repair.
+- `acceptance-item`: no-contract Normal/Guarded handoff claim, artifact identity,
+  user-entry path or evidence binding, concrete failure and smallest repair.
 
 Reject preference, style, speculative future architecture, repeated resolved
 issues without stronger evidence, and objections that weaken confirmed owner
@@ -126,11 +138,27 @@ blocked/suspended result, not a guessed verdict.
       "evidence_needed": [],
       "smallest_repair": "contract change"
     }
-  ]
+  ],
+  "pua_acceptance": {
+    "stage_id": "review-verdict",
+    "result": "satisfied|repair|owner|blocked",
+    "scope": "checked scope",
+    "evidence": ["path or command reference"],
+    "gaps": ["material gap or none"],
+    "next": "one controller action"
+  }
 }
 ```
 
 Do not use prose-only output when the controller expects an event payload.
+When no PUA acceptance handoff was supplied, omit `pua_acceptance` rather than
+inventing a stage result.
+
+For contract-bound modes, include `contract_hash` and the applicable contract IDs.
+For a Normal/Guarded acceptance handoff without a contract, omit `contract_hash`,
+use `scope: acceptance-item`, and bind `affected` to a handoff claim, artifact
+identity or user-entry path. This reuses the existing `review` output and does
+not create a new mode or event schema.
 
 ## Charter
 

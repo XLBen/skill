@@ -6,6 +6,7 @@ metadata:
   language: "zh-CN"
   produces: "docs/brief.md"
   next-skill: "contract-review"
+  calls-skills: "i-have-adhd, pua"
   commands: "/grill <idea>"
 ---
 
@@ -109,6 +110,21 @@ python .opencode/workflow/scripts/check.py brief docs/brief.md
 Do not hand off an invalid or unconfirmed brief. Once contract-review consumes
 its hash, the brief is frozen; later semantic correction enters `/fix`, which
 routes an Audited run through CR instead of quietly editing the brief.
+
+### PUA Acceptance: `brief-final`
+
+Before the final owner-confirmation prompt, use `../i-have-adhd/SKILL.md` to show an
+`acceptance-preview`: what the brief currently says, what is still unresolved, and
+which one confirmation is needed. Keep the full brief and evidence available; the
+preview is not the brief itself.
+
+Before setting `status: final`, load `../pua/SKILL.md` and execute the
+`brief-final` card in `../pua/references/stage-checks.md`. Ask “这份 summary 是
+用户说的，还是你替用户补的？” against every decision, success signal and
+non-goal. Show the user the final summary, retain unresolved questions, and only
+then run the brief validator, compute the hash and freeze the brief. Return the
+PUA acceptance result with the confirmation evidence; PUA cannot manufacture the
+owner confirmation.
 
 ## Handoff
 

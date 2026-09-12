@@ -6,7 +6,7 @@ metadata:
   language: "zh-CN"
   produces: "docs/contract.md, docs/PLAN.md, docs/review-log.md, docs/evidence/, docs/change-orders.md, docs/workflow-events.jsonl"
   next-skill: "construction"
-  calls-skills: "grill, reviewer"
+  calls-skills: "i-have-adhd, pua, grill, reviewer"
   commands: "/plan <goal-or-brief> (public via mvp-delivery)"
 ---
 
@@ -46,10 +46,19 @@ for same-agent workflow transitions instead of inlining their prompts:
 - Dispatch a fresh reviewer subagent and have it load the **reviewer** skill
   (`name: reviewer`) for every scout / question / review / final-audit /
   cr-audit / converge-audit dispatch. Pass `mode`, the fixed contract
-  snapshot/hash, the relevant evidence, and an output budget; expect structured
-  JSON back. The reviewer is read-only and never edits `docs/` artifacts.
+  snapshot/hash, the relevant evidence, and an output budget; at an acceptance
+  handoff also pass the full `ACCEPTANCE_HANDOFF` and matching `pua_stage_id`;
+  expect structured JSON back. The reviewer is read-only and never edits
+  `docs/` artifacts.
 - Load the **grill** skill (`name: grill`) when intake readiness is missing.
   A valid final brief returns here; do not repeat its confirmed questions.
+- Before each release, final-audit, or PLAN handoff, load the **pua** skill
+  (`name: pua`) and pass the appropriate `stage_id` (`contract-release`,
+  `review-verdict`, or `plan-confirmation`) to the check card. Return concrete
+  evidence and gaps; “PUA passed” alone is not a release decision.
+- Before a user-visible release or PLAN handoff, use `i-have-adhd` for an
+  `acceptance-preview`; after reviewer, engine and owner gates settle, use its
+  `delivery` or `blocker` format. The preview never replaces the full handoff.
 - On `passed`, compile and confirm the PLAN in the same `/plan` run; then tell
   the user to say `/build`. During an active mvp-delivery run, return control to
   it so it can load construction directly.
@@ -252,6 +261,15 @@ Before `passed` or `conditional`:
    `conditional` also requires a bound owner decision plus active residual R
    and additional V IDs. Frontmatter alone is not a release.
 
+### PUA Acceptance: `contract-release`
+
+Before declaring `passed` or legal `conditional`, load `../pua/SKILL.md` and
+execute the `contract-release` card. Ask “refuted 就是 refuted，谁允许你乐观
+编译？” against the Phase 0 observation, surviving reviewer issues, evidence
+bundle, budget and public-interface journeys. Run the existing contract/release
+commands and preserve the clean-context audit; PUA cannot replace independent
+review, owner decisions or workflow events.
+
 Hand off generated P/F/I/V/B/W/T/R summaries and the hash. Do not handwrite a
 second semantic contract.
 
@@ -279,6 +297,14 @@ compiler output; never hand-write it.
 4. Persist the confirmed selections with `confirm-plan`, then run `plan` with
    `--require-building`. A chat acknowledgement without these events is not a
    confirmed PLAN.
+
+### PUA Acceptance: `plan-confirmation`
+
+Before handing the PLAN to construction, load `../pua/SKILL.md` and execute the
+`plan-confirmation` card. Ask “你确认的是刚生成的 PLAN，还是聊天里某个旧
+版本？” Match the displayed summary, contract/PLAN hashes, selections and
+owner decision to the recorded `confirm-plan` event. Do not compile, edit or
+weaken compiler output to get a faster pass.
 
 The compiler emits every reviewed variant. Exactly one per active I is
 selected at runtime through its structured selector; unselected branches

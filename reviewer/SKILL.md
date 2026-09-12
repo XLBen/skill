@@ -4,7 +4,8 @@ description: Independent internal review seat dispatched by contract-review and 
 license: MIT
 metadata:
   language: "zh-CN"
-  called-by: "contract-review, construction"
+  called-by: "mvp-delivery, contract-review, construction"
+  calls-skills: "pua"
   public-command: "none"
   modes: "scout, question, review, final-audit, cr-audit, converge-audit"
 ---
@@ -17,8 +18,12 @@ dispatch, create a fresh reviewer subagent, and have it load this skill. They su
 
 - `mode`: one of scout / question / review / final-audit / cr-audit /
   converge-audit;
-- a fixed contract path and hash snapshot;
-- the relevant evidence and an output budget.
+- a fixed contract path and hash snapshot for contract-bound modes, or the
+  complete artifact identity in `ACCEPTANCE_HANDOFF` for a Normal/Guarded
+  acceptance review without a contract;
+- the relevant evidence and an output budget;
+- when the caller is at an acceptance handoff, the full `ACCEPTANCE_HANDOFF`,
+  `pua_stage_id`, and the matching PUA check card.
 
 Follow the matching mode contract and structured JSON output format in
 `../contract-review/references/reviewer-protocol.md`. Natural-language idea
@@ -27,6 +32,12 @@ contract. For mvp-delivery's whole-goal finish check, use the same review capabi
 with the original request/brief, entire goal, deferred work and final evidence;
 return concrete findings without inventing a contract, role, or ledger event.
 This scope check does not replace any required contract-bound audit.
+
+For a material Normal/Guarded acceptance handoff without a contract-bound mode,
+use that same existing `review` capability as a read-only acceptance review:
+scope findings to the supplied handoff, omit contract IDs that do not exist, and
+never invent a new reviewer mode or event schema. A fresh seat is still required
+for an independence claim.
 
 ## Invariants
 
@@ -43,8 +54,10 @@ This scope check does not replace any required contract-bound audit.
   scale, or objections to fill a quota.
 - Any positive number of material issues is valid; zero is valid after a
   complete audit.
-- Reference concrete contract IDs, or use `scope: protocol-invariant` for
-  HASH/STATE/CR/AUTH/COMPILER failures.
+  - Reference concrete contract IDs, or use `scope: protocol-invariant` for
+    HASH/STATE/CR/AUTH/COMPILER failures. For a no-contract acceptance review,
+    use `scope: acceptance-item` and identify the affected claim, artifact or
+    user-entry path instead of fabricating contract IDs.
 - In `final-audit`, ignore debate rhetoric and read only the fixed contract
   and evidence manifest.
 - In a v0.2 (or existing v0.1) first-slice audit, verify that the Phase 0 record exists and that
@@ -90,6 +103,30 @@ This scope check does not replace any required contract-bound audit.
   verification and owner acceptance. Treat factual, interface, acceptance,
   or safety mismatches as CR findings.
 - Never make an owner choice or lower a severity to help the contractor.
+
+## PUA Acceptance: `review-verdict`
+
+Before returning a verdict, load `../pua/SKILL.md` and execute the
+`review-verdict` card in `../pua/references/stage-checks.md`. Ask “审出一个
+问题就收工？冰山下面还有什么？” Check the same root cause, interface,
+shared implementation and affected call chain for related findings. Every
+finding needs concrete evidence; zero findings is valid only after the declared
+scope was actually inspected. Return the PUA result with the structured review,
+but do not edit artifacts, choose for the owner or declare the goal complete.
+
+## PUA-backed Acceptance Handoff
+
+When a caller supplies `pua_stage_id` and `ACCEPTANCE_HANDOFF`, execute the matching
+card from `../pua/references/stage-checks.md` before returning the verdict. Inspect the
+full handoff, not only the user-facing ADHD preview. Keep the normal reviewer mode and
+return material findings in `issues`; also append the optional `pua_acceptance` object
+defined in `../pua/SKILL.md` with `stage_id`, `result`, evidence references, gaps and one
+controller action. A `satisfied` PUA result is not a reviewer pass, engine pass, owner
+decision or whole-goal completion.
+
+The controller must repair and revalidate after `repair`, preserve an owner gate after
+`owner`, and report `blocked` as a blocker. Do not use ADHD formatting to shorten the
+reviewer's evidence or to hide an unresolved finding.
 
 ## Direct Use
 

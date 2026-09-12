@@ -7,6 +7,11 @@ Load the `mvp-delivery` skill in Fix Mode for:
 
 $ARGUMENTS
 
+Load `i-have-adhd` for concise user-facing progress and final delivery. Before a
+material acceptance handoff, send its preview first, then pass the full
+`ACCEPTANCE_HANDOFF` and `pua_stage_id` to the existing fresh reviewer; do not
+hide unresolved gaps in the final summary.
+
 Resolve and reuse the matching active/blocked goal card; do not create a second
 active fix goal. Ask if the target or completed Audited repair base is ambiguous.
 Preserve completed packages; use a new affected-only FIX package for their repair.
@@ -37,4 +42,6 @@ README/quickstart or update it and replay declared setup/dependencies in isolati
 existing global dependencies do not prove a clean install.
 Report the delivery location, verified setup/use steps and working directory,
 prerequisites, a sample result, tested environment and remaining limitations;
-if blocked, identify what is still unusable and the smallest required owner action.
+before declaring completion load the `pua` skill and execute the affected
+`goal-verification` and `goal-finish` cards. If blocked, identify what is still
+unusable and the smallest required owner action.

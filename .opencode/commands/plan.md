@@ -7,6 +7,10 @@ Load the `mvp-delivery` skill in Plan Mode for:
 
 $ARGUMENTS
 
+Load `i-have-adhd` for the plan preview, owner decision prompt and final handoff.
+Keep the complete `ACCEPTANCE_HANDOFF` for PUA/reviewer; a concise preview is
+not evidence or PLAN confirmation.
+
 Inspect the repository and produce a right-sized goal card with observable
 success, the first runnable slice, deferred outcomes, and engine-executable
 verification in the schema-1 `json goal` fence. Reuse a matching unfinished
@@ -25,7 +29,8 @@ produce its validated contract and PLAN; do not ask the user to invoke a
 separate review command. New contracts declare top-level `workflow_protocol: v0.2`;
 obtain actual owner confirmation of the generated PLAN. If a required
 approval or independent review is unavailable, report the blocker; otherwise
-end with one clear handoff: `/build`.
+load the `pua` skill for `goal-validation`, `contract-release` or
+`plan-confirmation` as applicable, then end with one clear handoff: `/build`.
 
 Include the intended delivery form, target environment and prerequisites, actual
 user entry and representative input/result. Map each promised user-facing outcome

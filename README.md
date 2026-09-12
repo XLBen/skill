@@ -115,6 +115,16 @@ goal、deferred 和真实入口，按需复用 reviewer，不新增公开命令�
 - `reviewer`：由 fresh subagent 调度时进行只读评审。
 - `step-executor`：由 fresh subagent 隔离执行一个严格 PLAN 步骤。
 - `computer-use`：主控制器按需执行真实桌面 GUI 路径，观察、操作、验证；需要另行授权的 MCP。
+- `pua`：每个阶段验收前的主动质询、证据闭环和有界失败恢复；不替代 engine gate 或 owner 决定。
+- `i-have-adhd`：用户沟通层，先给行动和状态；在验收交接前输出 preview，验收后输出
+  delivery/blocker；不删除交给 reviewer/PUA 的完整事实。
+
+用户看到的是 `i-have-adhd` 的短视图，reviewer/PUA 收到的是完整
+`ACCEPTANCE_HANDOFF`。每个实质验收交接都自动尝试派 fresh reviewer，并传入
+`pua_stage_id`；没有既有 mode 时使用通用 read-only acceptance review，不新增角色或
+event schema。先 preview、再 PUA/reviewer、最后 delivery 或 blocker。Normal 的普通
+进度不制造 reviewer 仪式，且任何简洁格式都不能替代 engine、owner 或独立性 gate。
+`i-have-adhd` 不提供公开命令、hook 或全局状态。
 
 加载 skill 只会加入说明，不会自动创建独立身份。需要作者隔离时必须真实调度
 fresh subagent 或真实独立 session；不可用时记录 independence unavailable 并阻断

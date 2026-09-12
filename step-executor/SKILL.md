@@ -5,6 +5,7 @@ license: MIT
 metadata:
   language: "zh-CN"
   called-by: "construction"
+  calls-skills: "pua"
 ---
 
 # Step Executor
@@ -24,6 +25,15 @@ GUI observation/input, return the exact target/scenario and requested actions
 to the main controller, which loads `computer-use` and serializes UI work.
 Continue scoped implementation from its evidence; do not claim its observations
 as an independent test or engine verification.
+
+## PUA Acceptance: `step-verification`
+
+Before returning raw step results, load `../pua/SKILL.md` and execute the
+`step-verification` card in `../pua/references/stage-checks.md`. Ask “这一步是
+真的跑了，还是你手写了一个 passing event？” Check the exact V, every
+manifest scenario, subprocess status, input snapshot, content/state assertion,
+cleanup and failure signature. Return `[PUA-ACCEPTANCE]` with evidence and
+gaps; never turn the check into a `complete` claim or write the ledger.
 
 Work only on that step:
 

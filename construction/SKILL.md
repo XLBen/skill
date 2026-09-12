@@ -7,7 +7,7 @@ metadata:
   produces: "docs/build-log.md, docs/mvp-observation.md, docs/workflow-events.jsonl"
   updates: "docs/PLAN.md (runtime projection only)"
   requires-skill: "contract-review"
-  calls-skills: "test-author, step-executor, reviewer, contract-review"
+  calls-skills: "i-have-adhd, pua, test-author, step-executor, reviewer, contract-review"
   public-commands: "/build, /fix, /resume (via mvp-delivery)"
 ---
 
@@ -45,20 +45,31 @@ the relevant skill instead of inlining its prompt:
   manifest's protected file list; expect raw outputs back. Record the
   executor's `subagent_id` as the implementation author in the attempt event
   and observation report. The controller (this skill) alone owns state, the
-  ledger, and event recording.
+  ledger, and event recording. Pass `stage_id: step-verification`, require the
+  executor to load `../pua/SKILL.md` and the matching stage card, and require a
+  structured PUA result with evidence rather than a bare “complete”.
 - Dispatch a fresh test-author subagent and have it load the **test-author**
   skill (`name: test-author`) before implementing any v0.1 first-slice or SI
   acceptance behavior. Pass the fixed scenarios,
   allowed test context, and exact V scope. The test-author writes only
   acceptance tests and its manifest, records targeted behavior-red or existing
   regression baseline-green evidence, and returns the frozen acceptance hashes
-  before implementation begins.
+  before implementation begins. Pass `stage_id: test-freeze` and require it to
+  load `../pua/SKILL.md`; the PUA check cannot replace the independent author,
+  behavior-red evidence or manifest freeze.
 - Dispatch a fresh review subagent and have it load the **reviewer** skill
   (`name: reviewer`) for the per-step review gate and for `converge-audit` at
   Finish, bound to the reconcile
   `contract_hash`/`plan_structure_hash`. In v0.1 pass the test manifest,
   implementation diff, failure history, and MVP observation report so the
   reviewer can check authorship, frozen hashes, real assertions, and budgets.
+  Pass `stage_id: review-verdict` for the per-step review and
+  `stage_id: review-verdict` for the pre-owner converge-audit review. Require the
+  reviewer to load `../pua/SKILL.md`, inspect the matching card and return
+  evidence-backed gaps. Before dispatch, build the full `ACCEPTANCE_HANDOFF`, pass
+  it with the matching `pua_stage_id`, and show an `i-have-adhd`
+  acceptance-preview when a milestone is user-visible; loading PUA does not create
+  reviewer independence.
 - Load the **contract-review** skill when the gate finds PLAN missing or
   stale: it runs `/plan` (gate + compile + confirm); construction never
   compiles PLAN itself. For contract defects, return control to `/fix`; CR
@@ -133,6 +144,15 @@ output/hash, and a frozen-at timestamp, as specified by test-author. The
 controller and reviewer inspect integrity and actual scenario execution; these
 are prompt-layer safeguards, not additional machine enforcement.
 
+### PUA Acceptance: `test-freeze`
+
+Before implementation begins, load `../pua/SKILL.md` and execute the
+`test-freeze` card. Ask “永远绿的测试也是交付？” Confirm behavior-red,
+baseline classification, real assertions, actual scenario execution and frozen
+hashes. An unexpected green, baseline failure, skipped scenario or acceptance
+semantics change is a blocker; PUA cannot invent red or silently weaken the
+manifest.
+
 Record attempt ID, expected revision, environment binding, side-effect state,
 idempotency key, `implementation_author_id`, and the normalized failure
 signature when applicable before execution. Project every step/status
@@ -146,6 +166,14 @@ report is an observation record, not a replacement for the engine ledger.
 Minimal-diff is mandatory. A missing semantic segment is CR, not permission to
 append an improvised step. Concrete environment commands live in a binding
 record and may not weaken V.
+
+### PUA Acceptance: `step-verification`
+
+Before accepting a step, load `../pua/SKILL.md` and execute the
+`step-verification` card. Ask “这一步是真的跑了，还是你手写了一个 passing
+event？” Check the engine-generated evidence, all manifest scenarios, raw V
+output, content/state assertions, cleanup and failure signature. The executor
+returns raw results; only the controller records the ledger and step state.
 
 ### Direct Fast Path
 
@@ -194,6 +222,13 @@ Classify every failed V before deciding to retry:
    `verified`. Planned expansion after a passed slice uses SI and never replays
    unaffected steps.
 
+Before an ordinary retry, load `../pua/references/recovery-protocol.md`. The
+first failed experiment is L0; the second same-signature failure is L1 and must
+switch method; the third identical failure enters this existing circuit break.
+Use the PUA L2 seven-point checklist to prepare the BC-05 payload, not to justify
+a fourth ordinary attempt. Expected red tests, owner waits and authorization
+blocks are not implementation failures.
+
 There is no “owner forces factual failure through” path.
 
 ## Finish
@@ -214,7 +249,9 @@ clean. The controller then dispatches a fresh subagent that loads the reviewer
 skill for a `converge-audit` bound to the reconcile
 `contract_hash`/`plan_structure_hash`. Apply the final integrated user-path checks
 and replayable handoff requirements in `../mvp-delivery/SKILL.md`'s completion
-section; link their evidence in build-log rather than duplicate that checklist.
+section; pass the full `ACCEPTANCE_HANDOFF` with `pua_stage_id: review-verdict`
+to the reviewer and link its evidence in build-log rather than duplicate that
+checklist.
 Apply these checks to the current slice and affected existing journeys, not
 unimplemented future outcomes; mvp-delivery enforces whole-goal coverage at its
 final gate. A slice handoff must state its remaining goal-level limitations.
@@ -233,6 +270,15 @@ Never overwrite a completed package, import its completed steps into the new
 PLAN, or report the whole goal complete from a single clean reconcile unless
 every goal-card outcome has `verify-goal` evidence and `finish-goal` succeeds.
 The original goal approval never substitutes for those owner gates.
+
+### PUA Acceptance: `slice-acceptance`
+
+Before requesting the owner's SI decision, load `../pua/SKILL.md` and execute
+the `slice-acceptance` card with `pua_stage_id: slice-acceptance`. Ask “clean 了当前
+slice，整件事也交付了吗？”
+Show the real input, output, limitations, environment and evidence. Record the
+owner's actual acceptance, delta decision and next PLAN confirmation separately;
+do not continue construction or convert a missing decision into a pass.
 
 A defect discovered after `done` enters `/fix` as a new sibling `FIX` replacement
 package. Do not reopen or edit the completed package and do not invoke the

@@ -86,8 +86,12 @@ rebased under that root. When intake comes from shared `docs/brief.md`, validate
 it first, then copy its exact bytes to `<slice_root>/brief.md`; the packaged
 contract uses `brief_path: brief.md` and the same hash so the validator's
 same-directory boundary remains valid. Never edit the snapshot. Legacy runs
-that already use root `docs/` keep those paths. Persist the active package and
-its contract/PLAN/reconcile hashes in the Audited goal-card entry so
+that already use root `docs/` keep those paths. Persist the active package
+pointer and its contract/PLAN/reconcile hashes in the goal's dispatch record
+(`.opencode/mvp/<goal-slug>.dispatch.json`, `active_slice.package`; see
+`../mvp-delivery/references/subagent-orchestration.md`), never inside the
+goal JSON — the engine rewrites the card on every verification, so a runtime
+pointer there would be lost or invalidate verified outcomes — so
 build/resume never select one by recency.
 
 1. If `docs/workflow-state.json` exists, reconcile it with the append-only

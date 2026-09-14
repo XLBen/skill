@@ -41,6 +41,8 @@ reviewer 或 owner gate 决定。
 - 未回答的问题必须仍是 open/deferred，不能为了 final 填 owner decision。
 - 向用户展示 `this is what I heard`，取得明确确认后才执行 brief validator、hash 和冻结。
 - 核对本轮没有因为追求闭环而偷偷缩小目标或把可选愿望改成必需 BS。
+- 由 reviewer 席位执行本卡时，只核对已记录的 owner 确认与 brief 证据；与用户的
+  确认交互本身仍由执行席位/主控完成，reviewer 不代答也不因未参与交互而阻塞。
 
 **证据**：brief 校验输出、最终 hash、用户确认记录、frontier 清空状态。
 
@@ -84,7 +86,7 @@ reviewer 或 owner gate 决定。
 
 **位置**：`contract-review/SKILL.md` 的 Plan (Compile And Confirm)。
 
-**输入**：固定 contract hash、生成 PLAN、选择项、owner 展示摘要、confirm-plan 事件。
+**输入（门前）**：固定 contract hash、生成 PLAN、选择项、owner 展示摘要。
 
 **质询与动作**：
 
@@ -93,7 +95,7 @@ reviewer 或 owner gate 决定。
 - 不得因想尽快施工而手写、重编译或静默修改 compiler output。
 - `confirm-plan`/`plan --require-building` gate 由主控执行（门后证据），确认后才交给 construction。由 reviewer 席位执行本卡时，只核对已存在的输出。
 
-**证据**：生成文件 hash、展示摘要、owner 决定、`confirm-plan` 和 `plan` 输出。
+**证据**：门前——生成文件 hash、展示摘要、owner 决定记录；门后——`confirm-plan` 和 `plan` 输出（主控执行 gate 后补记，不作为本卡前置输入）。
 
 **出口**：缺 owner 确认是 `待 owner 决定`；hash/结构不一致是 `需修复` 或 CR。
 
@@ -207,6 +209,14 @@ artifact identity、范围和证据；test manifest、工作树 diff、reconcile
 
 ## Cross-Stage Branches
 
+- Normal/Guarded 轻量切片验收使用 `review-verdict` 的无契约 handoff 分支
+  （`pua_stage_id: review-verdict`，范围限当前切片及受影响范围），不要求
+  reconcile、converge-audit、test manifest 或 SI 工件；不要把 Audited 专用
+  工件升级为轻量验收要求。
+- brief 定稿交接（`brief-final`）与轻量计划/目标定义交接（`goal-validation`）
+  同样是实质验收交接：能力可用即派 fresh reviewer 执行对应卡；`/grill` 尚无
+  goal 时该派发记录保存在 dispatch archive 或等价的 handoff 记录中，不为一次
+  评审伪造 goal 卡。
 - Phase 0 检查属于 `contract-release`，不要另造一个 release 状态。
 - reconcile/converge-audit 检查属于 `slice-acceptance` 和 `review-verdict` 的证据分支。
 - GUI 观察属于对应的 `step-verification`、`goal-verification` 或 `slice-acceptance`，截图不是 engine pass。

@@ -42,6 +42,8 @@ class InstallTests(unittest.TestCase):
             ".opencode/agents/mvp-worker.md": "agent\n",
             ".opencode/agents/mvp-reviewer.md": "agent\n",
             "scripts/check.py": "# check\n",
+            "scripts/runtime_trace.py": "# trace\n",
+            "scripts/check_runtime.py": "# doctor\n",
             "tests/final_review.py": "# review\n",
             "tests/fixtures/example.md": "fixture\n",
         }
@@ -79,7 +81,7 @@ class InstallTests(unittest.TestCase):
         with mock.patch.object(install.shutil, "copy2", wraps=install.shutil.copy2) as copy:
             self.run_install()
             self.run_install()
-        self.assertEqual(copy.call_count, 6)
+        self.assertEqual(copy.call_count, 10)
         for call in copy.call_args_list:
             self.assertFalse(call.args[0].samefile(call.args[1]))
         engine = self.repo / ".opencode/workflow"
@@ -91,7 +93,17 @@ class InstallTests(unittest.TestCase):
             expected[key] = hashlib.sha256(source.read_bytes()).hexdigest()
             destination = source if key.startswith(("commands/", "agents/")) else engine / key
             self.assertEqual(destination.read_bytes(), source.read_bytes())
-        self.assertEqual(manifest, {"files": expected})
+        expected_skills = {}
+        for name in ("computer-use", "planning"):
+            skill_md = self.repo / name / "SKILL.md"
+            expected_skills[name] = {
+                "path": skill_md.parent.as_posix(),
+                "sha256": hashlib.sha256(skill_md.read_bytes()).hexdigest(),
+            }
+        self.assertEqual(
+            manifest,
+            {"files": expected, "install_mode": "live-paths", "skills": expected_skills},
+        )
         config = json.loads((self.repo / "opencode.json").read_text(encoding="utf-8"))
         self.assertEqual(config["skills"]["paths"], self.live_paths)
 
@@ -118,6 +130,8 @@ class InstallTests(unittest.TestCase):
                 ".opencode/agents/mvp-reviewer.md", ".opencode/agents/mvp-worker.md",
                 ".opencode/workflow/install-manifest.json",
                 ".opencode/workflow/scripts/check.py",
+                ".opencode/workflow/scripts/runtime_trace.py",
+                ".opencode/workflow/scripts/check_runtime.py",
                 ".opencode/workflow/tests/final_review.py",
                 ".opencode/workflow/tests/fixtures/example.md",
             ]),

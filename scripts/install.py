@@ -199,11 +199,23 @@ def main():
         elif folder == "agents" and stem not in agent_names:
             retired_command_jobs.append((agents_destination / relative.name, key, owned_hash))
     copy_jobs.append((repo / "scripts" / "check.py", engine_root / "scripts" / "check.py", "scripts/check.py"))
+    copy_jobs.append(
+        (repo / "scripts" / "runtime_trace.py", engine_root / "scripts" / "runtime_trace.py", "scripts/runtime_trace.py")
+    )
+    copy_jobs.append(
+        (repo / "scripts" / "check_runtime.py", engine_root / "scripts" / "check_runtime.py", "scripts/check_runtime.py")
+    )
     copy_jobs.append((repo / "tests" / "final_review.py", engine_root / "tests" / "final_review.py", "tests/final_review.py"))
     copy_jobs.extend(
         (fixture, engine_root / "tests" / "fixtures" / fixture.name, f"tests/fixtures/{fixture.name}")
         for fixture in sorted((repo / "tests" / "fixtures").glob("*.md"))
     )
+    current_script_keys = {key for _, _, key in copy_jobs if key.startswith("scripts/")}
+    for key, owned_hash in previous_files.items():
+        if key.startswith("scripts/") and key not in current_script_keys:
+            stale = engine_root / key
+            if stale.exists() and (args.force or file_hash(stale) == owned_hash):
+                stale.unlink()
     for source_path, destination_path, key in copy_jobs:
         if destination_path.exists() and file_hash(destination_path) != file_hash(source_path):
             if not args.force and file_hash(destination_path) != previous_files.get(key):
@@ -255,12 +267,41 @@ def main():
         engine_scripts = engine_root / "scripts"
         engine_fixtures = engine_root / "tests" / "fixtures"
         safe_copy(repo / "scripts" / "check.py", engine_scripts / "check.py", "scripts/check.py")
+        safe_copy(
+            repo / "scripts" / "runtime_trace.py",
+            engine_scripts / "runtime_trace.py",
+            "scripts/runtime_trace.py",
+        )
+        safe_copy(
+            repo / "scripts" / "check_runtime.py",
+            engine_scripts / "check_runtime.py",
+            "scripts/check_runtime.py",
+        )
         safe_copy(repo / "tests" / "final_review.py", engine_root / "tests" / "final_review.py", "tests/final_review.py")
         for fixture in sorted((repo / "tests" / "fixtures").glob("*.md")):
             safe_copy(fixture, engine_fixtures / fixture.name, f"tests/fixtures/{fixture.name}")
         manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        skills_fingerprint = {}
+        for skill_dir in sorted(repo.iterdir()):
+            skill_md = skill_dir / "SKILL.md"
+            if skill_dir.is_dir() and skill_md.is_file():
+                skills_fingerprint[skill_dir.name] = {
+                    "path": skill_dir.as_posix(),
+                    "sha256": file_hash(skill_md),
+                }
         with manifest_path.open("w", encoding="utf-8", newline="\n") as stream:
-            stream.write(json.dumps({"files": installed_files}, sort_keys=True, indent=2) + "\n")
+            stream.write(
+                json.dumps(
+                    {
+                        "files": installed_files,
+                        "install_mode": "live-paths",
+                        "skills": skills_fingerprint,
+                    },
+                    sort_keys=True,
+                    indent=2,
+                )
+                + "\n"
+            )
 
         if not args.commands_only and not manual_config:
             config.setdefault("$schema", "https://opencode.ai/config.json")
@@ -301,6 +342,7 @@ def main():
     if not args.commands_only:
         if manual_config:
             print("opencode.jsonc was not edited because comments must be preserved.")
+            print("WARNING: config pending — skills are NOT active until the field below is merged and OpenCode restarts.")
             print(f'add or merge this JSONC field: "skills": {{ "paths": {json.dumps(live_paths)} }}')
             print(f'remove only the exact old skills.paths entry, if present: {json.dumps(repo.as_posix())}')
         else:

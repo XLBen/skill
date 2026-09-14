@@ -6,6 +6,7 @@ Commands:
   check.py goal <.opencode/mvp/goal.md>
   check.py verify-goal <.opencode/mvp/goal.md> <O-NN> --evidence <path>
   check.py finish-goal <.opencode/mvp/goal.md>
+  check.py runtime-gate <.opencode/mvp/goal.md> --trace <trace.json> [--dispatch <dispatch.json>] [--policy <policy.json>]
   check.py contract <docs/contract.md>
   check.py compile <docs/contract.md> <docs/PLAN.md> --change-orders <docs/change-orders.md> --ledger <docs/workflow-events.jsonl>
   check.py plan <docs/PLAN.md> --contract <docs/contract.md> --change-orders <docs/change-orders.md> --ledger <docs/workflow-events.jsonl>
@@ -43,6 +44,18 @@ from pathlib import Path
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+_SCRIPTS_DIR = str(Path(__file__).resolve().parent)
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
+
+try:
+    import runtime_trace as _runtime_trace
+except ImportError as _exc:  # pragma: no cover - engine copied without runtime_trace
+    _runtime_trace = None
+    _RUNTIME_TRACE_IMPORT_ERROR = str(_exc)
+else:
+    _RUNTIME_TRACE_IMPORT_ERROR = None
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "tests" / "fixtures"
@@ -1162,6 +1175,158 @@ def verify_goal_outcome(goal_path, outcome_id, evidence_path):
         return updated, payload
 
 
+RUNTIME_POLICY_SCHEMA = "runtime-policy/1"
+RUNTIME_GATE_SCHEMA = "runtime-gate/1"
+RUNTIME_GATE_DEFAULT_REQUIREMENTS = (
+    {"kind": "task-dispatch", "role": "reviewer"},
+    {"kind": "review-satisfied-goal"},
+    {"kind": "independence"},
+)
+
+
+def _sha256_file(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def load_runtime_policy(goal_path, goal_id):
+    """Load the opt-in runtime policy sidecar next to the goal card.
+
+    Returns (policy_or_None, problems). A missing file means the runtime gate
+    is not enabled for this project (legacy behavior). An existing file with a
+    wrong schema or unknown fields is an error, never a silent pass.
+    """
+
+    path = Path(goal_path).parent / "runtime-policy.json"
+    if not path.exists():
+        return None, []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return None, [f"runtime-policy.json unreadable: {exc}"]
+    if not isinstance(data, dict):
+        return None, ["runtime-policy.json is not a JSON object"]
+    problems = []
+    if data.get("schema") != RUNTIME_POLICY_SCHEMA:
+        problems.append(f"runtime-policy.json schema must be {RUNTIME_POLICY_SCHEMA}")
+    goals = data.get("goals")
+    if goals != "all" and not (isinstance(goals, list) and all(isinstance(g, str) for g in goals)):
+        problems.append("runtime-policy.json goals must be 'all' or a list of goal IDs")
+    requirements = data.get("requirements", [])
+    if not isinstance(requirements, list) or not all(isinstance(r, dict) for r in requirements):
+        problems.append("runtime-policy.json requirements must be a list of objects")
+    if problems:
+        return None, problems
+    if goals != "all" and goal_id not in goals:
+        return None, []  # policy exists but does not gate this goal
+    return data, []
+
+
+def runtime_gate(goal_path, trace_path, dispatch_path=None, policy_path=None):
+    """Validate the goal's dispatch chain against a native runtime trace.
+
+    Fail-closed: writes a runtime-gate sidecar whose verdict is 'pass' only
+    when every claimed dispatch is proven by the trace. The sidecar records
+    the sha256 of the trace and dispatch inputs so finish-goal can reject a
+    stale gate after the underlying files change.
+    """
+
+    if _runtime_trace is None:
+        raise ValidationError(
+            "runtime_trace.py is not available next to check.py; cannot gate on runtime evidence: "
+            + (_RUNTIME_TRACE_IMPORT_ERROR or "unknown import error")
+        )
+    _, goal, problems = validate_goal_artifact(goal_path)
+    if problems:
+        raise ValidationError("goal is invalid:\n- " + "\n- ".join(problems))
+    card = Path(goal_path)
+    slug = card.stem
+    if dispatch_path is None:
+        dispatch_path = card.parent / f"{slug}.dispatch.json"
+    trace_path = Path(trace_path)
+    if not trace_path.is_file():
+        raise ValidationError(f"runtime trace not found: {trace_path}")
+    if not Path(dispatch_path).is_file():
+        raise ValidationError(
+            f"dispatch record not found: {dispatch_path} — the controller must maintain it before gating"
+        )
+    trace = _runtime_trace.load_trace(trace_path)
+    dispatch = _runtime_trace.load_dispatch(Path(dispatch_path))
+    if dispatch.get("goal_id") not in (None, goal["id"]):
+        raise ValidationError(
+            f"dispatch record goal_id {dispatch.get('goal_id')!r} does not match goal {goal['id']}"
+        )
+    policy = None
+    if policy_path is not None:
+        policy = json.loads(Path(policy_path).read_text(encoding="utf-8-sig"))
+        if policy.get("schema") != RUNTIME_POLICY_SCHEMA:
+            raise ValidationError(f"policy schema must be {RUNTIME_POLICY_SCHEMA}")
+    else:
+        policy, policy_problems = load_runtime_policy(goal_path, goal["id"])
+        if policy_problems:
+            raise ValidationError(";\n".join(policy_problems))
+        if policy is not None:
+            policy = dict(policy)
+            policy.setdefault("requirements", list(RUNTIME_GATE_DEFAULT_REQUIREMENTS))
+    failures = _runtime_trace.validate_chain(trace, dispatch, policy)
+    sidecar = {
+        "schema": RUNTIME_GATE_SCHEMA,
+        "goal_id": goal["id"],
+        "verdict": "pass" if not failures else "fail",
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "trace": {"path": str(trace_path), "sha256": _sha256_file(trace_path)},
+        "dispatch": {"path": str(dispatch_path), "sha256": _sha256_file(dispatch_path)},
+        "failures": failures,
+    }
+    gate_path = card.parent / f"{slug}.runtime-gate.json"
+    gate_path.write_text(
+        json.dumps(sidecar, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return sidecar, gate_path
+
+
+def enforce_runtime_gate(goal_path, goal):
+    """Called from finish_goal when a runtime policy gates this goal."""
+
+    policy, problems = load_runtime_policy(goal_path, goal["id"])
+    if problems:
+        raise ValidationError(";\n".join(problems))
+    if policy is None:
+        return
+    card = Path(goal_path)
+    gate_path = card.parent / f"{card.stem}.runtime-gate.json"
+    if not gate_path.is_file():
+        raise ValidationError(
+            "runtime policy enables the runtime gate for this goal; run "
+            "'check.py runtime-gate <card> --trace <native trace>' before finish-goal"
+        )
+    try:
+        gate = json.loads(gate_path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValidationError(f"runtime gate sidecar unreadable: {exc}") from exc
+    if gate.get("schema") != RUNTIME_GATE_SCHEMA:
+        raise ValidationError(f"runtime gate sidecar schema must be {RUNTIME_GATE_SCHEMA}")
+    if gate.get("goal_id") != goal["id"]:
+        raise ValidationError("runtime gate sidecar was issued for a different goal")
+    if gate.get("verdict") != "pass":
+        raise ValidationError(
+            "runtime gate verdict is not pass: " + "; ".join(gate.get("failures") or ["unknown failures"])
+        )
+    for key in ("trace", "dispatch"):
+        recorded = gate.get(key) or {}
+        recorded_path = recorded.get("path")
+        recorded_hash = recorded.get("sha256")
+        if not recorded_path or not recorded_hash:
+            raise ValidationError(f"runtime gate sidecar missing {key} path/sha256")
+        current = Path(recorded_path)
+        if not current.is_file():
+            raise ValidationError(f"runtime gate {key} file no longer exists: {current}")
+        if _sha256_file(current) != recorded_hash:
+            raise ValidationError(
+                f"runtime gate is stale: {key} file changed after the gate ran; re-run runtime-gate"
+            )
+
+
 def finish_goal(goal_path):
     with file_lock(str(goal_path) + ".runtime"):
         meta, goal, problems = validate_goal_artifact(goal_path)
@@ -1171,6 +1336,7 @@ def finish_goal(goal_path):
             return goal
         if any(item.get("status") != "verified" for item in goal.get("outcomes", [])):
             raise ValidationError("finish-goal requires every outcome to have engine-verified evidence")
+        enforce_runtime_gate(goal_path, goal)
         updated = json.loads(json.dumps(goal))
         updated["status"] = "complete"
         problems = validate_goal(updated)
@@ -3998,6 +4164,17 @@ def main(argv):
             goal = finish_goal(argv[2])
             print(f"finished goal {goal['id']} ({goal['status']})")
             return 0
+        if command == "runtime-gate" and len(argv) >= 4:
+            if "--trace" not in argv:
+                raise ValidationError("runtime-gate requires --trace")
+            trace_arg = argv[argv.index("--trace") + 1]
+            dispatch_arg = argv[argv.index("--dispatch") + 1] if "--dispatch" in argv else None
+            policy_arg = argv[argv.index("--policy") + 1] if "--policy" in argv else None
+            sidecar, gate_path = runtime_gate(argv[2], trace_arg, dispatch_arg, policy_arg)
+            print(f"runtime gate {gate_path}: {sidecar['verdict']}")
+            for failure in sidecar["failures"]:
+                print(f"  - {failure}")
+            return 0 if sidecar["verdict"] == "pass" else 1
         if command == "contract":
             meta, contract = read_artifact(argv[2], "contract")
             expected = contract_hash(contract)

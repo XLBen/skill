@@ -29,7 +29,10 @@ Implement the thinnest runnable slice, verify real behavior,
 then continue through remaining original outcomes without requiring another
 command. For an Audited PLAN, load `construction` internally and run its
 finish/reconcile gate for the current slice. If the goal card still has pending
-outcomes, prepare the next SI/PLAN internally and continue construction. Do not
+outcomes, re-judge the next slice's rigor first (mvp-delivery `Rigor By
+Slice`): continue with light execution for a Normal/Guarded next slice, or
+prepare the next SI/strict package internally and continue construction for an
+Audited one. Do not
 stop merely because the first slice passed. Do stop for the owner's actual
 slice acceptance, SI decision, new PLAN confirmation, or risky-command approval;
 initial goal approval is not preauthorization. Validate the JSON goal and any

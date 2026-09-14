@@ -5,12 +5,26 @@
 
 本协议是所有模式共用的唯一委派规则。主控制器（本 skill）持有目标、依赖、
 集成、最终验证和持久状态；实质工作默认交给子代理，主控不做实现者。
+阶段→能力→席位的权威映射见 `stage-routing.json`；本文件规定决策程序。
 
 ## Dispatch Trigger Matrix
 
 “实质任务”的判定条件（满足任一即实质）：改变产品行为、改变公开接口、
-修复缺陷、跨文件逻辑调整、或需要独立正确性判断。仅凭“主控自己做更快”
-不构成跳过理由。
+修复缺陷、跨文件逻辑调整、或需要独立正确性判断。仅凭“主控自己做更快”、
+“改动只有几行”不构成跳过理由；行数少不等于机械小改。
+
+判定按固定次序执行，先命中先适用：
+
+1. 是否满足实质任务条件？
+   - 否，且确属拼写/格式/明确机械小改 → 主控直接处理；多个同类小改合并
+     为一个工作包（`skip_reason: mechanical-batch`）。禁止拆分派发。
+   - 是 → 进入 2。
+2. 当前是否 Audited 切片？
+   - 否 → 能力可用即派 worker 子代理（`mvp-worker`，加载 `task-worker`）；
+     根因/模块定位不明先派 research。`skip_reason` 只允许
+     `capability-unavailable`（须有 preflight 证据）。
+   - 是 → 按 Audited Execution Seat Selection 决策表执行。
+3. 能力不可用分支按 Failure Branches 降级或阻塞，并记录证据。
 
 | 场景 | 默认执行方式 | 强制级别 |
 |---|---|---|
@@ -25,6 +39,8 @@
 | Audited 步骤实现席位 | 按 Audited Execution Seat Selection 决策表 | 按决策表 |
 
 同一版本产物已被终审覆盖且未再变化时，可复用该终审结果，不重复派发。
+`skip_reason` 使用封闭白名单：`mechanical-batch`、`capability-unavailable`
+（附 preflight 证据）；笼统的“无需”不合法。
 
 ### Audited Execution Seat Selection
 
@@ -58,8 +74,52 @@
 
 回退规则：只读角色可回退到内建只读 agent；写入角色仅在回退 agent 具备
 写入工具时可用；reviewer/test-author/step-executor 涉及独立性声明时
-不允许回退。映射不可用时按 Failure Branches 处理，不得换更宽权限的代理
+不允许回退。**任何回退席位（含内建 `general`）仍必须在派发正文里收到
+`required_skills` 并实际加载对应角色 skill**；回退改变的只是宿主 agent，
+不是角色边界。映射不可用时按 Failure Branches 处理，不得换更宽权限的代理
 绕过。agent 定义不写死模型 ID；缺省继承运行时模型。
+
+## Skill Applicability Selection
+
+在以下时机执行一次有界的 skill 适用性选择：目标建立时、进入新验收边界时
+（阶段按 `stage-routing.json` 变化）、验收范围变化时、最终验收前：
+
+1. 列出本次验收项与真实边界（不超过当前阶段声明的范围）。
+2. 从运行时**实际可见**的 skill 清单（skill 工具实际提供的列表，不凭
+   记忆或文件存在假设）中筛选与验收项匹配的候选。
+3. 读取候选 skill 的 description/正文确认适用条件；不适用的淘汰并记录
+   一句理由。
+4. 适用的分配执行席位（controller 或对应子代理），写进派发正文
+   `selected_domain_skills`，由该席位在执行中实际加载并使用。
+5. 在返回/交接正文记录 `SKILL_USE` 块（见下）。
+
+边界（必须遵守）：
+
+- 目标是**适用能力覆盖**，不是调用全部可用 skill；不适用的不调用。
+- 加载 skill 只证明取得说明，不证明验收完成；验收结果仍需行为证据。
+- 父会话加载过角色 skill 不代替 fresh 子代理自行加载。
+- 专业 skill 不扩大角色权限：只读 reviewer 需要运行命令/GUI 时经
+  CONTROLLER_ACTION 请求主控；写入席位不因加载 skill 获得额外 write scope。
+- 适用但不可用（未安装/权限拒绝）的：阻塞该验收项并披露，或按其是否
+  属独立性 gate 走 Failure Branches；不得静默略过。
+
+```text
+SKILL_USE
+required:
+  - skill: <角色必需 skill，如 reviewer/pua/task-worker>
+    purpose: <覆盖哪个验收项>
+    execution_seat: <controller 或角色名>
+result_evidence:
+  - <skill 实际动作产生或检查的证据引用；加载本身不算证据>
+skipped:
+  - skill: <评估过但未用的>
+    reason: <不适用 | 不可用（附证据） | 已有有效结果覆盖>
+```
+
+`skill` 工具回执只证明取得说明；`task` 回执只证明派发席位；二者都不证明
+验收完成。runtime 证据链（原生 skill/task 调用、父子会话）由
+`scripts/check_runtime.py` / `scripts/runtime_trace.py` 从宿主存储读取，
+不由模型自述构成。
 
 ## Dispatch Preflight
 
@@ -68,7 +128,9 @@
 1. runtime 的 task/subagent 工具实际可用；
 2. 目标 agent 名称在可用列表中（不凭记忆假设）；
 3. 该 agent 的工具边界满足任务需要（reviewer 无写入；worker 有写入）；
-4. 任务输入文件在允许读取范围内。
+4. 任务输入文件在允许读取范围内；
+5. 本阶段 `stage-routing.json` 要求的 role skill 在运行时 skill 清单中
+   实际可见；不可见时按 Failure Branches 处理并披露。
 
 preflight 失败按 Failure Branches 降级或阻塞，并在 dispatch record 记录
 原因。不把“配置文件存在”当作“运行时已加载”。

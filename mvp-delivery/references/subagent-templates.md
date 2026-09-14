@@ -2,6 +2,10 @@
 
 > When to read: before composing any subagent dispatch or adjudicating a
 > subagent's return message.
+>
+> Path convention: `../<skill>/...` paths in this file are relative to the
+> mvp-delivery skill root (the parent of `references/`), matching how the
+> skill tool resolves them.
 
 所有派发与返回使用固定格式，方便 GLM 稳定执行与主控机械校验。字段缺失
 的派发是缺陷；返回不合式的结果按 needs_context 处理，不猜测填充。
@@ -12,6 +16,7 @@
 DISPATCH
 task_id: <T-NN, 对应 dispatch record>
 role: research|worker|reviewer|test-author|step-executor
+stage_id: <stage-routing.json 的 stage_id；无则 none>
 goal: <一句话目标与验收条件，可观察、可判定>
 inputs:
   - <文件路径或确切数据；标注哪些是必读约束>
@@ -19,6 +24,13 @@ write_scope: <允许修改的路径；reviewer/research 为 read-only>
 baseline: <当前产物基线：commit/hash/目标卡状态>
 dependencies: <依赖的先前任务结论或接口决定；无则 none>
 verification: <要求执行的验证命令与预期；无则 none>
+required_skills:
+  - <本席位必须加载的 role skill，如 task-worker / reviewer / pua；回退到内建 agent 时同样必读>
+selected_domain_skills:
+  - name: <经适用性选择的专业 skill；无则省略整节>
+    acceptance_items: <覆盖的验收项>
+    execution_seat: <本席位或 controller>
+artifact_identity: <当前制品身份，供评审绑定与恢复核对>
 return_format: <按角色的返回格式，见 Return Format Matrix>
 stop_conditions: <何时必须停下返回 blocked；至少含权限不足、范围外改动需求>
 constraints:
@@ -31,6 +43,9 @@ constraints:
 
 - dispatch 只描述一个任务，不粘贴会话历史或先前任务摘要；接口结论以
   dependency 条目精炼传入。
+- `required_skills` 由 `stage-routing.json` 与角色映射决定，不由主控临场
+  削减；`selected_domain_skills` 只列通过适用性选择（见
+  `subagent-orchestration.md` Skill Applicability Selection）的条目。
 - 精确值（数字、签名、测试用例）放在 inputs 的文件里或直接内联，不写
   “参见上文”。
 - reviewer 派发额外包含 `ACCEPTANCE_HANDOFF` 全文与 `pua_stage_id`，
@@ -50,13 +65,15 @@ constraints:
 | 角色 | 返回格式 | 必需字段（缺失按 needs_context 退回并指出字段） |
 |---|---|---|
 | research / worker | `RESULT` | task_id、status、summary；done 时 verification 非空 |
-| reviewer | reviewer-protocol JSON | mode、issues、checked_scope；review 模式每个 issue 带 classification（见 reviewer-protocol.md Output） |
+| reviewer | reviewer-protocol JSON | mode、issues、checked_scope、not_checked；review 模式每个 issue 带 classification；派发带 `pua_stage_id` 时 `pua_acceptance` 必填且 `stage_id` 必须与传入一致，未传时省略（见 reviewer-protocol.md Output） |
 | test-author | `TEST_AUTHOR_HANDOFF` | slice、spec_hash、test_author_id、manifest、protected_acceptance、pre_change_result |
 | step-executor | `STEP_HANDBACK` | step、implementation_files、protected_unchanged、pending_v、deviations/blockers |
 
 合法的角色专用返回不得因不含 RESULT 字段而被退回。格式返工不是产品返工：
 不得通过重新生成测试、重跑 pre-change 或重放实现来“修复格式”；格式错误
-与缺少业务上下文是不同的 needs_context 原因，不得无限往返。
+与缺少业务上下文是不同的 needs_context 原因，不得无限往返。`issues` 为空
+不自动等于通过：主控还须核对 `not_checked` 无实质缺口、`pua_acceptance`
+结果及所有既有 engine/owner gate。
 
 ## Controller-Action Request
 
@@ -98,7 +115,8 @@ open_issues: <未解决问题；无则 none>
 - `needs_context` 必须列出缺失的具体输入。
 - `blocked` 必须给出可核实的原因与最小解锁动作。
 - reviewer 返回沿用 reviewer-protocol 的结构化 JSON（`issues` +
-  可选 `pua_acceptance`），不使用 RESULT 模板。
+  `pua_acceptance`——派发带 `pua_stage_id` 时必填、未传时省略），
+  不使用 RESULT 模板。
 
 ## Step-Handback Template (step-executor)
 

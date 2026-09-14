@@ -125,10 +125,12 @@ consume only evidence that already exists, and request missing controller-owned
 gate outputs via CONTROLLER_ACTION instead of waiting for them or running them.
 Inspect the
 full handoff, not only the user-facing ADHD preview. Keep the normal reviewer mode and
-return material findings in `issues`; also append the optional `pua_acceptance` object
-defined in `../pua/SKILL.md` with `stage_id`, `result`, evidence references, gaps and one
-controller action. A `satisfied` PUA result is not a reviewer pass, engine pass, owner
-decision or whole-goal completion.
+return material findings in `issues`; also append the `pua_acceptance` object
+defined in `../pua/SKILL.md` — required because this dispatch supplied
+`pua_stage_id` — with a matching `stage_id`, `result`, evidence references, gaps
+and one controller action. Omit it only when no `pua_stage_id` was supplied; never
+invent a stage result. A `satisfied` PUA result is not a reviewer pass, engine
+pass, owner decision or whole-goal completion.
 
 The controller must repair and revalidate after `repair`, preserve an owner gate after
 `owner`, and report `blocked` as a blocker. Do not use ADHD formatting to shorten the

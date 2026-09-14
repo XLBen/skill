@@ -89,7 +89,8 @@ frontier ID 唯一且只指 open question，不要求列出全部 open question�
 
 流程强度按当前切片选择，不让所有任务缴纳相同的文档成本：
 
-- Normal：可逆的工作区内改动，只需目标卡、相关测试和真实 demo。
+- Normal：可逆的工作区内改动；目标卡、相关测试、真实 demo。实质验收交接
+  仍派 fresh reviewer（无契约 acceptance review），不因轻量档免除。
 - Guarded：外部边界或较高返工风险，增加小探针、验收测试和必要的独立 review。
 - Audited：资金、隐私、安全、迁移或不可逆副作用，内部调用契约、PLAN、CR 和
   reconcile gate。
@@ -146,8 +147,10 @@ Normal/Guarded 可在明确披露后由主控降级执行。ID 只是声明，�
 python scripts/install.py "E:/path/to/target-project"
 ```
 
-安装器会复制五个 command wrapper、五个子代理定义（`.opencode/agents/`）和校验
-引擎，并在 `opencode.json` 分别注册本仓库当前顶层 skill 目录，避免扫描 `validation/` 的冻结旧版同名 skill。升级时替换原先
+安装器会复制五个 command wrapper、五个子代理定义（`.opencode/agents/`）、校验
+引擎与运行时工具（`check.py`、`runtime_trace.py`、`check_runtime.py`），在
+manifest 中记录 skills 指纹（供 doctor 检测 skill 文本更新后 engine/agents
+未同步的漂移），并在 `opencode.json` 分别注册本仓库当前顶层 skill 目录，避免扫描 `validation/` 的冻结旧版同名 skill。升级时替换原先
 精确匹配的仓库根 skills path，保留其他配置。旧命令仍未被本地修改时会删除；本地改过的旧命令会保留并提示，
 显式使用 `--force` 才会移除。
 
@@ -170,7 +173,17 @@ skill 后必须重启 OpenCode。
 ```powershell
 python scripts/check.py --selftest
 python -B -m unittest discover -s tests -p "test_*.py"
+python scripts/check_runtime.py doctor <target-project>   # 静态+宿主能力诊断
+python scripts/runtime_trace.py export <target-project> --out trace.json
+python scripts/runtime_trace.py validate trace.json --dispatch <goal>.dispatch.json
 ```
+
+运行时门禁（可选启用）：在目标项目 `.opencode/mvp/runtime-policy.json` 写
+`{"schema": "runtime-policy/1", "goals": "all"}` 后，`finish-goal` 会要求
+先运行 `check.py runtime-gate <goal>.md --trace <trace.json>` 并通过——
+它用原生会话证据（真实子会话、成功完成的 skill 加载、父子 provenance）
+核验 dispatch 声明，缺证据、席位回退违规或证据过期（文件 hash 变化）都会
+阻塞完成。策略文件不存在时保持既有行为；历史完成卡不受影响。
 
 严格流程的单项排查命令仍可直接运行 `scripts/check.py`；合法示例位于
 `tests/fixtures/`。

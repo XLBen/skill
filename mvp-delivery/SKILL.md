@@ -31,8 +31,14 @@ metadata:
 跨文件逻辑、需要独立正确性判断）默认派发子代理执行；只有单点机械小改或
 合并后的机械工作包由主控直接处理。所有派发决定、并发限制、角色映射、
 失败分支和恢复记录统一遵循 `references/subagent-orchestration.md`，
-派发与返回格式遵循 `references/subagent-templates.md`。每个 goal 维护
-`.opencode/mvp/<goal-slug>.dispatch.json`，跳过委派必须记录原因。
+派发与返回格式遵循 `references/subagent-templates.md`。阶段→能力→席位
+的权威映射是 `references/stage-routing.json`：每个实质交接按其确定
+reviewer mode、`pua_stage_id` 与必读 skill，其他文档只引用不另立规则。
+专业验收 skill 经
+`references/subagent-orchestration.md` 的 Skill Appliciability Selection
+按验收边界选择使用。每个 goal 维护
+`.opencode/mvp/<goal-slug>.dispatch.json`，跳过委派必须记录封闭白名单内的
+原因。
 
 只有以下情况停下来问：
 
@@ -329,9 +335,11 @@ observation report 或 ceremony ratio。轻量目标卡不是过程日志。已�
 4. 重复，直到原始目标满足或命中明确停止条件。
 
 For an Audited slice, `construction` finish closes only that slice. Immediately
-update the goal card. If original outcomes remain pending, use
+update the goal card. If original outcomes remain pending, first re-judge the
+next slice's risk per `Rigor By Slice`: a Normal/Guarded next slice continues
+with light execution (no contract/PLAN), and only an Audited next slice uses
 `contract-review`'s SI protocol internally to prepare and confirm the next
-delta in a new slice package, then return to construction. Never compile a
+delta in a new slice package, then returns to construction. Never compile a
 cumulative contract over the completed PLAN: the current engine would reset
 unaffected steps to pending. The new package contains only affected work and
 references prior reconcile evidence through the goal card. Repeat
@@ -391,7 +399,14 @@ acceptance and cannot exempt future slices here. Reuse the `reviewer` capability
 for this scope check when independent review applies, passing the original source,
 whole card and final evidence; no new public command, role or audit-event schema.
 Run `finish-goal` only after this check, all applicable Audited gates and actual owner
-acceptance are satisfied. If the engine is unavailable, report a blocker in every
+acceptance are satisfied. When the project enables the runtime policy sidecar
+(`.opencode/mvp/runtime-policy.json`, schema `runtime-policy/1`), the controller
+must first export the native trace
+(`python .opencode/workflow/scripts/runtime_trace.py export <project> --out
+.opencode/mvp/trace.json`) and pass
+`check.py runtime-gate <goal>.md --trace .opencode/mvp/trace.json`; missing
+dispatch provenance, non-official reviewer seats, failed skill loads or stale
+gate evidence block `finish-goal`. If the engine is unavailable, report a blocker in every
 rigor mode. If an independent seat is unavailable, apply the tiering in
 Communication And Acceptance Handoff: an Audited independence gate blocks; a
 Normal/Guarded reviewer seat records capability-unavailable, is replaced by the
@@ -431,6 +446,7 @@ verification, owner decisions and external blockers remain distinct.
 
 | Need | Read |
 |---|---|
+| 阶段→能力→席位权威路由（stage、reviewer mode、pua_stage_id） | `references/stage-routing.json` |
 | 委派触发矩阵、角色映射、并发、失败分支、dispatch record | `references/subagent-orchestration.md` |
 | 派发/返回/返修模板 | `references/subagent-templates.md` |
 | 独立评审协议（reviewer modes 与输出 schema） | `../contract-review/references/reviewer-protocol.md` |

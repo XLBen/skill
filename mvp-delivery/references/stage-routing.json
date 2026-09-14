@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "note": "Authoritative stage-to-capability routing for the four public commands (/grill /plan /build /fix, plus /resume). Every skill body, command wrapper and reference defers to this table; summaries may cite it but must not weaken it. domain_skills are selected per acceptance boundary via the Skill Applicability Selection procedure in subagent-orchestration.md - they are additional, conditionally required capabilities, never a blanket call-everything rule.",
+  "stages": [
+    {
+      "stage_id": "brief-final",
+      "entry": "final brief handoff at the end of /grill",
+      "required_skills": [
+        {"name": "grill", "seat": "controller"},
+        {"name": "pua", "stage_card": "brief-final", "seat": "controller"}
+      ],
+      "reviewer": {
+        "mode": "review",
+        "contract": false,
+        "dispatch": "capability-available-mandatory",
+        "scope": "the finalizing brief version only; individual interview rounds are not reviewed"
+      },
+      "domain_skills": "select when the brief's acceptance items involve a technology or real boundary with a matching available skill"
+    },
+    {
+      "stage_id": "goal-validation",
+      "entry": "lightweight plan / goal-definition handoff in /plan (Normal/Guarded)",
+      "required_skills": [
+        {"name": "mvp-delivery", "seat": "controller"},
+        {"name": "i-have-adhd", "seat": "controller"},
+        {"name": "pua", "stage_card": "goal-validation", "seat": "controller"}
+      ],
+      "reviewer": {
+        "mode": "review",
+        "contract": false,
+        "dispatch": "capability-available-mandatory",
+        "scope": "goal card semantics, coverage and verification design; never demands contract/PLAN/manifest artifacts"
+      },
+      "domain_skills": "none expected; select only if the goal's verification itself depends on a specialized capability"
+    },
+    {
+      "stage_id": "slice-implementation",
+      "entry": "Normal/Guarded implementation work packages in /build or /fix",
+      "required_skills": [
+        {"name": "task-worker", "seat": "worker-subagent"},
+        {"name": "i-have-adhd", "seat": "controller"}
+      ],
+      "reviewer": {"dispatch": "none-for-this-stage"},
+      "domain_skills": "select per work package when the touched technology has a matching available skill; the worker seat loads it without gaining permissions beyond its agent definition"
+    },
+    {
+      "stage_id": "review-verdict",
+      "entry": "material Normal/Guarded slice acceptance handoff (each slice, affected-scope changes)",
+      "required_skills": [
+        {"name": "reviewer", "seat": "reviewer-subagent"},
+        {"name": "pua", "stage_card": "review-verdict", "seat": "reviewer-subagent"}
+      ],
+      "reviewer": {
+        "mode": "review",
+        "contract": false,
+        "dispatch": "capability-available-mandatory",
+        "scope": "current slice and affected scope; no reconcile/manifest/SI artifacts"
+      },
+      "domain_skills": "select when verifying the slice needs a specialized read-only capability; read-only reviewers request executions via CONTROLLER_ACTION"
+    },
+    {
+      "stage_id": "contract-release",
+      "entry": "Audited contract release final audit",
+      "required_skills": [
+        {"name": "contract-review", "seat": "controller"},
+        {"name": "reviewer", "seat": "reviewer-subagent"},
+        {"name": "pua", "stage_card": "contract-release", "seat": "varies"}
+      ],
+      "reviewer": {"mode": "final-audit", "contract": true, "dispatch": "blocking"},
+      "domain_skills": "select per contract boundary (migration, privacy, GUI, ...)"
+    },
+    {
+      "stage_id": "plan-confirmation",
+      "entry": "Audited PLAN handoff after compilation",
+      "required_skills": [
+        {"name": "contract-review", "seat": "controller"},
+        {"name": "reviewer", "seat": "reviewer-subagent"},
+        {"name": "pua", "stage_card": "plan-confirmation", "seat": "varies"}
+      ],
+      "reviewer": {"mode": "review", "contract": true, "dispatch": "capability-available-mandatory"},
+      "domain_skills": "rare; only when the PLAN's own verification depends on one"
+    },
+    {
+      "stage_id": "test-freeze",
+      "entry": "Audited acceptance-test freeze before implementation",
+      "required_skills": [
+        {"name": "test-author", "seat": "test-author-subagent"},
+        {"name": "pua", "stage_card": "test-freeze", "seat": "test-author-subagent"}
+      ],
+      "reviewer": {"dispatch": "none-for-this-stage"},
+      "domain_skills": "select when writing the frozen tests requires a specialized capability; test-author's edit boundary unchanged"
+    },
+    {
+      "stage_id": "step-verification",
+      "entry": "Audited PLAN step execution and its verify-step gate",
+      "required_skills": [
+        {"name": "step-executor", "seat": "step-executor-subagent"},
+        {"name": "pua", "stage_card": "step-verification", "seat": "step-executor-subagent"}
+      ],
+      "reviewer": {
+        "mode": "review",
+        "contract": true,
+        "dispatch": "per Audited gate (step review / converge-audit as applicable)"
+      },
+      "domain_skills": "select per step technology; official V stays controller-owned"
+    },
+    {
+      "stage_id": "slice-acceptance",
+      "entry": "Audited slice finish / SI handoff",
+      "required_skills": [
+        {"name": "construction", "seat": "controller"},
+        {"name": "reviewer", "seat": "reviewer-subagent"},
+        {"name": "pua", "stage_card": "slice-acceptance", "seat": "varies"}
+      ],
+      "reviewer": {"mode": "converge-audit", "contract": true, "dispatch": "blocking"},
+      "domain_skills": "select per slice boundary; owner acceptance never delegated"
+    },
+    {
+      "stage_id": "goal-finish",
+      "entry": "whole-goal finish check before finish-goal (all rigor modes)",
+      "required_skills": [
+        {"name": "mvp-delivery", "seat": "controller"},
+        {"name": "reviewer", "seat": "reviewer-subagent"},
+        {"name": "pua", "stage_card": "goal-finish", "seat": "varies"}
+      ],
+      "reviewer": {
+        "mode": "review",
+        "contract": false,
+        "dispatch": "capability-available-mandatory",
+        "scope": "original request/every brief BS, whole goal, deferred work, real user-entry journeys; a clean slice audit never substitutes"
+      },
+      "domain_skills": "select for the final integrated verification boundary (GUI, browser, data, security, ...)"
+    }
+  ],
+  "dispatch_levels": {
+    "capability-available-mandatory": "dispatch whenever the seat exists at runtime; cost is never an exemption. Fallback tiers per subagent-orchestration.md Failure Branches.",
+    "blocking": "Audited independence gates block on unavailability; no controller downgrade.",
+    "none-for-this-stage": "no reviewer dispatch is attached to this stage unit; reviews happen at the acceptance handoffs above"
+  },
+  "reuse_rules": {
+    "same_version_single_seat": "one reviewer return may cover multiple declared acceptance items for one stable artifact version and scope",
+    "never_cross_scope_or_version": "a slice review never substitutes whole-goal review; changed artifacts invalidate prior returns",
+    "cards_are_not_dispatch_units": "goal-verification/test-freeze/step-verification cards do not add reviewer dispatches by themselves"
+  },
+  "seat_requirements": {
+    "reviewer-subagent": "fresh dispatch, read-only, loads reviewer skill; loads pua when pua_stage_id supplied; pua_acceptance required with matching stage_id",
+    "worker-subagent": "loads task-worker skill; one writer at a time",
+    "test-author-subagent": "fresh dispatch, loads test-author skill, edit limited to tests/manifest",
+    "step-executor-subagent": "fresh dispatch per Audited seat-selection table; loads step-executor skill"
+  }
+}

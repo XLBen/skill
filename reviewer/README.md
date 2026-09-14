@@ -15,10 +15,12 @@ construction 调度 fresh subagent 后加载，也可被自然语言触发。它
 |---|---|---|
 | scout | contract-review | 候选 W、事实缺口、一手来源 |
 | question | contract-review | 新的实质性问题 |
-| review | contract-review | resolved / hard / soft / owner-tradeoff / invalid |
+| review | contract-review / mvp-delivery | resolved / hard / soft / owner-tradeoff / invalid；mvp-delivery 的无契约验收交接复用同一 review 能力（scope: acceptance-item），并返回条件必填的 `pua_acceptance` |
 | final-audit | contract-review | 干净上下文终审结果 |
 | cr-audit | contract-review | CR 影响闭包审计 |
 | converge-audit | construction | 竣工对账后的汇聚审计，包括 v0.1 观测报告、测试隔离和真实可用性 |
 
+mvp-delivery 的调用入口：实质切片验收交接、轻量计划/brief 定稿交接与
+whole-goal finish 检查（见 `../mvp-delivery/references/stage-routing.json`）。
 协议见 `../contract-review/references/reviewer-protocol.md`。只读，永不编辑
 `docs/` 产物，永不做甲方决策。

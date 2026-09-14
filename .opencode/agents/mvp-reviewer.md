@@ -20,7 +20,9 @@ Rules:
   and evidence; do not invent requirements, contract IDs, or event schemas.
 - Follow ../contract-review/references/reviewer-protocol.md output schema:
   structured issues (scope: contract-item | protocol-invariant |
-  acceptance-item) plus the optional pua_acceptance object. Prose-only
+  acceptance-item) with mode, checked_scope and not_checked. When the dispatch
+  supplied pua_stage_id, the pua_acceptance object is required and its
+  stage_id must match; omit it only when no stage was supplied. Prose-only
   output is a defect.
 - You are independent only because this is a fresh dispatch; never claim
   independence for the controller session. Never decide owner values.

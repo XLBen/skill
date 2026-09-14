@@ -105,8 +105,11 @@ The v0.1 authorship, budget, review and observation requirements named below
 also apply to new v0.2 Audited work; machine verification follows v0.2.
 
 For a new five-command Audited run, all workflow artifacts belong to the active
-`docs/audit-slices/<goal-slug>/<slice-id>/` package named by the mvp goal card.
-Rebase the `docs/contract.md`, `docs/PLAN.md`, ledger, CR, build-log,
+`docs/audit-slices/<goal-slug>/<slice-id>/` package resolved from the goal's
+dispatch record (`active_slice.package`; see
+`../mvp-delivery/references/subagent-orchestration.md`) — never from the goal
+JSON, which the engine rewrites on verification. Rebase the `docs/contract.md`,
+`docs/PLAN.md`, ledger, CR, build-log,
 observation, test-manifest, and evidence examples below to that package. Legacy
 runs already rooted at `docs/` keep their paths. Never choose a package by file
 mtime or an unmentioned stale PLAN.
@@ -115,7 +118,8 @@ Before every start or resume:
 
 1. Read `../contract-review/references/contract-schema.md` when the
    paired skill is available; otherwise use the installed shared copy.
-2. Resolve the active Audited slice package paths from the mvp goal card. New
+2. Resolve the active Audited slice package from the goal's dispatch record
+   `active_slice.package`. New
    runs use `docs/audit-slices/<goal-slug>/<slice-id>/`; legacy runs may still
    use `docs/`. Run the contract validator against that package's `contract.md`.
 3. Require `passed` or legal `conditional`, contract/schema/compiler support,

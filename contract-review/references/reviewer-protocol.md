@@ -22,7 +22,8 @@ When the dispatch is an acceptance handoff, also pass the complete
 claims, acceptance gate, artifact identity, evidence, known gaps, owner decisions
 and real user entry. The short ADHD preview is only a user-facing view and never
 replaces this input. The reviewer loads `pua`, reads the matching stage card and
-returns the normal structured `issues` plus the optional `pua_acceptance` object;
+returns the normal structured `issues` plus the `pua_acceptance` object —
+required whenever `pua_stage_id` was supplied, with a matching `stage_id`;
 the controller owns repair, revalidation and the final user-facing result.
 
 ## Modes
@@ -175,9 +176,13 @@ Field contract:
   `issue_id`/`fingerprint` — it is not silently dropped.
 - `checked_scope` and `not_checked` are required so an empty `issues` list
   distinguishes "fully inspected, no findings" from "could not inspect". A
-  return missing `mode`, `issues`, `checked_scope`, or a review issue's
-  `classification` is needs_context; the controller never infers a pass from a
-  malformed or empty return.
+  return missing `mode`, `issues`, `checked_scope`, `not_checked`, or a review
+  issue's `classification` is needs_context; the controller never infers a pass
+  from a malformed or empty return.
+- `pua_acceptance` is required when the dispatch supplied `pua_stage_id`, and
+  its `stage_id` must equal the supplied one. Empty `issues` alone never passes:
+  the controller also checks `not_checked` for material gaps and the
+  `pua_acceptance` result before continuing.
 
 Do not use prose-only output when the controller expects an event payload.
 When no PUA acceptance handoff was supplied, omit `pua_acceptance` rather than

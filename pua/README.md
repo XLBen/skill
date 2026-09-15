@@ -19,7 +19,7 @@ PUA 在每个阶段验收前做一次主动质询：
 ## 集成方式
 
 `SKILL.md` 是入口。各阶段在自己的验收章节显式加载本 skill，并按
-`references/stage-checks.md` 的 `stage_id` 执行：
+`references/stage-checks.md` 索引中 `stage_id` 对应的卡执行：
 
 ```text
 阶段产物就绪

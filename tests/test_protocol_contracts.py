@@ -113,6 +113,9 @@ class AgentPermissionTests(unittest.TestCase):
         allowed = {
             "tests/test_greeting.py": "allow",
             "test/test_greeting.py": "allow",
+            "src/greeting.test.ts": "allow",
+            "src/__tests__/greeting.ts": "allow",
+            "src/greeting.spec.js": "allow",
             "docs/test-manifests/S-01.md": "allow",
             "docs/audit-slices/g-report/S-01/test-manifests/S-01.md": "allow",
             "docs/audit-slices/g-report/S-01/contract.md": "deny",
@@ -192,23 +195,36 @@ class PuaStageTimingTests(unittest.TestCase):
     def test_goal_finish_card_splits_pre_and_post_gate_evidence(self):
         cards = read("pua/references/stage-checks.md")
         self.assertIn("Card Roles And Gate Phases", cards)
-        section = cards.split("## 10. `goal-finish`", 1)[1].split("\n## ", 1)[0]
+        card = read("pua/references/stage-checks/10-goal-finish.md")
         evidence = next(
-            line for line in section.splitlines() if line.startswith("**证据**")
+            line for line in card.splitlines() if line.startswith("**证据**")
         )
         self.assertIn("门前", evidence)
         self.assertIn("门后", evidence)
         self.assertLess(evidence.index("门后"), evidence.index("`finish-goal`"))
 
     def test_engine_gates_in_cards_are_assigned_to_the_controller(self):
-        cards = read("pua/references/stage-checks.md")
-        for card in ("## 3. `contract-release`", "## 4. `plan-confirmation`"):
-            section = cards.split(card, 1)[1].split("\n## ", 1)[0]
+        for card in (
+            "pua/references/stage-checks/03-contract-release.md",
+            "pua/references/stage-checks/04-plan-confirmation.md",
+        ):
+            section = read(card)
             gate_line = next(
                 line for line in section.splitlines()
                 if "gate" in line and ("归主控" in line or "由主控执行" in line)
             )
             self.assertTrue(gate_line.strip())
+
+    def test_stage_check_index_links_every_card(self):
+        index = read("pua/references/stage-checks.md")
+        for name in (
+            "01-brief-final.md", "02-goal-validation.md", "03-contract-release.md",
+            "04-plan-confirmation.md", "05-test-freeze.md", "06-step-verification.md",
+            "07-slice-acceptance.md", "08-review-verdict.md", "09-goal-verification.md",
+            "10-goal-finish.md",
+        ):
+            self.assertIn(name, index)
+            self.assertTrue((ROOT / "pua/references/stage-checks" / name).is_file())
 
 
 class ReviewerInterfaceTests(unittest.TestCase):

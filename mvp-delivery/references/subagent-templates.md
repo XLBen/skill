@@ -21,6 +21,7 @@ goal: <一句话目标与验收条件，可观察、可判定>
 inputs:
   - <文件路径或确切数据；标注哪些是必读约束>
 write_scope: <允许修改的路径；reviewer/research 为 read-only>
+work_root: <分配的绝对隔离工作目录（worktree）；无则 none。提供时 write_scope 相对它解释>
 baseline: <当前产物基线：commit/hash/目标卡状态>
 dependencies: <依赖的先前任务结论或接口决定；无则 none>
 verification: <要求执行的验证命令与预期；无则 none>
@@ -57,31 +58,70 @@ constraints:
   派发必须包含 step ID 与 exact V（正式 V 由主控执行，见
   Controller-Action Request）。
 
+## Task Result Envelope
+
+所有角色交回时先写公共外壳（文本角色逐行渲染；reviewer 在结构化 JSON 顶层
+带同名字段），角色专用内容放在 `payload` 段：
+
+```text
+TASK_RESULT
+schema: task-result/1
+task_id / attempt / role / phase
+status: completed | needs_input | waiting_controller | blocked | failed
+summary: <实际完成内容，一到三句>
+changes:
+  - <path>: added|modified|deleted|renamed — <行为变化>
+evidence:
+  - kind: command | source | artifact
+    <command+cwd+result | path+lines | path>
+not_verified:
+  - <未运行/未检查项与原因；无则 none>
+issues:
+  - <实质发现或障碍；无则 none>
+controller_actions:
+  - <action_id + 请求；无则 none>
+next_context:
+  - <后继任务需要的接口事实；无则 none>
+payload:
+  <角色专用块：RESULT / TEST_AUTHOR_HANDOFF / STEP_HANDBACK / reviewer JSON>
+```
+
+- `status` 是交回状态，不是主控验收：`completed` 只表示席位执行结束。
+- `needs_input` 缺输入；`waiting_controller` 等待 CONTROLLER_ACTION 执行；
+  `blocked` 需要外部解锁；`failed` 表示本次尝试失败、不应复用。
+- `changes` 只描述实际改动，research/review 留空；reviewer 的 findings 放
+  `issues`，不能用 `changes` 代替。
+- `next_context` 只写后继任务真正需要的接口事实，不是过程复述。
+- 旧格式（`status: done|needs_context|blocked`、无 envelope）按 legacy 读取：
+  `done→completed`、`needs_context→needs_input 或 waiting_controller`、
+  `blocked→blocked`；缺失字段标 unknown，不补造。新派发一律要求 envelope。
+
 ## Return Format Matrix
 
-每个角色使用固定的一种返回格式；主控按该角色的格式校验，不把 RESULT
-当作所有角色的隐式父接口：
+每个角色使用固定的一种返回格式；主控按该角色的格式与公共外壳校验，不把
+RESULT 当作所有角色的隐式父接口：
 
-| 角色 | 返回格式 | 必需字段（缺失按 needs_context 退回并指出字段） |
+| 角色 | 返回格式 | 必需字段（缺失按 needs_input 退回并指出字段） |
 |---|---|---|
-| research / worker | `RESULT` | task_id、status、summary；done 时 verification 非空 |
+| research / worker | `TASK_RESULT` + `RESULT` payload | 外壳公共字段；completed 时 evidence 非空（纯调研报告 source 证据） |
 | reviewer | reviewer-protocol JSON | mode、issues、checked_scope、not_checked；review 模式每个 issue 带 classification；派发带 `pua_stage_id` 时 `pua_acceptance` 必填且 `stage_id` 必须与传入一致，未传时省略（见 reviewer-protocol.md Output） |
-| test-author | `TEST_AUTHOR_HANDOFF` | slice、spec_hash、test_author_id、manifest、protected_acceptance、pre_change_result |
-| step-executor | `STEP_HANDBACK` | step、implementation_files、protected_unchanged、pending_v、deviations/blockers |
+| test-author | `TASK_RESULT` + `TEST_AUTHOR_HANDOFF` payload | `phase: bootstrap` 只交回席位就绪证据；`phase: work` 要求 slice、spec_hash、test_author_id、manifest、protected_acceptance、pre_change_result |
+| step-executor | `TASK_RESULT` + `STEP_HANDBACK` payload | step、implementation_files、protected_unchanged、pending_v、deviations/blockers |
 
-合法的角色专用返回不得因不含 RESULT 字段而被退回。格式返工不是产品返工：
+合法的角色专用返回不得因不含旧 RESULT 字段而被退回。格式返工不是产品返工：
 不得通过重新生成测试、重跑 pre-change 或重放实现来“修复格式”；格式错误
-与缺少业务上下文是不同的 needs_context 原因，不得无限往返。`issues` 为空
-不自动等于通过：主控还须核对 `not_checked` 无实质缺口、`pua_acceptance`
-结果及所有既有 engine/owner gate。
+与缺少业务上下文是不同的 needs_input 原因，不得无限往返。`issues` 为空
+不自动等于通过：主控还须核对 `not_verified`/`not_checked` 无实质缺口、
+`pua_acceptance` 结果及所有既有 engine/owner gate。
 
 ## Controller-Action Request
 
 子代理在共享桌面、engine 正式 V 或其他只有主控能执行的动作前，不等待、
-不自行代跑，返回：
+不自行代跑，返回 `TASK_RESULT`（`status: waiting_controller`）并附带：
 
 ```text
 CONTROLLER_ACTION
+action_id: <任务内稳定唯一，如 A-T01-01>
 task_id: <T-NN>
 requested_action: run-command | gui-scenario | engine-verify
 target: <命令、场景或 step/V ID>
@@ -91,32 +131,43 @@ artifact_identity: <当前产物身份，供恢复时核对>
 resume_hint: <证据就绪后恢复哪个席位/阶段>
 ```
 
-这是 `needs_context` 的一个具体类型：等待主控动作，不是外部阻塞，也不是
-owner 阻塞。主控执行一次、保存证据，然后把证据按 resume_hint 传回原席位
-继续；恢复时重取当前 GUI/环境状态，不重放旧操作。同一正式 V attempt 只由
-主控执行一次，子代理的诊断运行不得作为替代。
+这是 `waiting_controller` 的具体类型：等待主控动作，不是外部阻塞，也不是
+owner 阻塞。**派发前主控先查 dispatch record 中同 action_id 的状态**：
+
+- 已有 `completed` 且证据仍有效：直接复用证据，不重复执行。
+- `requested`/`running`：先确认实际副作用，再决定继续等待还是执行。
+- `unknown`：非幂等动作（写入、迁移、外部调用）必须先查证状态，不自动重放；
+  查不清时按 blocked 升级。
+- `failed`：按失败恢复到原席位。
+
+主控执行一次、保存证据并把状态写入 dispatch record 的 `actions`，然后按
+`resume_hint` 传回原席位继续；恢复时重取当前 GUI/环境状态，不重放旧操作。
+同一正式 V attempt 只由主控执行一次，子代理的诊断运行不得作为替代。崩溃
+场景不承诺绝对 exactly-once，但未知状态不允许自动重放。
 
 ## Result Template
 
+`TASK_RESULT` 的公共外壳已携带 task_id、status、summary、changes、evidence、
+issues；worker/research 的 payload 只补充剩余字段：
+
 ```text
-RESULT
-task_id: <T-NN>
-status: done|needs_context|blocked
-summary: <实际完成内容，一到三句>
-artifacts:
-  - <修改的文件或发现的位置>
-verification:
-  command: <实际执行的命令>
-  result: <通过/失败及关键输出位置；无则 none>
-open_issues: <未解决问题；无则 none>
+payload:
+  RESULT
+  artifacts:
+    - <修改的文件或发现的位置>
+  verification:
+    command: <实际执行的命令>
+    result: <通过/失败及关键输出位置；无则 none>
 ```
 
-- `done` 要求 verification 非空（纯调研任务报告发现位置）。
-- `needs_context` 必须列出缺失的具体输入。
-- `blocked` 必须给出可核实的原因与最小解锁动作。
+- completed 要求 evidence 非空；纯调研任务报告 source 证据即可，不强迫
+  伪造“验证命令”。
+- needs_input 必须列出缺失的具体输入。
+- blocked 必须给出可核实的原因与最小解锁动作。
 - reviewer 返回沿用 reviewer-protocol 的结构化 JSON（`issues` +
   `pua_acceptance`——派发带 `pua_stage_id` 时必填、未传时省略），
-  不使用 RESULT 模板。
+  JSON 顶层同时携带外壳字段（task_id、attempt、status），不使用文本 payload。
+- 仅当读取 legacy 记录时才接受无外壳的旧 `RESULT`；新派发不得省略外壳。
 
 ## Step-Handback Template (step-executor)
 
@@ -124,19 +175,30 @@ step-executor 交回实现，不等待正式 V；正式 `verify-step` 由主控�
 hand-back 后执行一次（见 step-executor/SKILL.md）：
 
 ```text
-STEP_HANDBACK
-task_id: <T-NN>
-step: <S-ID>
-implementation_files:
-  - <实际改动的文件>
-protected_unchanged:
-  - <manifest 保护路径=hash 核对结果>
-diagnostic_runs:
-  - <命令与原始输出位置；无则 none>
-pending_v: <主控待执行的 exact V 命令与 V ID>
-deviations: <与步骤规格的偏差；无则 none>
-blockers: <none 或具体问题>
-pua_result: <step-verification 卡的 [PUA-ACCEPTANCE] 结果>
+TASK_RESULT
+schema: task-result/1
+task_id / attempt / role: step-executor / phase: work
+status: completed | needs_input | waiting_controller | blocked | failed
+summary: <本步骤实际完成了什么>
+changes: <实际改动文件>
+evidence: <诊断命令与原始输出位置>
+not_verified: <未运行项与原因；无则 none>
+issues: <偏差/发现；无则 none>
+controller_actions: <需要主控执行的动作；无则 none>
+next_context: <后继步骤需要的接口事实；无则 none>
+payload:
+  STEP_HANDBACK
+  step: <S-ID>
+  implementation_files:
+    - <实际改动的文件>
+  protected_unchanged:
+    - <manifest 保护路径=hash 核对结果>
+  diagnostic_runs:
+    - <命令与原始输出位置；无则 none>
+  pending_v: <主控待执行的 exact V 命令与 V ID>
+  deviations: <与步骤规格的偏差；无则 none>
+  blockers: <none 或具体问题>
+  pua_result: <step-verification 卡的 [PUA-ACCEPTANCE] 结果>
 ```
 
 ## Fix-Round Template

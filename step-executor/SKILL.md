@@ -29,7 +29,7 @@ as an independent test or engine verification.
 ## PUA Acceptance: `step-verification`
 
 Before returning the hand-back, load `../pua/SKILL.md` and execute the
-`step-verification` card in `../pua/references/stage-checks.md` against the
+`step-verification` card in `../pua/references/stage-checks/06-step-verification.md` against the
 evidence you actually hold: the manifest check, protected-path integrity and
 any diagnostic run. Ask “这一步是真的跑了，还是你手写了一个 passing
 event？” The engine-generated `verify-step` evidence and failure signature are
@@ -71,8 +71,8 @@ Work only on that step:
    skip/filter/empty-suite false greens and with the declared boundary/mock
    policy. Existing regression baseline-green needs no fabricated red;
    targeted behavior-red must be real.
-4. Return the `STEP_HANDBACK` structured result defined in
-   `../mvp-delivery/references/subagent-templates.md`: implementation files
+4. Return the `TASK_RESULT` envelope with a `STEP_HANDBACK` payload as defined
+   in `../mvp-delivery/references/subagent-templates.md`: implementation files
    touched, protected test files verified unchanged, diagnostic commands with
    raw output locations, deviations, blockers, and the pending exact V the
    controller must run. Never declare the step `complete`, never claim the

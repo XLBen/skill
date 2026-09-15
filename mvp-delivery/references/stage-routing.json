@@ -1,18 +1,20 @@
 {
-  "schema_version": 1,
-  "note": "Authoritative stage-to-capability routing for the four public commands (/grill /plan /build /fix, plus /resume). Every skill body, command wrapper and reference defers to this table; summaries may cite it but must not weaken it. domain_skills are selected per acceptance boundary via the Skill Applicability Selection procedure in subagent-orchestration.md - they are additional, conditionally required capabilities, never a blanket call-everything rule. Entries carrying applies_when: guarded-or-audited are executed as full PUA cards only for Guarded/Audited work; Normal work applies the same questions directly as a controller duty.",
+  "schema_version": 2,
+  "note": "Authoritative stage-to-capability routing for the four public commands (/grill /plan /build /fix, plus /resume). Every skill body, command wrapper and reference defers to this table; summaries may cite it but must not weaken it. domain_skills are selected per acceptance boundary via the Skill Applicability Selection procedure in subagent-orchestration.md - they are additional, conditionally required capabilities, never a blanket call-everything rule. `required_skills[].applies_when` narrows a PUA stage card to guard/audit rigor; Normal work applies the same questions directly as a controller duty. `reviewer.condition` and `seat_selection` are the machine-readable forms consumed by scripts/workflow_protocol.py; the human-readable tables elsewhere must agree with them.",
   "stages": [
     {
       "stage_id": "brief-final",
       "entry": "final brief handoff at the end of /grill",
+      "rigors": ["normal", "guarded", "audited"],
       "required_skills": [
-        {"name": "grill", "seat": "controller"},
-        {"name": "pua", "stage_card": "brief-final", "seat": "controller", "applies_when": "guarded-or-audited"}
+        {"name": "grill", "seat": "controller", "roles": ["controller"]},
+        {"name": "pua", "stage_card": "brief-final", "seat": "controller", "roles": ["controller"], "applies_when": "guarded-or-audited"}
       ],
       "reviewer": {
         "mode": "review",
         "contract": false,
-        "dispatch": "capability-available-mandatory",
+        "dispatch": "capability-available-mandatory-for-guarded-audited-risk-triggered-for-normal",
+        "condition": {"rigors": ["guarded", "audited"], "optional_rigors": ["normal"], "dispatch": true, "mandatory": true, "blocking": false, "normal_trigger": "risk-triggered"},
         "scope": "the finalizing brief version only; individual interview rounds are not reviewed"
       },
       "domain_skills": "select when the brief's acceptance items involve a technology or real boundary with a matching available skill"
@@ -20,41 +22,63 @@
     {
       "stage_id": "goal-validation",
       "entry": "lightweight plan / goal-definition handoff in /plan (Normal/Guarded)",
+      "rigors": ["normal", "guarded"],
       "required_skills": [
-        {"name": "mvp-delivery", "seat": "controller"},
-        {"name": "i-have-adhd", "seat": "controller"},
-        {"name": "pua", "stage_card": "goal-validation", "seat": "controller", "applies_when": "guarded-or-audited"}
+        {"name": "mvp-delivery", "seat": "controller", "roles": ["controller"]},
+        {"name": "i-have-adhd", "seat": "controller", "roles": ["controller"]},
+        {"name": "pua", "stage_card": "goal-validation", "seat": "controller", "roles": ["controller"], "applies_when": "guarded-or-audited"}
       ],
       "reviewer": {
         "mode": "review",
         "contract": false,
-        "dispatch": "capability-available-mandatory",
+        "dispatch": "capability-available-mandatory-for-guarded-risk-triggered-for-normal",
+        "condition": {"rigors": ["guarded"], "optional_rigors": ["normal"], "dispatch": true, "mandatory": true, "blocking": false, "normal_trigger": "risk-triggered"},
         "scope": "goal card semantics, coverage and verification design; never demands contract/PLAN/manifest artifacts"
       },
       "ui_acceptance": "design only: decide applicability from affected outcomes, author scenarios and prerequisites in the ui-acceptance sidecar; never operate UI in /plan",
       "domain_skills": "none expected; select only if the goal's verification itself depends on a specialized capability"
     },
     {
-      "stage_id": "slice-implementation",
-      "entry": "Guarded/Audited implementation work packages in /build or /fix (Normal may stay in-session)",
+      "stage_id": "goal-verification",
+      "entry": "per-outcome verify-goal execution (Audited goals, or whenever evidence is missing or suspect)",
+      "rigors": ["normal", "guarded", "audited"],
       "required_skills": [
-        {"name": "task-worker", "seat": "worker-subagent", "applies_when": "guarded-or-audited"},
-        {"name": "i-have-adhd", "seat": "controller"}
+        {"name": "mvp-delivery", "seat": "controller", "roles": ["controller"]},
+        {"name": "pua", "stage_card": "goal-verification", "seat": "controller", "roles": ["controller"], "applies_when": "audited"}
       ],
-      "reviewer": {"dispatch": "none-for-this-stage"},
+      "reviewer": {
+        "dispatch": "none-for-this-stage",
+        "condition": {"rigors": [], "dispatch": false, "mandatory": false, "blocking": false}
+      },
+      "domain_skills": "select when an outcome's verification depends on a specialized capability"
+    },
+    {
+      "stage_id": "slice-implementation",
+      "entry": "Guarded/Audited implementation work packages in /build or /fix (Normal may stay in-session or dispatch a worker)",
+      "rigors": ["normal", "guarded", "audited"],
+      "required_skills": [
+        {"name": "task-worker", "seat": "worker-subagent", "roles": ["worker"], "applies_when": "guarded-or-audited"},
+        {"name": "i-have-adhd", "seat": "controller", "roles": ["controller"]}
+      ],
+      "reviewer": {
+        "dispatch": "none-for-this-stage",
+        "condition": {"rigors": [], "dispatch": false, "mandatory": false, "blocking": false}
+      },
       "domain_skills": "select per work package when the touched technology has a matching available skill; the worker seat loads it without gaining permissions beyond its agent definition"
     },
     {
       "stage_id": "review-verdict",
       "entry": "material Guarded/Audited slice acceptance handoff, or a Normal change that needs independent judgment or hits a verification blind spot",
+      "rigors": ["normal", "guarded", "audited"],
       "required_skills": [
-        {"name": "reviewer", "seat": "reviewer-subagent"},
-        {"name": "pua", "stage_card": "review-verdict", "seat": "reviewer-subagent", "applies_when": "guarded-or-audited"}
+        {"name": "reviewer", "seat": "reviewer-subagent", "roles": ["reviewer"]},
+        {"name": "pua", "stage_card": "review-verdict", "seat": "reviewer-subagent", "roles": ["reviewer"], "applies_when": "guarded-or-audited"}
       ],
       "reviewer": {
         "mode": "review",
         "contract": false,
         "dispatch": "capability-available-mandatory-for-guarded-audited-risk-triggered-for-normal",
+        "condition": {"rigors": ["guarded", "audited"], "optional_rigors": ["normal"], "dispatch": true, "mandatory": true, "blocking": false, "normal_trigger": "risk-triggered"},
         "scope": "current slice and affected scope; no reconcile/manifest/SI artifacts"
       },
       "ui_acceptance": "execute before the handoff: every required scenario covering this slice's affected interface outcomes must be passed (or reasoned not-applicable); controller loads computer-use and operates the UI, reviewer checks the recorded sidecar evidence",
@@ -63,79 +87,122 @@
     {
       "stage_id": "contract-release",
       "entry": "Audited contract release final audit",
+      "rigors": ["audited"],
       "required_skills": [
-        {"name": "contract-review", "seat": "controller"},
-        {"name": "reviewer", "seat": "reviewer-subagent"},
-        {"name": "pua", "stage_card": "contract-release", "seat": "varies"}
+        {"name": "contract-review", "seat": "controller", "roles": ["controller"]},
+        {"name": "reviewer", "seat": "reviewer-subagent", "roles": ["reviewer"]},
+        {"name": "pua", "stage_card": "contract-release", "seat": "varies", "roles": ["reviewer", "controller"]}
       ],
-      "reviewer": {"mode": "final-audit", "contract": true, "dispatch": "blocking"},
+      "reviewer": {
+        "mode": "final-audit",
+        "contract": true,
+        "dispatch": "blocking",
+        "condition": {"rigors": ["audited"], "dispatch": true, "mandatory": true, "blocking": true}
+      },
       "domain_skills": "select per contract boundary (migration, privacy, GUI, ...)"
     },
     {
       "stage_id": "plan-confirmation",
       "entry": "Audited PLAN handoff after compilation",
+      "rigors": ["audited"],
       "required_skills": [
-        {"name": "contract-review", "seat": "controller"},
-        {"name": "reviewer", "seat": "reviewer-subagent"},
-        {"name": "pua", "stage_card": "plan-confirmation", "seat": "varies"}
+        {"name": "contract-review", "seat": "controller", "roles": ["controller"]},
+        {"name": "reviewer", "seat": "reviewer-subagent", "roles": ["reviewer"]},
+        {"name": "pua", "stage_card": "plan-confirmation", "seat": "varies", "roles": ["reviewer", "controller"]}
       ],
-      "reviewer": {"mode": "review", "contract": true, "dispatch": "capability-available-mandatory"},
+      "reviewer": {
+        "mode": "review",
+        "contract": true,
+        "dispatch": "capability-available-mandatory",
+        "condition": {"rigors": ["audited"], "dispatch": true, "mandatory": true, "blocking": false}
+      },
       "domain_skills": "rare; only when the PLAN's own verification depends on one"
     },
     {
       "stage_id": "test-freeze",
       "entry": "Audited acceptance-test freeze before implementation",
+      "rigors": ["audited"],
       "required_skills": [
-        {"name": "test-author", "seat": "test-author-subagent"},
-        {"name": "pua", "stage_card": "test-freeze", "seat": "test-author-subagent"}
+        {"name": "test-author", "seat": "test-author-subagent", "roles": ["test-author"]},
+        {"name": "pua", "stage_card": "test-freeze", "seat": "test-author-subagent", "roles": ["test-author"]}
       ],
-      "reviewer": {"dispatch": "none-for-this-stage"},
+      "reviewer": {
+        "dispatch": "none-for-this-stage",
+        "condition": {"rigors": [], "dispatch": false, "mandatory": false, "blocking": false}
+      },
       "domain_skills": "select when writing the frozen tests requires a specialized capability; test-author's edit boundary unchanged"
     },
     {
       "stage_id": "step-verification",
       "entry": "Audited PLAN step execution and its verify-step gate",
+      "rigors": ["audited"],
       "required_skills": [
-        {"name": "step-executor", "seat": "step-executor-subagent"},
-        {"name": "pua", "stage_card": "step-verification", "seat": "step-executor-subagent"}
+        {"name": "step-executor", "seat": "step-executor-subagent", "roles": ["step-executor"]},
+        {"name": "pua", "stage_card": "step-verification", "seat": "step-executor-subagent", "roles": ["step-executor"]}
       ],
       "reviewer": {
         "mode": "review",
         "contract": true,
-        "dispatch": "per Audited gate (step review / converge-audit as applicable)"
+        "dispatch": "per Audited gate (step review / converge-audit as applicable)",
+        "condition": {"rigors": ["audited"], "dispatch": true, "mandatory": false, "blocking": false, "gate": "audited-step-or-converge"}
       },
       "domain_skills": "select per step technology; official V stays controller-owned"
     },
     {
       "stage_id": "slice-acceptance",
-      "entry": "Audited slice finish / SI handoff",
+      "entry": "Audited slice finish / SI handoff: converge-audit first, then the controller's slice-acceptance card before the owner decision",
+      "rigors": ["audited"],
       "required_skills": [
-        {"name": "construction", "seat": "controller"},
-        {"name": "reviewer", "seat": "reviewer-subagent"},
-        {"name": "pua", "stage_card": "slice-acceptance", "seat": "varies"}
+        {"name": "construction", "seat": "controller", "roles": ["controller"]},
+        {"name": "reviewer", "seat": "reviewer-subagent", "roles": ["reviewer"]},
+        {"name": "pua", "stage_card": "review-verdict", "seat": "reviewer-subagent", "roles": ["reviewer"], "applies_when": "audited"},
+        {"name": "pua", "stage_card": "slice-acceptance", "seat": "controller", "roles": ["controller"], "applies_when": "audited"}
       ],
-      "reviewer": {"mode": "converge-audit", "contract": true, "dispatch": "blocking"},
+      "reviewer": {
+        "mode": "converge-audit",
+        "contract": true,
+        "dispatch": "blocking",
+        "condition": {"rigors": ["audited"], "dispatch": true, "mandatory": true, "blocking": true},
+        "scope": "reconcile-bound converge audit of the finished slice; the reviewer executes the review-verdict card; the controller separately executes the slice-acceptance card before the owner decision"
+      },
       "ui_acceptance": "Audited slices with interface boundaries bind scenario execution to the slice's V/acceptance evidence; owner acceptance of the observed UI journey is never delegated",
       "domain_skills": "select per slice boundary; owner acceptance never delegated"
     },
     {
       "stage_id": "goal-finish",
       "entry": "whole-goal finish check before finish-goal (all rigor modes)",
+      "rigors": ["normal", "guarded", "audited"],
       "required_skills": [
-        {"name": "mvp-delivery", "seat": "controller"},
-        {"name": "reviewer", "seat": "reviewer-subagent"},
-        {"name": "pua", "stage_card": "goal-finish", "seat": "varies"}
+        {"name": "mvp-delivery", "seat": "controller", "roles": ["controller"]},
+        {"name": "reviewer", "seat": "reviewer-subagent", "roles": ["reviewer"]},
+        {"name": "pua", "stage_card": "goal-finish", "seat": "varies", "roles": ["reviewer", "controller"], "applies_when": "audited"}
       ],
       "reviewer": {
         "mode": "review",
         "contract": false,
-        "dispatch": "capability-available-mandatory",
+        "dispatch": "capability-available-mandatory-for-guarded-audited-risk-triggered-for-normal",
+        "condition": {"rigors": ["guarded", "audited"], "optional_rigors": ["normal"], "dispatch": true, "mandatory": true, "blocking": false, "normal_trigger": "risk-triggered"},
         "scope": "original request/every brief BS, whole goal, deferred work, real user-entry journeys; a clean slice audit never substitutes"
       },
       "ui_acceptance": "final recheck: the delivered artifact identity must match the sidecar binding; re-execute scenarios invalidated by late changes; ui-gate must pass before finish-goal under runtime-policy/1",
       "domain_skills": "select for the final integrated verification boundary (GUI, browser, data, security, ...)"
     }
   ],
+  "seat_selection": {
+    "note": "Authoritative Audited implementation-seat table. profile direct -> controller; full -> step-executor; light + autonomous -> controller; light + checkpoints/stepwise -> step-executor. The table in subagent-orchestration.md is the human-readable copy and must agree with this block.",
+    "audited_implementation": [
+      {"profile": "direct", "interaction": "any", "seat": "controller"},
+      {"profile": "full", "interaction": "any", "seat": "step-executor"},
+      {"profile": "light", "interaction": "autonomous", "seat": "controller"},
+      {"profile": "light", "interaction": "checkpoints", "seat": "step-executor"},
+      {"profile": "light", "interaction": "stepwise", "seat": "step-executor"}
+    ]
+  },
+  "pua_conditions": {
+    "guarded-or-audited": ["guarded", "audited"],
+    "audited": ["audited"],
+    "unknown-rigor": "fail-closed: a missing rigor cannot exempt a guarded-or-audited card"
+  },
   "ui_acceptance": {
     "capability": "computer-use (controller-operated; browser backend preferred for web-only journeys, desktop MCP for native boundaries)",
     "sidecar": ".opencode/mvp/<goal-slug>.ui-acceptance.json (schema ui-acceptance/1, see computer-use/references/ui-acceptance-protocol.md)",

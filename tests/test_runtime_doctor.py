@@ -138,6 +138,52 @@ class FreshnessTests(unittest.TestCase):
         static = check_runtime.static_doctor(project, False)
         self.assertEqual(static["skills_freshness"]["status"], "drift")
 
+    def test_freshness_drift_is_diagnostic_unless_requested(self):
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: __import__("shutil").rmtree(tmp, ignore_errors=True))
+        project = tmp / "proj"
+        manifest = project / ".opencode" / "workflow" / "install-manifest.json"
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text(json.dumps({
+            "files": {},
+            "install_mode": "live-paths",
+            "skills": {"demo": {"path": (project / "missing").as_posix(), "algorithm": "tree-sha256/1", "sha256": "0" * 64}},
+        }), encoding="utf-8")
+        static = check_runtime.static_doctor(project, False)
+        report = {"static": static}
+        self.assertEqual(check_runtime.strict_problems(report), [])
+        self.assertTrue(check_runtime.strict_problems(report, strict_freshness=True))
+
+    def test_manifest_without_fingerprints_is_not_reported_fresh(self):
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: __import__("shutil").rmtree(tmp, ignore_errors=True))
+        project = tmp / "proj"
+        manifest = project / ".opencode" / "workflow" / "install-manifest.json"
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text(json.dumps({"files": {}, "install_mode": "live-paths"}), encoding="utf-8")
+        static = check_runtime.static_doctor(project, False)
+        self.assertEqual(static["skills_freshness"]["status"], "not-checked")
+
+    def test_installed_file_change_is_detected(self):
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: __import__("shutil").rmtree(tmp, ignore_errors=True))
+        project = tmp / "proj"
+        engine = project / ".opencode" / "workflow" / "scripts"
+        engine.mkdir(parents=True)
+        installed = engine / "check.py"
+        installed.write_text("# engine\n", encoding="utf-8")
+        digest = hashlib.sha256(installed.read_bytes()).hexdigest()
+        manifest = project / ".opencode" / "workflow" / "install-manifest.json"
+        manifest.write_text(json.dumps({"files": {"scripts/check.py": digest}, "install_mode": "live-paths"}), encoding="utf-8")
+        static = check_runtime.static_doctor(project, False)
+        self.assertEqual(static["installed_integrity"]["status"], "ok")
+        installed.write_text("# tampered\n", encoding="utf-8")
+        static = check_runtime.static_doctor(project, False)
+        self.assertEqual(static["installed_integrity"]["status"], "problems")
+        self.assertTrue(
+            any("installed scripts/check.py" in problem for problem in check_runtime.strict_problems({"static": static}))
+        )
+
 
 class CommandsOnlyTests(unittest.TestCase):
     def setUp(self):
@@ -149,7 +195,10 @@ class CommandsOnlyTests(unittest.TestCase):
             ".opencode/agents/mvp-worker.md": "agent\n",
             "scripts/check.py": "# check\n",
             "scripts/runtime_trace.py": "# trace\n",
+            "scripts/workflow_protocol.py": "# protocol\n",
+            "scripts/worktree_tasks.py": "# worktrees\n",
             "scripts/check_runtime.py": "# doctor\n",
+            "mvp-delivery/references/stage-routing.json": '{"schema_version": 2, "stages": [], "seat_selection": {}}\n',
             "tests/final_review.py": "# review\n",
             "tests/fixtures/example.md": "fixture\n",
             "demo/SKILL.md": "---\nname: demo\ndescription: Demo\n---\n",
@@ -188,8 +237,10 @@ class CommandsOnlyTests(unittest.TestCase):
         self.assertIn("scripts/check.py", manifest["files"])
         self.assertIn("agents/mvp-worker.md", manifest["files"])
         self.assertIn("demo", manifest["skills"])
-        for relative in ("scripts/check.py", "scripts/runtime_trace.py", "scripts/check_runtime.py"):
+        for relative in ("scripts/check.py", "scripts/runtime_trace.py", "scripts/workflow_protocol.py",
+                         "scripts/worktree_tasks.py", "scripts/check_runtime.py"):
             self.assertTrue((self.target / ".opencode" / "workflow" / relative).is_file(), relative)
+        self.assertTrue((self.target / ".opencode" / "workflow" / "stage-routing.json").is_file())
         self.assertTrue((self.target / ".opencode" / "agents" / "mvp-worker.md").is_file())
 
 

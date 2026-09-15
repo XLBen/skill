@@ -107,7 +107,7 @@ not infer a new product requirement from implementation code.
 ## PUA Acceptance: `test-freeze`
 
 Before returning the manifest, load `../pua/SKILL.md` and execute the
-`test-freeze` card in `../pua/references/stage-checks.md`. Ask “永远绿的测试
+`test-freeze` card in `../pua/references/stage-checks/05-test-freeze.md`. Ask “永远绿的测试
 也是交付？” against each critical scenario. Check behavior-red versus
 baseline-green classification, content/state assertions, real-boundary policy,
 actual scenario execution and protected hashes. Return the structured PUA result
@@ -132,7 +132,7 @@ or skipped scenario into a passing freeze.
     `docs/audit-slices/<goal-slug>/<slice-id>/test-manifests/<slice-id>.md`;
     legacy runs keep the root `docs/test-manifests/<slice-id>.md`. Do not
     recompute or override the path yourself; if no manifest path was supplied,
-    return needs_context instead of guessing a location. Include the
+    return `needs_input` instead of guessing a location. Include the
     specification source/hash, scenarios, test paths/hashes,
     `test_author_id`, classified pre-change evidence, allowed implementation
     write set, and a `frozen_at` timestamp.
@@ -186,22 +186,31 @@ but acceptance settings and actual scenario execution must be revalidated.
 
 ## Handoff
 
-Return a structured summary containing:
+按 `../mvp-delivery/references/subagent-templates.md` 的 `TASK_RESULT` 外壳返回
+（task_id、attempt、role、phase、status、summary、changes、evidence、
+not_verified、issues、controller_actions、next_context）。
+
+- 第一轮 bootstrap：`phase: bootstrap`、`status: completed`，只回报席位已加载、
+  固定规格已确认、未写测试或 manifest；不要求 manifest 字段，也不需要 pre-change
+  证据。主控从 task 工具结果记录真实 `test_author_id` 后 resume 同一席位。
+- 第二轮 `phase: work`：交回以下 payload；evidence 必须包含 per-scenario 的
+  pre-change 结果，not_verified 列出未覆盖场景。
 
 ```text
-TEST_AUTHOR_HANDOFF
-slice: <slice/SI ID>
-spec_hash: <hash>
-test_author_id: <ID>
-manifest: <path>
-protected_acceptance: <tests and relevant support path=hash list>
-expected_scenarios: <critical IDs and boundary/mock policy>
-pre_change_command: <exact command>
-pre_change_result: <per-scenario targeted behavior-red or regression baseline-green>
-pre_change_output_hash: <hash>
-implementation_write_set: <paths>
-pua_result: <[PUA-ACCEPTANCE] block from the test-freeze card>
-blockers: <none or concrete issue>
+payload:
+  TEST_AUTHOR_HANDOFF
+  slice: <slice/SI ID>
+  spec_hash: <hash>
+  test_author_id: <ID>
+  manifest: <path>
+  protected_acceptance: <tests and relevant support path=hash list>
+  expected_scenarios: <critical IDs and boundary/mock policy>
+  pre_change_command: <exact command>
+  pre_change_result: <per-scenario targeted behavior-red or regression baseline-green>
+  pre_change_output_hash: <hash>
+  implementation_write_set: <paths>
+  pua_result: <[PUA-ACCEPTANCE] block from the test-freeze card>
+  blockers: <none or concrete issue>
 ```
 
 The construction controller must pass the manifest and protected write set to

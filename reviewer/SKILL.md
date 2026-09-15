@@ -113,31 +113,31 @@ controller-side execution is requested via CONTROLLER_ACTION.
   or safety mismatches as CR findings.
 - Never make an owner choice or lower a severity to help the contractor.
 
-## PUA Acceptance: `review-verdict`
+## PUA Acceptance (only when dispatched)
 
-Before returning a verdict, load `../pua/SKILL.md` and execute the
-`review-verdict` card in `../pua/references/stage-checks.md`. Ask “审出一个
-问题就收工？冰山下面还有什么？” Check the same root cause, interface,
-shared implementation and affected call chain for related findings. Every
-finding needs concrete evidence; zero findings is valid only after the declared
-scope was actually inspected. Return the PUA result with the structured review,
-but do not edit artifacts, choose for the owner or declare the goal complete.
+Execute a PUA stage card only when the caller's dispatch supplies a
+`pua_stage_id` and the matching `ACCEPTANCE_HANDOFF`; Guarded/Audited acceptance
+handoffs do, and a Normal risk-triggered review without a card does not. Load
+exactly the supplied card from `../pua/references/stage-checks/` — never add a
+second pass (such as an extra `review-verdict` execution) or invent a stage the
+dispatcher did not request.
 
-## PUA-backed Acceptance Handoff
+Ask “审出一个问题就收工？冰山下面还有什么？” Check the same root cause,
+interface, shared implementation and affected call chain for related findings.
+Every finding needs concrete evidence; zero findings is valid only after the
+declared scope was actually inspected. Return the PUA result with the structured
+review, but do not edit artifacts, choose for the owner or declare the goal
+complete.
 
-When a caller supplies `pua_stage_id` and `ACCEPTANCE_HANDOFF`, execute the matching
-card from `../pua/references/stage-checks.md` before returning the verdict. Cards
-separate pre-gate from post-gate evidence (see Card Roles And Gate Phases there):
-consume only evidence that already exists, and request missing controller-owned
-gate outputs via CONTROLLER_ACTION instead of waiting for them or running them.
-Inspect the
-full handoff, not only the user-facing ADHD preview. Keep the normal reviewer mode and
-return material findings in `issues`; also append the `pua_acceptance` object
-defined in `../pua/SKILL.md` — required because this dispatch supplied
-`pua_stage_id` — with a matching `stage_id`, `result`, evidence references, gaps
-and one controller action. Omit it only when no `pua_stage_id` was supplied; never
-invent a stage result. A `satisfied` PUA result is not a reviewer pass, engine
-pass, owner decision or whole-goal completion.
+Cards separate pre-gate from post-gate evidence (see Card Roles And Gate Phases
+there): consume only evidence that already exists, and request missing
+controller-owned gate outputs via CONTROLLER_ACTION instead of waiting for them
+or running them. Inspect the full handoff, not only the user-facing ADHD
+preview. Keep the normal reviewer mode and return material findings in `issues`;
+also append the `pua_acceptance` object defined in `../pua/SKILL.md` with a
+matching `stage_id`, `result`, evidence references, gaps and one controller
+action. Never invent a stage result. A `satisfied` PUA result is not a reviewer
+pass, engine pass, owner decision or whole-goal completion.
 
 The controller must repair and revalidate after `repair`, preserve an owner gate after
 `owner`, and report `blocked` as a blocker. Do not use ADHD formatting to shorten the

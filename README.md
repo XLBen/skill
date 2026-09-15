@@ -62,8 +62,10 @@
 切片，验证后重新对照原始结果清单，再自动进入下一片，直到目标全部完成或出现
 必须由用户决定的阻塞。
 
-所有任务使用 `.opencode/mvp/<goal>.md` 的 schema-1 `json goal` 保存目标和验证状态，
-结果数量不设上限。运行态（当前切片强度、派发记录、失败计数与验收裁决）保存在
+所有被跟踪的任务使用 `.opencode/mvp/<goal>.md` 的 schema-1 `json goal` 保存目标和验证状态，
+结果数量不设上限。单次、有界、无需跨会话恢复的 Normal 任务可以无卡执行
+（无 goal 卡、无 dispatch record、无 verify-goal/finish-goal gate），此时证据
+保存在当次会话与交付报告中，且不能声称持久 `/resume` 支持。运行态（当前切片强度、派发记录、失败计数与验收裁决）保存在
 同目录的 `<goal>.dispatch.json`（schema 2），goal JSON 保持纯定义。brief 输入在所有风险档都必须 final、owner-confirmed 并通过
 `brief` 校验，且每个 brief ID 都有 coverage。所有 `kind: success`（BS）只能映射为
 `outcome`，不能用 constraint/deferred/non-goal/rejected 隐藏必需成功；其它类型保留
@@ -146,6 +148,15 @@ agents 才提供真实独立 session。需要作者隔离但子代理能力不�
 independence unavailable 并阻断 Audited release，不能用 waiver 冒充独立评审；
 Normal/Guarded 可在明确披露后由主控降级执行。ID 只是声明，没有密码学身份验证。
 
+## 并发与交回
+
+子代理统一返回 `TASK_RESULT`（schema `task-result/1`）公共外壳，角色专用内容放在
+`payload`；主控按字段校验，并按稳定的 `action_id` 去重 CONTROLLER_ACTION，未决或
+状态未知的动作不会被自动重放。Normal/Guarded 的独立工作包可在 Git worktree 中并行
+写入：`scripts/worktree_tasks.py` 负责准入检查、建立、收集实际改动、`write_scope`
+越界核对、补丁预检/集成和清理；共享工作区仍只有一个写入者，所有任务集成后对最终
+稳定版本统一验证。Audited 严格步骤沿用既有执行语义，不进入该分支。
+
 ## 安装
 
 需要 Python 3.10+。在本仓库根目录运行：
@@ -155,9 +166,11 @@ python scripts/install.py "E:/path/to/target-project"
 ```
 
 安装器会复制五个 command wrapper、五个子代理定义（`.opencode/agents/`）、校验
-引擎与运行时工具（`check.py`、`runtime_trace.py`、`check_runtime.py`），在
-manifest 中记录 skills 指纹（供 doctor 检测 skill 文本更新后 engine/agents
-未同步的漂移），并在 `opencode.json` 分别注册本仓库当前顶层 skill 目录，避免扫描 `validation/` 的冻结旧版同名 skill。升级时替换原先
+引擎与运行时工具（`check.py`、`runtime_trace.py`、`check_runtime.py`、
+`workflow_protocol.py`、`worktree_tasks.py`）以及 `stage-routing.json`，在
+manifest 中记录 skills 指纹与已安装文件摘要（供 doctor 检测 skill 文本更新
+或安装副本被改动后的漂移），并在 `opencode.json` 分别注册本仓库当前顶层
+skill 目录，避免扫描 `validation/` 的冻结旧版同名 skill。升级时替换原先
 精确匹配的仓库根 skills path，保留其他配置。旧命令仍未被本地修改时会删除；本地改过的旧命令会保留并提示，
 显式使用 `--force` 才会移除。
 
@@ -181,10 +194,17 @@ skill 后必须重启 OpenCode。
 python scripts/check.py --selftest
 python -B -m unittest discover -s tests -p "test_*.py"
 python scripts/check_runtime.py doctor <target-project>   # 静态+宿主能力诊断
-python scripts/check_runtime.py doctor <target-project> --strict  # 问题或漂移时退出码 3
+python scripts/check_runtime.py doctor <target-project> --strict  # 静态问题或安装副本被改动时退出码 3
+python scripts/check_runtime.py doctor <target-project> --strict --strict-freshness  # 额外把 skill 源树漂移视为失败
 python scripts/runtime_trace.py export <target-project> --out trace.json
 python scripts/runtime_trace.py validate trace.json --dispatch <goal>.dispatch.json
+python .opencode/workflow/scripts/check.py check-current .opencode/mvp/<goal>.md  # 只读检查已完成卡的证据是否仍对应当前工作区
 ```
+
+skill 源树 freshness 默认只是诊断：纯文档改动不会阻塞 `--strict`；已安装引擎/
+agents 副本与 manifest 摘要不符会阻塞。需要把源树漂移也当作失败时加
+`--strict-freshness`。已完成卡重复运行 `finish-goal` 只代表“历史上已完成”，
+不会重新核验当前工作区；需要当前状态时运行 `check-current`。
 
 运行时门禁（可选启用）：在目标项目 `.opencode/mvp/runtime-policy.json` 写
 `{"schema": "runtime-policy/1", "goals": "all"}` 后，`finish-goal` 会要求

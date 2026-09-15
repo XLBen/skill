@@ -215,6 +215,44 @@ class GoalValidationTests(unittest.TestCase):
         self.assertIn("goal source brief requires owner confirmation", errors)
 
 
+class EvidenceBundleHashTests(unittest.TestCase):
+    """v0.2 drops the per-E self digest; legacy keeps it; a present one is checked."""
+
+    def setUp(self):
+        _, self.contract = check.read_artifact(ROOT / "tests/fixtures/contract-valid.md", "contract")
+        self.e_node = {
+            "id": "E-01", "status": "active", "supersedes": [], "superseded_by": [],
+            "scope": "local", "claim": "fixture probe", "kind": "probe",
+            "source": "user-direct", "checked_at": "2026-01-01T00:00:00Z",
+            "environment": "test", "command": "python -c pass", "inputs": [],
+            "output_summary": "ok", "verdict": "passed",
+        }
+
+    def _contract_with(self, node):
+        contract = copy.deepcopy(self.contract)
+        contract["nodes"]["E"] = [copy.deepcopy(node)]
+        return contract
+
+    def test_v02_e_node_does_not_require_bundle_hash(self):
+        contract = self._contract_with(self.e_node)
+        contract["workflow_protocol"] = "v0.2"
+        problems = check.validate_contract(contract)
+        self.assertFalse(any("bundle_hash" in problem for problem in problems), problems)
+
+    def test_legacy_e_node_still_requires_bundle_hash(self):
+        contract = self._contract_with(self.e_node)
+        problems = check.validate_contract(contract)
+        self.assertTrue(any("bundle_hash" in problem for problem in problems), problems)
+
+    def test_present_bundle_hash_is_still_verified_in_v02(self):
+        node = dict(self.e_node)
+        node["bundle_hash"] = "0" * 64
+        contract = self._contract_with(node)
+        contract["workflow_protocol"] = "v0.2"
+        problems = check.validate_contract(contract)
+        self.assertTrue(any("bundle_hash mismatch" in problem for problem in problems), problems)
+
+
 class InstalledWorkflowTests(unittest.TestCase):
     def test_installed_engine_validates_drafts_and_runs_selftest(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -9,9 +9,11 @@ maintainer records, then reproducible experiments. Secondary sources locate
 primary evidence but do not settle a critical claim.
 
 An E node records claim, source revision, checked time, environment, command,
-fixed inputs, output summary, verdict, redaction metadata, and a mandatory
-`bundle_hash`. Prototype code is excluded from production unless separately
-adopted, but its reproducibility bundle remains available for audit.
+fixed inputs, output summary, verdict, redaction metadata, and — mandatory for
+legacy/v0.1 contracts, optional (but still verified when present) for
+`workflow_protocol: v0.2` — a `bundle_hash`. Prototype code is excluded from
+production unless separately adopted, but its reproducibility bundle remains
+available for audit.
 
 ## Phase 0 Evidence
 

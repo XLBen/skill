@@ -90,7 +90,8 @@ Canonical JSON is UTF-8, sorted object keys, no insignificant whitespace,
 JSON booleans/null, ordered arrays, and no NaN/Infinity. `contract_hash` is
 excluded from the projection. Referenced evidence requires `bundle_hash`,
 computed with domain `evidence-bundle` over the evidence node excluding
-that field.
+that field. For `workflow_protocol: v0.2` contracts the field is optional
+(a present hash is still verified); legacy/v0.1 contracts keep requiring it.
 
 Requirement brief hashes use domain `requirement-brief` over the authoritative
 `json brief` block. A grilled contract stores that hash inside canonical

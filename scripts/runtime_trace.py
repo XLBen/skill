@@ -47,14 +47,51 @@ ROLE_REQUIRED_SKILLS = {
     "test-author": ["test-author"],
     "step-executor": ["step-executor"],
 }
-PUA_REQUIRING_ROLES = {"reviewer"}  # reviewer executes its stage card itself
 INDEPENDENCE_ROLES = {"reviewer", "test-author", "step-executor"}
 FALLBACK_ALLOWED_ROLES = {"research", "worker"}
 KNOWN_TASK_ROLES = {"research", "worker", "reviewer", "test-author", "step-executor"}
 KNOWN_TASK_STATUS = {"pending", "dispatched", "done", "failed", "skipped"}
+KNOWN_TASK_RESULT_STATUS = {"completed", "needs_input", "waiting_controller", "blocked", "failed"}
+KNOWN_ACTION_STATUS = {"requested", "running", "completed", "failed", "unknown"}
 BUILTIN_AGENT_FALLBACKS = {"general", "explore", "scout"}
 SKIP_WHITELIST = {"mechanical-batch", "capability-unavailable"}
 TASK_CHILD_RE = re.compile(r'<task id="(ses_[A-Za-z0-9]+)"')
+
+try:
+    import workflow_protocol as _protocol
+except ImportError as _exc:  # pragma: no cover - engine copied without the resolver
+    _protocol = None
+    _PROTOCOL_IMPORT_ERROR = str(_exc)
+else:
+    _PROTOCOL_IMPORT_ERROR = ""
+
+_ROUTING_CACHE: dict[str, Any] | None = None
+
+
+def _routing() -> dict[str, Any] | None:
+    """Load the stage-routing authority, or None when it is unavailable.
+
+    A missing routing table fails closed for guarded-or-audited PUA cards via
+    the unknown-rigor rule, never by silently exempting a seat."""
+
+    global _ROUTING_CACHE
+    if _protocol is None:
+        return None
+    if _ROUTING_CACHE is None:
+        try:
+            _ROUTING_CACHE = _protocol.load_routing()
+        except _protocol.ProtocolError:
+            _ROUTING_CACHE = {}
+    return _ROUTING_CACHE or None
+
+
+def pua_required_for_role(role: str, rigor: str | None) -> bool:
+    routing = _routing()
+    if routing is None or _protocol is None:
+        # No routing authority available: keep the previous fail-closed
+        # minimum (independence reviewer seats load their stage card).
+        return role in ("reviewer", "test-author", "step-executor")
+    return _protocol.pua_required_for_role(routing, role, rigor)
 
 
 def trace_provenance(trace: dict[str, Any]) -> str:
@@ -197,7 +234,9 @@ def verify_native_trace(trace: dict[str, Any]) -> list[str]:
     return problems
 
 
-def reviewer_result_problems(task_id: str, task: dict[str, Any], base_dir: Path | None) -> list[str]:
+def reviewer_result_problems(
+    task_id: str, task: dict[str, Any], base_dir: Path | None, declared_stage: str | None = None
+) -> list[str]:
     """Verify that a claimed satisfied reviewer verdict is backed by the raw return."""
 
     problems: list[str] = []
@@ -213,6 +252,11 @@ def reviewer_result_problems(task_id: str, task: dict[str, Any], base_dir: Path 
     if not isinstance(data, dict) or not data.get("mode") or not isinstance(data.get("issues"), list):
         problems.append(f"task {task_id}: reviewer result_ref is not a structured review payload")
         return problems
+    envelope_status = data.get("status")
+    if envelope_status is not None and envelope_status not in KNOWN_TASK_RESULT_STATUS:
+        problems.append(
+            f"task {task_id}: reviewer return has invalid envelope status {envelope_status!r}"
+        )
     if data["issues"]:
         problems.append(
             f"task {task_id}: dispatch claims satisfied but the reviewer return has "
@@ -221,6 +265,17 @@ def reviewer_result_problems(task_id: str, task: dict[str, Any], base_dir: Path 
     if not isinstance(data.get("checked_scope"), list) or not isinstance(data.get("not_checked"), list):
         problems.append(f"task {task_id}: reviewer return must declare checked_scope and not_checked")
     pua = data.get("pua_acceptance")
+    if declared_stage:
+        if not isinstance(pua, dict):
+            problems.append(
+                f"task {task_id}: dispatch declares pua_stage_id {declared_stage!r} but the "
+                "reviewer return has no pua_acceptance"
+            )
+        elif pua.get("stage_id") != declared_stage:
+            problems.append(
+                f"task {task_id}: pua_acceptance stage_id {pua.get('stage_id')!r} does not match "
+                f"the dispatch's pua_stage_id {declared_stage!r}"
+            )
     if isinstance(pua, dict) and pua.get("result") not in (None, "satisfied"):
         problems.append(
             f"task {task_id}: dispatch claims satisfied but pua_acceptance result is {pua.get('result')!r}"
@@ -424,12 +479,16 @@ def load_dispatch(path: Path) -> dict[str, Any]:
 
 
 def validate_chain(trace: dict[str, Any], dispatch: dict[str, Any], policy: dict[str, Any] | None,
-                   base_dir: Path | None = None, rigor: str | None = None) -> list[str]:
+                   base_dir: Path | None = None, rigor: str | None = None,
+                   goal_rigor: str | None = None) -> list[str]:
     """Validate a dispatch claim against a native trace. Fail-closed.
 
-    Every done dispatch must be linked to a real task tool event for its
-    claimed child session, a satisfied reviewer verdict must be backed by the
-    raw reviewer return, and only native traces can pass."""
+    `rigor` is the active slice's rigor (falling back to the goal's when the
+    dispatch record does not carry one); `goal_rigor` is the cumulative goal
+    rigor used for downgrade policy. Every done dispatch must be linked to a
+    real task tool event for its claimed child session, a satisfied reviewer
+    verdict must be backed by the raw reviewer return, and only native traces
+    can pass."""
 
     failures: list[str] = []
     if trace.get("truncated"):
@@ -440,7 +499,8 @@ def validate_chain(trace: dict[str, Any], dispatch: dict[str, Any], policy: dict
             "runtime trace has no verified native provenance (hand-written or imported "
             "evidence cannot pass the runtime gate); re-export from the local session store"
         )
-    if (policy or {}).get("allow_independence_downgrade") and rigor == "audited":
+    effective_goal_rigor = goal_rigor if goal_rigor is not None else rigor
+    if (policy or {}).get("allow_independence_downgrade") and effective_goal_rigor == "audited":
         failures.append("policy: allow_independence_downgrade cannot apply to an audited goal")
 
     sessions = {s["id"]: s for s in trace["sessions"] if isinstance(s, dict) and s.get("id")}
@@ -474,6 +534,38 @@ def validate_chain(trace: dict[str, Any], dispatch: dict[str, Any], policy: dict
         if status not in KNOWN_TASK_STATUS:
             failures.append(f"task {tid}: invalid status {status!r}")
             continue
+        actions = task.get("actions")
+        if actions is not None:
+            if not isinstance(actions, list):
+                failures.append(f"task {tid}: actions must be a list")
+            else:
+                seen_actions: set[str] = set()
+                for action in actions:
+                    if not isinstance(action, dict):
+                        failures.append(f"task {tid}: action entry is not an object")
+                        continue
+                    action_id = action.get("action_id")
+                    if not isinstance(action_id, str) or not action_id:
+                        failures.append(f"task {tid}: action entry missing string action_id")
+                        continue
+                    if action_id in seen_actions:
+                        failures.append(f"task {tid}: duplicate action_id {action_id}")
+                    seen_actions.add(action_id)
+                    action_status = action.get("status")
+                    if action_status not in KNOWN_ACTION_STATUS:
+                        failures.append(
+                            f"task {tid}: action {action_id} invalid status {action_status!r}"
+                        )
+                        continue
+                    if action_status == "completed" and not action.get("evidence_ref"):
+                        failures.append(
+                            f"task {tid}: completed action {action_id} lacks evidence_ref"
+                        )
+                    if action_status in ("requested", "running", "failed", "unknown"):
+                        failures.append(
+                            f"task {tid}: action {action_id} is {action_status}; "
+                            "resolve it before completion"
+                        )
         prov = task.get("provenance") or {}
         claimed_session = prov.get("session_id")
         claimed_agent = prov.get("agent")
@@ -562,7 +654,12 @@ def validate_chain(trace: dict[str, Any], dispatch: dict[str, Any], policy: dict
                                 f"provenance.agent {claimed_agent!r}"
                             )
                 required = list(ROLE_REQUIRED_SKILLS[role])
-                if role in PUA_REQUIRING_ROLES:
+                declared_stage = task.get("pua_stage_id")
+                if not isinstance(declared_stage, str) or not declared_stage.strip():
+                    declared_stage = None
+                if pua_required_for_role(role, rigor):
+                    required.append("pua")
+                elif declared_stage and "pua" not in required:
                     required.append("pua")
                 loaded = skill_ok.get(claimed_session, set())
                 for skill in required:
@@ -580,7 +677,7 @@ def validate_chain(trace: dict[str, Any], dispatch: dict[str, Any], policy: dict
         if verdict in ("owner", "blocked") and acc.get("pending_actions"):
             failures.append(f"task {tid}: unresolved {verdict} pending actions {acc['pending_actions']}")
         if role == "reviewer" and status == "done" and verdict == "satisfied":
-            failures.extend(reviewer_result_problems(tid, task, base_dir))
+            failures.extend(reviewer_result_problems(tid, task, base_dir, declared_stage))
 
     for reviewer in reviewer_sessions:
         parent = (sessions.get(reviewer) or {}).get("parent_id")
@@ -684,7 +781,12 @@ def main(argv: list[str] | None = None) -> int:
     except TraceValidationError as exc:
         print(f"INVALID: {exc}", file=sys.stderr)
         return 2
-    failures = verify_native_trace(trace) + validate_chain(trace, dispatch, policy)
+    slice_rigor = (dispatch.get("active_slice") or {}).get("rigor")
+    if slice_rigor not in ("normal", "guarded", "audited"):
+        slice_rigor = None
+    failures = verify_native_trace(trace) + validate_chain(
+        trace, dispatch, policy, rigor=slice_rigor
+    )
     if args.report:
         Path(args.report).parent.mkdir(parents=True, exist_ok=True)
         Path(args.report).write_text(

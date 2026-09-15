@@ -36,8 +36,10 @@ class AdhdIntegrationTests(unittest.TestCase):
         self.assertIn('"result": "satisfied|repair|owner|blocked"', pua)
         self.assertIn("acceptance-item", protocol)
         stage_checks = (ROOT / "pua/references/stage-checks.md").read_text(encoding="utf-8")
-        self.assertIn("not-applicable", stage_checks)
-        self.assertIn("无契约 Normal/Guarded handoff", stage_checks)
+        self.assertIn("Cross-Stage Branches", stage_checks)
+        review_card = (ROOT / "pua/references/stage-checks/08-review-verdict.md").read_text(encoding="utf-8")
+        self.assertIn("not-applicable", review_card)
+        self.assertIn("无契约 Normal/Guarded handoff", review_card)
 
     def test_converge_review_precedes_slice_owner_acceptance(self):
         construction = (ROOT / "construction/SKILL.md").read_text(encoding="utf-8")

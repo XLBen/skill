@@ -420,6 +420,7 @@ def static_doctor(project: Path, fetch_schema: bool) -> dict[str, Any]:
             break
 
     skills_freshness = None
+    installed_integrity = None
     if manifest and isinstance(manifest.get("data"), dict):
         recorded = manifest["data"].get("skills")
         if isinstance(recorded, dict) and recorded:
@@ -448,6 +449,32 @@ def static_doctor(project: Path, fetch_schema: bool) -> dict[str, Any]:
                         }
                     )
             skills_freshness = {"status": "ok" if not stale else "drift", "stale": stale}
+        else:
+            skills_freshness = {
+                "status": "not-checked",
+                "reason": "manifest records no skill fingerprints; freshness was not verified",
+            }
+        files = manifest["data"].get("files")
+        if isinstance(files, dict):
+            changed = []
+            for key, expected in sorted(files.items()):
+                if not isinstance(expected, str):
+                    continue
+                if key.startswith(("commands/", "agents/")):
+                    target = project / ".opencode" / key
+                else:
+                    target = project / ".opencode" / "workflow" / key
+                try:
+                    actual = hashlib.sha256(target.read_bytes()).hexdigest()  # noqa: S324
+                except OSError:
+                    changed.append({"file": key, "issue": "installed file is missing"})
+                    continue
+                if actual != expected:
+                    changed.append({"file": key, "issue": "installed file changed after install"})
+            installed_integrity = {
+                "status": "ok" if not changed else "problems",
+                "files": changed,
+            }
 
     return {
         "dimension": "INSTALL_STATIC",
@@ -465,6 +492,7 @@ def static_doctor(project: Path, fetch_schema: bool) -> dict[str, Any]:
         "commands": commands,
         "install_manifest": manifest,
         "skills_freshness": skills_freshness,
+        "installed_integrity": installed_integrity,
     }
 
 
@@ -701,7 +729,16 @@ def cross_check(static: dict[str, Any], host: dict[str, Any]) -> list[dict[str, 
             {
                 "check": "INSTALL_FRESHNESS",
                 "verdict": freshness["status"],
-                "detail": freshness["stale"],
+                "detail": freshness.get("stale") or freshness.get("reason"),
+            }
+        )
+    integrity = static.get("installed_integrity")
+    if integrity:
+        findings.append(
+            {
+                "check": "INSTALL_INTEGRITY",
+                "verdict": integrity["status"],
+                "detail": integrity["files"],
             }
         )
     return findings
@@ -734,8 +771,12 @@ def human_summary(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def strict_problems(report: dict[str, Any]) -> list[str]:
-    """Machine-actionable problems for --strict; diagnosis mode always exits 0."""
+def strict_problems(report: dict[str, Any], strict_freshness: bool = False) -> list[str]:
+    """Machine-actionable problems for --strict; diagnosis mode always exits 0.
+
+    Installed-file integrity problems always fail. Skill-tree freshness drift is
+    a diagnostic by default and only fails with `--strict-freshness`, because a
+    doc-only edit should not block on a source-tree fingerprint."""
 
     problems: list[str] = []
     static = report.get("static")
@@ -750,8 +791,14 @@ def strict_problems(report: dict[str, Any]) -> list[str]:
         for entry in static.get("agents_expected") or []:
             if entry.get("source") in relevant_agent_sources:
                 problems += [f"agent {entry['name']}: {problem}" for problem in entry.get("problems") or []]
+        integrity = static.get("installed_integrity")
+        if isinstance(integrity, dict) and integrity.get("status") != "ok":
+            problems += [
+                f"installed {item['file']}: {item['issue']}"
+                for item in integrity.get("files") or []
+            ]
         freshness = static.get("skills_freshness")
-        if isinstance(freshness, dict) and freshness.get("status") != "ok":
+        if strict_freshness and isinstance(freshness, dict) and freshness.get("status") == "drift":
             problems.append("skill freshness drift; re-run install.py")
     host = report.get("host")
     if isinstance(host, dict):
@@ -772,7 +819,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--lookback-days", type=int, default=None)
     parser.add_argument("--fetch-schema", action="store_true", help="validate config keys against the live schema URL")
     parser.add_argument("--json", help="also write the JSON report to this file")
-    parser.add_argument("--strict", action="store_true", help="exit nonzero when static problems or skill drift are found")
+    parser.add_argument("--strict", action="store_true", help="exit nonzero when static problems or installed-integrity problems are found")
+    parser.add_argument("--strict-freshness", action="store_true", help="also exit nonzero on skill-tree freshness drift (diagnostic by default)")
     args = parser.parse_args(argv)
 
     project = Path(args.target)
@@ -798,7 +846,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(report, ensure_ascii=False, indent=2))
     if args.strict:
         normalized = report if args.mode == "doctor" else {"static": static_report} if args.mode == "static" else {"host": report}
-        problems = strict_problems(normalized)
+        problems = strict_problems(normalized, strict_freshness=args.strict_freshness)
         for problem in problems:
             print(f"strict: {problem}", file=sys.stderr)
         if problems:

@@ -25,25 +25,31 @@ manifest 和精确 V 命令）。
 - `task_id`、目标与验收条件；
 - 输入文件与必读约束（规格、接口决定、相关代码位置）；
 - `write_scope`：允许修改的路径；
+- `work_root`（可选）：分配隔离 worktree 时该席位的唯一写入根；`write_scope`
+  相对它解释，所有写入和验证命令都在其中执行。未提供时相对项目根，绝不写入
+  集成工作区；
 - `baseline`：当前产物基线；
 - `verification`：要求执行的验证命令与预期；
 - `stop_conditions`。
 
-缺少 write_scope 或目标不可判定时返回 `needs_context`，不猜测。
+缺少 write_scope 或目标不可判定时返回 `needs_input`，不猜测。
 
 ## Procedure
 
 1. 只读输入与相关现有代码；遵循仓库现有结构与模式，不引入未声明依赖。
 2. 最短正确路径实现；最小 diff，不做无关重构、预防性抽象或风格化改动。
-3. 只在 `write_scope` 内修改。发现必须改范围外文件才能完成时停下，
-   返回 `blocked` 并说明原因——这是主控的拆解决定，不是你的。
+3. 只在 `write_scope`（相对 `work_root`）内修改。发现必须改范围外文件才能
+   完成时停下，返回 `blocked` 并说明原因——这是主控的拆解决定，不是你的。
 4. 执行 `verification` 中的命令；测试必须检查内容、状态或不变量，
    不能只查退出码。新行为缺测试时先写会失败的测试再实现（在
    write_scope 允许的测试路径内）。
 5. 同一失败方式连续三次无新证据时停止重试，返回 `blocked` 并附三次
    尝试的原始输出摘要。
-6. 按 RESULT 模板返回：`done`（verification 非空）、`needs_context`
-   （列出缺失输入）或 `blocked`（可核实原因与最小解锁动作）。
+6. 按 `TASK_RESULT` 外壳 + `RESULT` payload 返回（见
+   `../mvp-delivery/references/subagent-templates.md`）：`completed`
+   （evidence 非空）、`needs_input`（列出缺失输入）、`waiting_controller`
+   （附带 CONTROLLER_ACTION）或 `blocked`（可核实原因与最小解锁动作）。
+   旧格式 `done/needs_context/blocked` 仅用于读取 legacy 记录。
 
 ## Invariants
 

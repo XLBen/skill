@@ -10,6 +10,9 @@ permission:
     "*": deny
     "tests/**": allow
     "test/**": allow
+    "**/__tests__/**": allow
+    "**/*.test.*": allow
+    "**/*.spec.*": allow
     "docs/test-manifests/**": allow
     "docs/audit-slices/*/test-manifests/**": allow
   bash: allow

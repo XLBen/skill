@@ -132,7 +132,7 @@ preview is not the brief itself.
 Before setting `status: final`, apply the `brief-final` discipline: ask “这份
 summary 是用户说的，还是你替用户补的？” against every decision, success signal
 and non-goal. For Guarded/Audited briefs, load `../pua/SKILL.md` and execute the
-`brief-final` card in `../pua/references/stage-checks.md`; for Normal briefs the
+`brief-final` card in `../pua/references/stage-checks/01-brief-final.md`; for Normal briefs the
 same questions are the controller's direct duty. Show the user the final
 summary, retain unresolved questions, and only then run the brief validator,
 compute the hash and freeze the brief. Return the PUA acceptance result with the

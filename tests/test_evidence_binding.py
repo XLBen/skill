@@ -90,6 +90,70 @@ class WorkspaceBindingTests(unittest.TestCase):
             check.finish_goal(self.card)
 
 
+class CheckCurrentTests(unittest.TestCase):
+    """A completed card must still answer whether the current product matches."""
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.card = make_goal(self.root)
+
+    def test_completed_goal_is_current_until_the_product_changes(self):
+        check.verify_goal_outcome(self.card, "O-01", evidence_path(self.root))
+        self.assertEqual(check.finish_goal(self.card)["status"], "complete")
+        self.assertEqual(check.check_current(self.card)["status"], "complete")
+        (self.root / "greeter.py").write_text("print('Hello changed')\n", encoding="utf-8")
+        self.assertEqual(check.finish_goal(self.card)["status"], "complete")
+        with self.assertRaisesRegex(check.ValidationError, "workspace changed after verification"):
+            check.check_current(self.card)
+
+    def test_snapshot_include_covers_excluded_delivery_inputs(self):
+        _, goal = check.read_artifact(self.card, "goal")
+        goal["snapshot_include"] = [".opencode/product/config.json"]
+        self.card.write_text(check.render_goal(goal), encoding="utf-8")
+        product = self.root / ".opencode" / "product"
+        product.mkdir(parents=True)
+        (product / "config.json").write_text('{"v": 1}\n', encoding="utf-8")
+        check.verify_goal_outcome(self.card, "O-01", evidence_path(self.root))
+        (product / "config.json").write_text('{"v": 2}\n', encoding="utf-8")
+        with self.assertRaisesRegex(check.ValidationError, "workspace changed after verification"):
+            check.finish_goal(self.card)
+
+    def test_unreadable_included_file_fails_the_snapshot(self):
+        from unittest import mock
+
+        original = Path.read_bytes
+
+        def flaky(self):
+            if self.name == "greeter.py":
+                raise OSError("permission denied")
+            return original(self)
+
+        with mock.patch.object(Path, "read_bytes", flaky):
+            with self.assertRaisesRegex(check.ValidationError, "cannot read"):
+                check.workspace_snapshot(self.root)
+
+    def test_broad_include_does_not_wedge_on_workflow_state(self):
+        _, goal = check.read_artifact(self.card, "goal")
+        goal["snapshot_include"] = [".opencode/**"]
+        self.card.write_text(check.render_goal(goal), encoding="utf-8")
+        product = self.root / ".opencode" / "product"
+        product.mkdir(parents=True)
+        (product / "config.json").write_text('{"v": 1}\n', encoding="utf-8")
+        check.verify_goal_outcome(self.card, "O-01", evidence_path(self.root))
+        self.assertEqual(check.finish_goal(self.card)["status"], "complete")
+        self.assertEqual(check.check_current(self.card)["status"], "complete")
+
+    def test_snapshot_include_rejects_traversal(self):
+        _, goal = check.read_artifact(self.card, "goal")
+        goal["snapshot_include"] = ["../outside/file.txt"]
+        problems = check.validate_goal(goal)
+        self.assertTrue(
+            any("must stay inside the project" in problem for problem in problems), problems
+        )
+
+
 class InterruptedReservationTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()

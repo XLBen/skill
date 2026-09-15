@@ -183,6 +183,82 @@ class ValidateTests(unittest.TestCase):
         failures = validate_chain(self.trace, self.dispatch, None)
         self.assertTrue(any("'pua' has no completed load" in f for f in failures), failures)
 
+    def test_normal_reviewer_does_not_require_pua(self):
+        self.trace["skill_events"] = [e for e in self.trace["skill_events"] if e["skill"] != "pua"]
+        self.dispatch["tasks"][1]["review_scope"] = "task"
+        failures = validate_chain(self.trace, self.dispatch, None, rigor="normal")
+        self.assertFalse(any("'pua' has no completed load" in f for f in failures), failures)
+
+    def test_declared_pua_stage_requires_matching_acceptance(self):
+        payload = json.loads(self.reviewer_result.read_text(encoding="utf-8"))
+        payload["pua_acceptance"] = {"stage_id": "goal-finish", "result": "satisfied"}
+        self.reviewer_result.write_text(json.dumps(payload), encoding="utf-8")
+        self.dispatch["tasks"][1]["pua_stage_id"] = "review-verdict"
+        failures = validate_chain(self.trace, self.dispatch, None)
+        self.assertTrue(any("does not match" in f for f in failures), failures)
+        payload["pua_acceptance"] = {"stage_id": "review-verdict", "result": "satisfied"}
+        self.reviewer_result.write_text(json.dumps(payload), encoding="utf-8")
+        self.assertEqual(validate_chain(self.trace, self.dispatch, None), [])
+
+    def test_declared_pua_stage_requires_pua_load(self):
+        self.trace["skill_events"] = [e for e in self.trace["skill_events"] if e["skill"] != "pua"]
+        self.dispatch["tasks"][1]["pua_stage_id"] = "review-verdict"
+        failures = validate_chain(self.trace, self.dispatch, None, rigor="normal")
+        self.assertTrue(any("'pua' has no completed load" in f for f in failures), failures)
+
+    def test_goal_rigor_blocks_downgrade_even_on_normal_slice(self):
+        policy = {"schema": "runtime-policy/1", "allow_independence_downgrade": True}
+        failures = validate_chain(
+            self.trace, self.dispatch, policy, rigor="normal", goal_rigor="audited"
+        )
+        self.assertTrue(any("cannot apply to an audited goal" in f for f in failures), failures)
+
+    def test_unresolved_controller_action_fails(self):
+        self.dispatch["tasks"][0]["actions"] = [
+            {"action_id": "A-T01-01", "kind": "engine-verify", "status": "requested", "evidence_ref": None}
+        ]
+        failures = validate_chain(self.trace, self.dispatch, None)
+        self.assertTrue(any("A-T01-01" in f and "requested" in f for f in failures), failures)
+
+    def test_completed_action_requires_evidence_ref(self):
+        self.dispatch["tasks"][0]["actions"] = [
+            {"action_id": "A-T01-01", "kind": "run-command", "status": "completed"}
+        ]
+        failures = validate_chain(self.trace, self.dispatch, None)
+        self.assertTrue(any("lacks evidence_ref" in f for f in failures), failures)
+        self.dispatch["tasks"][0]["actions"][0]["evidence_ref"] = "evidence/x.json"
+        self.assertEqual(validate_chain(self.trace, self.dispatch, None), [])
+
+    def test_duplicate_action_id_fails(self):
+        action = {
+            "action_id": "A-1", "kind": "run-command", "status": "completed",
+            "evidence_ref": "e.json",
+        }
+        self.dispatch["tasks"][0]["actions"] = [action, dict(action)]
+        failures = validate_chain(self.trace, self.dispatch, None)
+        self.assertTrue(any("duplicate action_id" in f for f in failures), failures)
+
+    def test_reviewer_invalid_envelope_status_fails(self):
+        payload = json.loads(self.reviewer_result.read_text(encoding="utf-8"))
+        payload["status"] = "banana"
+        self.reviewer_result.write_text(json.dumps(payload), encoding="utf-8")
+        failures = validate_chain(self.trace, self.dispatch, None)
+        self.assertTrue(any("invalid envelope status" in f for f in failures), failures)
+
+    def test_validate_cli_derives_slice_rigor_from_dispatch(self):
+        from runtime_trace import main as trace_main
+
+        self.trace["skill_events"] = [e for e in self.trace["skill_events"] if e["skill"] != "pua"]
+        self.dispatch["tasks"][1]["review_scope"] = "task"
+        self.dispatch["active_slice"] = {"rigor": "normal"}
+        trace_path = self.tmp / "cli-normal-trace.json"
+        trace_path.write_text(json.dumps(self.trace), encoding="utf-8")
+        dispatch_path = self.tmp / "cli-normal-dispatch.json"
+        dispatch_path.write_text(json.dumps(self.dispatch), encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            code = trace_main(["validate", str(trace_path), "--dispatch", str(dispatch_path)])
+        self.assertEqual(code, 0, output.getvalue())
+
     def test_reviewer_fallback_to_general_fails(self):
         for s in self.trace["sessions"]:
             if s["id"] == "ses_rev":
@@ -418,12 +494,13 @@ class StageRoutingContractTests(unittest.TestCase):
         )
 
     def test_schema_and_stage_ids(self):
-        self.assertEqual(self.routing["schema_version"], 1)
+        self.assertEqual(self.routing["schema_version"], 2)
         ids = [s["stage_id"] for s in self.routing["stages"]]
         self.assertEqual(len(ids), len(set(ids)), "stage ids must be unique")
         for expected in (
             "brief-final",
             "goal-validation",
+            "goal-verification",
             "slice-implementation",
             "review-verdict",
             "contract-release",
@@ -454,6 +531,22 @@ class StageRoutingContractTests(unittest.TestCase):
         levels = self.routing["dispatch_levels"]
         self.assertIn("capability-available-mandatory", levels)
         self.assertIn("blocking", levels)
+
+    def test_reviewer_conditions_are_consistent_with_entry_rigors(self):
+        for stage in self.routing["stages"]:
+            condition = stage["reviewer"]["condition"]
+            optional = condition.get("optional_rigors") or []
+            for rigor in (condition["rigors"] or []) + optional:
+                self.assertIn(rigor, stage.get("rigors", []), stage["stage_id"])
+            if not condition["dispatch"]:
+                self.assertEqual(condition["rigors"], [], stage["stage_id"])
+                self.assertEqual(optional, [], stage["stage_id"])
+
+    def test_pua_entries_carry_explicit_roles(self):
+        for stage in self.routing["stages"]:
+            for entry in stage["required_skills"]:
+                if entry["name"] == "pua":
+                    self.assertTrue(entry.get("roles"), stage["stage_id"])
 
 
 class RuntimeGateEngineTests(unittest.TestCase):

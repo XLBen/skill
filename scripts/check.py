@@ -6,6 +6,7 @@ Commands:
   check.py goal <.opencode/mvp/goal.md>
   check.py verify-goal <.opencode/mvp/goal.md> <O-NN> --evidence <path> [--recover-interrupted]
   check.py finish-goal <.opencode/mvp/goal.md>
+  check.py check-current <.opencode/mvp/goal.md>
   check.py runtime-gate <.opencode/mvp/goal.md> --trace <trace.json> [--dispatch <dispatch.json>] [--policy <policy.json>]
   check.py ui-gate <.opencode/mvp/goal.md> --trace <trace.json> [--bind]
   check.py contract <docs/contract.md>
@@ -422,6 +423,20 @@ def validate_goal(goal):
         if not isinstance(value, list) or any(not isinstance(item, str) or not item.strip() for item in value):
             problems.append(f"goal.{field} must be an array of non-empty strings")
 
+    snapshot_include = goal.get("snapshot_include")
+    if snapshot_include is not None:
+        if not isinstance(snapshot_include, list) or any(
+            not isinstance(item, str) or not item.strip() for item in snapshot_include
+        ):
+            problems.append("goal.snapshot_include must be an array of non-empty project-relative globs")
+        else:
+            for item in snapshot_include:
+                candidate = Path(item)
+                if candidate.is_absolute() or ".." in candidate.parts:
+                    problems.append(
+                        f"goal.snapshot_include entry must stay inside the project: {item}"
+                    )
+
     rigor = goal.get("rigor")
     if not isinstance(rigor, str) or rigor not in {"normal", "guarded", "audited"}:
         problems.append("goal.rigor must be normal, guarded, or audited")
@@ -721,7 +736,10 @@ def validate_contract(contract):
             problems.append(f"{node.get('id')}: invalid wheel kind")
         validate_references(node.get("fallback_order", []), {"W"}, f"{node.get('id')}.fallback_order", by_id, problems)
     for node in by_type.get("E", []):
-        require(node, ("claim", "kind", "source", "checked_at", "environment", "command", "inputs", "output_summary", "verdict", "bundle_hash"), node.get("id", "E"), problems)
+        e_required = ("claim", "kind", "source", "checked_at", "environment", "command", "inputs", "output_summary", "verdict")
+        if protocol != "v0.2":
+            e_required += ("bundle_hash",)
+        require(node, e_required, node.get("id", "E"), problems)
         if node.get("bundle_hash"):
             projection = {k: v for k, v in node.items() if k != "bundle_hash"}
             expected = digest(projection, "evidence-bundle")
@@ -1055,13 +1073,16 @@ def _snapshot_skips(relative_posix):
     return False
 
 
-def workspace_snapshot(root, extra_excludes=()):
+def workspace_snapshot(root, extra_excludes=(), include_patterns=()):
     """Conservative content snapshot of the delivered workspace.
 
     Excludes VCS metadata, workflow state/artifacts, caches and generated
     outputs (documented lists above). Everything else is included on purpose:
     when the impact of a change cannot be decided, the snapshot treats it as
-    product-affecting. Returns (sha256_hex, file_count)."""
+    product-affecting. `include_patterns` re-includes normally excluded
+    delivery inputs (for example a product file under `.opencode/`) so the
+    binding covers what the product actually ships. A file that cannot be read
+    fails the snapshot instead of being recorded as unchanged."""
 
     root = Path(root).resolve()
     excluded = set()
@@ -1072,6 +1093,16 @@ def workspace_snapshot(root, extra_excludes=()):
             excluded.add(Path(item).resolve())
         except OSError:
             continue
+    includes = [pattern for pattern in include_patterns if isinstance(pattern, str) and pattern.strip()]
+
+    def _included(relative):
+        # Workflow runtime state (cards, dispatch records, evidence, sidecars)
+        # is rewritten by the engine itself; it can never be a delivery input,
+        # and including it would make the record and the recomputation diverge.
+        if relative == ".opencode/mvp" or relative.startswith(".opencode/mvp/"):
+            return False
+        return any(fnmatch.fnmatch(relative, pattern) for pattern in includes)
+
     digest = hashlib.sha256()
     counted = 0
     for dirpath, dirnames, filenames in os.walk(root):
@@ -1079,23 +1110,27 @@ def workspace_snapshot(root, extra_excludes=()):
         relative_dir = current.relative_to(root).as_posix()
         if relative_dir == ".":
             relative_dir = ""
-        dirnames[:] = sorted(
-            name for name in dirnames
-            if not _snapshot_skips((relative_dir + "/" + name).lstrip("/"))
-        )
+        if includes:
+            dirnames[:] = sorted(dirnames)
+        else:
+            dirnames[:] = sorted(
+                name for name in dirnames
+                if not _snapshot_skips((relative_dir + "/" + name).lstrip("/"))
+            )
         for name in sorted(filenames):
             relative = (relative_dir + "/" + name).lstrip("/")
-            if _snapshot_skips(relative):
+            if _snapshot_skips(relative) and not _included(relative):
                 continue
             path = current / name
             try:
                 if path.resolve() in excluded:
                     continue
                 data = path.read_bytes()
-            except OSError:
-                digest.update(relative.encode("utf-8") + b"\0unreadable\0")
-                counted += 1
-                continue
+            except OSError as exc:
+                raise ValidationError(
+                    f"workspace snapshot cannot read {relative}: {exc}; "
+                    "included delivery inputs must be readable"
+                ) from exc
             digest.update(relative.encode("utf-8") + b"\0")
             digest.update(hashlib.sha256(data).hexdigest().encode("ascii"))
             counted += 1
@@ -1103,7 +1138,7 @@ def workspace_snapshot(root, extra_excludes=()):
 
 
 def run_command_evidence(command, cwd, evidence_path, metadata, timeout_seconds,
-                         recover=False, recover_interrupted=False):
+                         recover=False, recover_interrupted=False, snapshot_include=()):
     evidence_path = Path(evidence_path)
     expected = dict(metadata, schema_version=1, command=command,
                     cwd=str(Path(cwd).resolve()), timeout_seconds=timeout_seconds)
@@ -1160,7 +1195,7 @@ def run_command_evidence(command, cwd, evidence_path, metadata, timeout_seconds,
     evidence_path.parent.mkdir(parents=True, exist_ok=True)
     temp = evidence_path.with_suffix(evidence_path.suffix + ".tmp")
     snapshot_excludes = (evidence_path, temp)
-    workspace_before, _ = workspace_snapshot(cwd, snapshot_excludes)
+    workspace_before, _ = workspace_snapshot(cwd, snapshot_excludes, snapshot_include)
     reservation_recovered = False
     if temp.exists():
         try:
@@ -1223,7 +1258,7 @@ def run_command_evidence(command, cwd, evidence_path, metadata, timeout_seconds,
     stdout = stdout.decode("utf-8", errors="replace")
     stderr = stderr.decode("utf-8", errors="replace")
     finished = datetime.now(timezone.utc)
-    workspace_after, _ = workspace_snapshot(cwd, snapshot_excludes)
+    workspace_after, _ = workspace_snapshot(cwd, snapshot_excludes, snapshot_include)
     workspace_changed = workspace_before != workspace_after
     payload = dict(metadata)
     payload.update({
@@ -1281,6 +1316,7 @@ def verify_goal_outcome(goal_path, outcome_id, evidence_path, recover_interrupte
         except ValueError as exc:
             raise ValidationError("goal evidence must live under .opencode/mvp/evidence/") from exc
         verification = outcome["verification"]
+        snapshot_include = goal.get("snapshot_include") or []
         payload, evidence_hash = run_command_evidence(
             verification["command"], project_root, resolved_evidence,
             {
@@ -1295,6 +1331,7 @@ def verify_goal_outcome(goal_path, outcome_id, evidence_path, recover_interrupte
             },
             verification.get("timeout_seconds", 120),
             recover_interrupted=recover_interrupted,
+            snapshot_include=snapshot_include,
         )
         updated = json.loads(json.dumps(goal))
         updated_outcome = next(item for item in updated["outcomes"] if item["id"] == outcome_id)
@@ -1452,9 +1489,14 @@ def runtime_gate(goal_path, trace_path, dispatch_path=None, policy_path=None):
                 effective.append(req)
         policy["requirements"] = effective
     native_problems = _runtime_trace.verify_native_trace(trace)
+    slice_rigor = (dispatch.get("active_slice") or {}).get("rigor")
+    if slice_rigor not in ("normal", "guarded", "audited"):
+        slice_rigor = None
     failures = native_problems + _runtime_trace.validate_chain(
         trace, dispatch, policy,
-        base_dir=goal_project_root(goal_path), rigor=goal.get("rigor"),
+        base_dir=goal_project_root(goal_path),
+        rigor=slice_rigor or goal.get("rigor"),
+        goal_rigor=goal.get("rigor"),
     )
     sidecar = {
         "schema": RUNTIME_GATE_SCHEMA,
@@ -1980,7 +2022,7 @@ def enforce_workspace_binding(goal_path, goal):
     """
 
     project_root = goal_project_root(goal_path)
-    current, _ = workspace_snapshot(project_root)
+    current, _ = workspace_snapshot(project_root, include_patterns=goal.get("snapshot_include") or [])
     problems = []
     for outcome in goal.get("outcomes", []):
         if outcome.get("status") != "verified":
@@ -2032,6 +2074,21 @@ def finish_goal(goal_path):
         temp.write_text(render_goal(updated), encoding="utf-8", newline="\n")
         os.replace(temp, target)
         return updated
+
+
+def check_current(goal_path):
+    """Read-only freshness check for the recorded goal evidence.
+
+    Unlike `finish-goal` on an already-complete card, this always recomputes
+    the workspace binding for verified outcomes and fails closed when the
+    current product no longer matches the evidence. It never rewrites the
+    card, invalidates outcomes or reopens history."""
+
+    meta, goal, problems = validate_goal_artifact(goal_path)
+    if problems:
+        raise ValidationError("goal is invalid:\n- " + "\n- ".join(problems))
+    enforce_workspace_binding(goal_path, goal)
+    return goal
 
 
 def validate_contract_intake(contract_path, contract):
@@ -4847,8 +4904,24 @@ def main(argv):
             print(f"goal outcome {argv[3]}: {payload['result']}")
             return 0 if payload["result"] == "passed" else 1
         if command == "finish-goal":
+            was_complete = False
+            try:
+                _, existing = read_artifact(argv[2], "goal")
+                was_complete = existing.get("status") == "complete"
+            except (OSError, ValidationError):
+                pass
             goal = finish_goal(argv[2])
-            print(f"finished goal {goal['id']} ({goal['status']})")
+            if was_complete:
+                print(
+                    f"goal {goal['id']} was already complete; no re-verification performed "
+                    "(use check-current for the current workspace state)"
+                )
+            else:
+                print(f"finished goal {goal['id']} ({goal['status']})")
+            return 0
+        if command == "check-current":
+            goal = check_current(argv[2])
+            print(f"current goal {goal['id']}: recorded evidence still matches the workspace")
             return 0
         if command == "runtime-gate" and len(argv) >= 4:
             if "--trace" not in argv:

@@ -1,6 +1,6 @@
 # PUA Acceptance Protocol
 
-所有阶段使用同一套短协议。阶段专用动作见 `stage-checks.md`；这里不重复定义
+所有阶段使用同一套短协议。阶段专用动作见 `stage-checks.md` 索引与对应卡文件；这里不重复定义
 产品或 engine 的通过条件。
 
 ## 1. 进入验收

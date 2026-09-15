@@ -218,7 +218,20 @@ def main():
             (repo / "scripts" / "runtime_trace.py", engine_root / "scripts" / "runtime_trace.py", "scripts/runtime_trace.py")
         )
         copy_jobs.append(
+            (repo / "scripts" / "workflow_protocol.py", engine_root / "scripts" / "workflow_protocol.py", "scripts/workflow_protocol.py")
+        )
+        copy_jobs.append(
+            (repo / "scripts" / "worktree_tasks.py", engine_root / "scripts" / "worktree_tasks.py", "scripts/worktree_tasks.py")
+        )
+        copy_jobs.append(
             (repo / "scripts" / "check_runtime.py", engine_root / "scripts" / "check_runtime.py", "scripts/check_runtime.py")
+        )
+        copy_jobs.append(
+            (
+                repo / "mvp-delivery" / "references" / "stage-routing.json",
+                engine_root / "stage-routing.json",
+                "stage-routing.json",
+            )
         )
         copy_jobs.append((repo / "tests" / "final_review.py", engine_root / "tests" / "final_review.py", "tests/final_review.py"))
         copy_jobs.extend(
@@ -295,9 +308,24 @@ def main():
                 "scripts/runtime_trace.py",
             )
             safe_copy(
+                repo / "scripts" / "workflow_protocol.py",
+                engine_scripts / "workflow_protocol.py",
+                "scripts/workflow_protocol.py",
+            )
+            safe_copy(
+                repo / "scripts" / "worktree_tasks.py",
+                engine_scripts / "worktree_tasks.py",
+                "scripts/worktree_tasks.py",
+            )
+            safe_copy(
                 repo / "scripts" / "check_runtime.py",
                 engine_scripts / "check_runtime.py",
                 "scripts/check_runtime.py",
+            )
+            safe_copy(
+                repo / "mvp-delivery" / "references" / "stage-routing.json",
+                engine_root / "stage-routing.json",
+                "stage-routing.json",
             )
             safe_copy(repo / "tests" / "final_review.py", engine_root / "tests" / "final_review.py", "tests/final_review.py")
             for fixture in sorted((repo / "tests" / "fixtures").glob("*.md")):

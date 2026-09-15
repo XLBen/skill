@@ -1,5 +1,6 @@
 import contextlib
 import hashlib
+import importlib.util
 import io
 import json
 import os
@@ -43,7 +44,10 @@ class InstallTests(unittest.TestCase):
             ".opencode/agents/mvp-reviewer.md": "agent\n",
             "scripts/check.py": "# check\n",
             "scripts/runtime_trace.py": "# trace\n",
+            "scripts/workflow_protocol.py": "# protocol\n",
+            "scripts/worktree_tasks.py": "# worktrees\n",
             "scripts/check_runtime.py": "# doctor\n",
+            "mvp-delivery/references/stage-routing.json": '{"schema_version": 2, "stages": [], "seat_selection": {}}\n',
             "tests/final_review.py": "# review\n",
             "tests/fixtures/example.md": "fixture\n",
         }
@@ -81,7 +85,7 @@ class InstallTests(unittest.TestCase):
         with mock.patch.object(install.shutil, "copy2", wraps=install.shutil.copy2) as copy:
             self.run_install()
             self.run_install()
-        self.assertEqual(copy.call_count, 10)
+        self.assertEqual(copy.call_count, 16)
         for call in copy.call_args_list:
             self.assertFalse(call.args[0].samefile(call.args[1]))
         engine = self.repo / ".opencode/workflow"
@@ -90,6 +94,8 @@ class InstallTests(unittest.TestCase):
         for relative in self.sources:
             source = self.repo / relative
             key = relative.removeprefix(".opencode/")
+            if relative == "mvp-delivery/references/stage-routing.json":
+                key = "stage-routing.json"
             expected[key] = hashlib.sha256(source.read_bytes()).hexdigest()
             destination = source if key.startswith(("commands/", "agents/")) else engine / key
             self.assertEqual(destination.read_bytes(), source.read_bytes())
@@ -135,13 +141,38 @@ class InstallTests(unittest.TestCase):
                 "opencode.json", ".opencode/commands/build.md",
                 ".opencode/agents/mvp-reviewer.md", ".opencode/agents/mvp-worker.md",
                 ".opencode/workflow/install-manifest.json",
+                ".opencode/workflow/stage-routing.json",
                 ".opencode/workflow/scripts/check.py",
                 ".opencode/workflow/scripts/runtime_trace.py",
+                ".opencode/workflow/scripts/workflow_protocol.py",
+                ".opencode/workflow/scripts/worktree_tasks.py",
                 ".opencode/workflow/scripts/check_runtime.py",
                 ".opencode/workflow/tests/final_review.py",
                 ".opencode/workflow/tests/fixtures/example.md",
             ]),
         )
+
+    def test_installed_engine_resolves_its_own_routing_copy(self):
+        real_root = Path(install.__file__).resolve().parent.parent
+        engine = self.repo / "engine-layout" / ".opencode" / "workflow"
+        (engine / "scripts").mkdir(parents=True)
+        (engine / "scripts" / "workflow_protocol.py").write_bytes(
+            (real_root / "scripts" / "workflow_protocol.py").read_bytes()
+        )
+        (engine / "stage-routing.json").write_bytes(
+            (real_root / "mvp-delivery" / "references" / "stage-routing.json").read_bytes()
+        )
+        spec = importlib.util.spec_from_file_location(
+            "installed_workflow_protocol", engine / "scripts" / "workflow_protocol.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertEqual(
+            module.default_routing_path().resolve(),
+            (engine / "stage-routing.json").resolve(),
+        )
+        routing = module.load_routing()
+        self.assertEqual(module.validate_routing(routing), [])
 
     def test_real_repository_install_discovers_computer_use_once(self):
         target = self.repo / "real-install"

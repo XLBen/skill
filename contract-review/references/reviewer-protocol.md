@@ -188,6 +188,18 @@ Do not use prose-only output when the controller expects an event payload.
 When no PUA acceptance handoff was supplied, omit `pua_acceptance` rather than
 inventing a stage result.
 
+Envelope mapping: the reviewer JSON is the structured rendering of the
+`TASK_RESULT` envelope (`../mvp-delivery/references/subagent-templates.md`).
+It carries `task_id` and `attempt` at top level; `not_checked` is the envelope's
+`not_verified`, `issues` is its `issues`, and `checked_scope` is the evidence
+scope. `status` is `completed` when the declared scope was fully inspected,
+`waiting_controller` when evidence is still pending a CONTROLLER_ACTION, and
+`blocked` when an independence or resource prerequisite is missing. `mode`,
+`contract_hash`, `resolved` and `pua_acceptance` remain reviewer-specific
+payload. Legacy reviewer JSON without envelope fields stays valid and is read
+as legacy; controller-action requests inside a review carry the same stable
+`action_id` and are deduplicated through the dispatch record's `actions` state.
+
 For contract-bound modes, include `contract_hash` and the applicable contract IDs.
 For a Normal/Guarded acceptance handoff without a contract, omit `contract_hash`,
 use `scope: acceptance-item`, and bind `affected` to a handoff claim, artifact

@@ -29,9 +29,10 @@ metadata:
 
 1. 主控制器先建立完整交接包，不能用一条简短消息代替目标和证据。
 2. 有实质里程碑时，用 `acceptance-preview` 先报告状态；没有实质进展就不制造消息。
-3. 阶段达到实质验收点时，自动派 fresh reviewer 并要求它加载 `pua`；把完整交接包
-   传给 reviewer，不把 ADHD 摘要当作唯一输入。没有可用独立 seat 时才退回控制器
-   PUA 检查，并明确没有独立性。
+3. 本 skill 只负责展示，不决定派发。是否派 fresh reviewer、传哪个 `pua_stage_id`
+   由主控制器按 `stage-routing.json` 的路由决定；需要验收时把完整交接包传给
+   reviewer，不把 ADHD 摘要当作唯一输入。缺少独立 seat 时按 routing 的失败分支
+   处理并明确披露。
 4. reviewer 返回 PUA 发现后，主控制器修复并复验受影响范围；缺 owner 决定或外部
    条件时保持等待/阻塞。
 5. 只有检查结果和既有 engine/owner gate 满足后，才用 `delivery` 输出；否则用

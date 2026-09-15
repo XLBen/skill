@@ -20,7 +20,7 @@ metadata:
 适配到本仓库已有的 goal、contract、PLAN、reviewer、owner 和 engine gate。
 
 **先记住：狠话必须绑定动作。** 每次进入验收前，先确定 `stage_id`、当前产物、
-验收范围和已有证据，然后读取 `references/stage-checks.md` 对应检查卡。不要只说
+验收范围和已有证据，然后按 `references/stage-checks.md` 索引读取对应 stage 的卡文件。不要只说
 “我已经自检”；要运行适用的验证、阅读实际输出、记录缺口和下一步。
 
 ## Runtime Contract
@@ -141,7 +141,7 @@ reviewer 的既有结构化结果继续放在 `issues` 中，并在有 `pua_stag
 检查范围、输入工件和以下要求：
 
 ```text
-加载 pua skill，读取 references/stage-checks.md 中的 <stage_id> 检查卡。
+加载 pua skill，按 references/stage-checks.md 索引读取 <stage_id> 对应的卡文件。
 返回 [PUA-ACCEPTANCE]、事实证据、缺口和下一步；不要只返回“通过”。
 不要越过自身角色修改产品、降低严重度、替 owner 决定或宣布整个目标完成。
 ```

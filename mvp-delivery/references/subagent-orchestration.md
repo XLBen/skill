@@ -14,16 +14,23 @@
 修复缺陷、跨文件逻辑调整、或需要独立正确性判断。仅凭“主控自己做更快”、
 “改动只有几行”不构成跳过理由；行数少不等于机械小改。
 
+**席位选择不是跳过。** 路由决定由哪个席位执行：主控同会话、worker 或
+step-executor。正常路由到主控（Normal 直接实现、Audited `direct`、
+`light + autonomous`）不创建 skipped task，也不需要 `skip_reason`。
+`skip_reason` 只用于“本应派发但实际未派发”的 task 行，使用封闭白名单：
+`mechanical-batch`（确认无行为变化的拼写/格式/机械批量）、
+`capability-unavailable`（附 preflight 证据）；笼统的“无需”不合法。
+
 判定按固定次序执行，先命中先适用：
 
 1. 是否满足实质任务条件？
    - 否，且确属拼写/格式/明确机械小改 → 主控直接处理；多个同类小改合并
-     为一个工作包（`skip_reason: mechanical-batch`）。禁止拆分派发。
+     为一个工作包。允许合并的是执行方式，不是对实质任务的豁免。
    - 是 → 进入 2。
 2. 当前是否 Guarded/Audited 切片？
-   - 否（Normal）：主控可直接实现；涉及独立正确性判断、验证盲区或用户要求时
-     派 worker/reviewer。`skip_reason` 只允许
-     `capability-unavailable`（须有 preflight 证据）或 `mechanical-batch`。
+   - 否（Normal）：主控是该档的默认实现席位，可直接实现；涉及独立正确性
+     判断、验证盲区或用户要求时派 worker/reviewer。只有确实跳过了应派发的
+     席位时才写 `skip_reason`。
    - 是 → 按 Audited Execution Seat Selection 决策表执行。
 3. 能力不可用分支按 Failure Branches 降级或阻塞，并记录证据。
 
@@ -43,7 +50,8 @@
 
 同一版本产物已被终审覆盖且未再变化时，可复用该终审结果，不重复派发。
 `skip_reason` 使用封闭白名单：`mechanical-batch`、`capability-unavailable`
-（附 preflight 证据）；笼统的“无需”不合法。
+（附 preflight 证据）；笼统的“无需”不合法。主控同会话执行是席位选择，
+不是 skipped task。
 
 ### Audited Execution Seat Selection
 
@@ -153,6 +161,34 @@ preflight 失败按 Failure Branches 降级或阻塞，并在 dispatch record �
 - 子代理不再递归派发子代理；需要协作时返回主控协调。
 - 所有 agent prompt 要求子代理返回结构化结果而不是自由叙述。
 
+### Isolated Writer Tasks (Git worktrees)
+
+仅在 Normal/Guarded 且可独立集成的工作包上开放多 writer。准入条件全部满足
+才并行，任一不满足回退串行；不得自动提交、stash 或清理用户工作区来制造条件：
+
+1. 仓库有可用 Git 基线，且集成工作区干净（`scripts/worktree_tasks.py admission` 可检查）；
+2. 子任务写入集合不重叠，共享接口已确定；
+3. 不共享外部可变数据、数据库或 GUI；
+4. 依赖安装与测试资源能够隔离；
+5. 宿主允许子代理访问分配的绝对工作目录。
+
+工作方式：
+
+- 每个写入任务用 `scripts/worktree_tasks.py create` 建立 detached worktree；
+  派发时把该绝对路径作为席位唯一写入根，`write_scope` 相对该根解释。
+- 子代理不要求创建 commit；返回 `TASK_RESULT` 的 `changes` 按真实路径报告。
+- 主控集成顺序：`collect` → `scope` 核对实际改动是否越界 → 目标版本
+  `apply --check-only` → 按依赖顺序 `apply`；冲突时停止并返回具体冲突，
+  不默认重放已部分写入的任务。
+- 所有任务集成后对最终稳定版本统一运行受影响测试与目标验证；集成后的
+  稳定版本上重新评审。
+- `cleanup` 需要 `--integrated`（确认收集的补丁已应用到集成工作区）或显式
+  `--discard` 才移除；timeout/unknown 状态不删除 worktree、不重派同副作用
+  任务，先确认原任务状态。
+- 默认最多两个并发 writer（总席位上限不变）；主控是集成工作区唯一写入者。
+- reviewer 绑定不可变快照，不与同范围的写入并发。
+- Audited 严格步骤继续沿既有执行语义，不使用该分支。
+
 ## Fresh Session Semantics
 
 - 新任务一律 fresh dispatch，不继承主控或先前作者的上下文。
@@ -201,12 +237,22 @@ preflight 失败按 Failure Branches 降级或阻塞，并在 dispatch record �
       "role": "worker",
       "depends_on": [],
       "status": "done",
+      "attempt": 1,
       "provenance": {"session_id": "<runtime-reported>", "agent": "mvp-worker"},
       "dispatch_ref": "<保存的派发正文路径，如 .opencode/mvp/dispatch-archive/<goal>-T-01.md>",
       "result_ref": "<保存的返回正文/证据路径>",
       "artifact_baseline": {"pre": "<派发前 commit/产物hash>", "post": "<返回后 commit/产物hash 或 null>"},
       "review_scope": "<task 或 goal>",
       "acceptance": {"verdict": "satisfied|repair|owner|blocked|null", "pending_actions": ["<未决 controller/owner 动作>"]},
+      "actions": [
+        {
+          "action_id": "A-T01-01",
+          "kind": "run-command|gui-scenario|engine-verify",
+          "status": "requested|running|completed|failed|unknown",
+          "evidence_ref": "<证据路径或 null>",
+          "artifact_identity": "<动作时的产物身份>"
+        }
+      ],
       "rounds": 1,
       "skip_reason": null
     }
@@ -214,8 +260,19 @@ preflight 失败按 Failure Branches 降级或阻塞，并在 dispatch record �
 }
 ```
 
-- `status`: pending | dispatched | done | failed | skipped。
+- `status`: pending | dispatched | done | failed | skipped（派发生命周期）。
+  子代理的 `task-result/1` 交回状态（completed / needs_input /
+  waiting_controller / blocked / failed）是另一层语义：`completed` 映射为
+  dispatch done，`waiting_controller` 表示等待主控动作，不能当作 done 复用。
+- `attempt` 从 1 开始，每次 FIX-ROUND 递增；复用旧 attempt 的结论必须
+  同时满足产物未变与证据仍有效。
+- `actions` 是 CONTROLLER_ACTION 的去重状态（见
+  `subagent-templates.md`）：执行前先按 `action_id` 查询；`completed` 且
+  证据有效时复用，`unknown` 的非幂等动作必须查证后处理，禁止自动重放；
+  `completed` 必须带 `evidence_ref`；未决（requested/running）、`failed` 或
+  `unknown` 的 action 在 runtime gate 中阻塞完成。
 - 跳过委派必须写 `skip_reason`（如 mechanical-batch、capability-unavailable）。
+  主控同会话执行是席位选择，不是 skipped task。
 - **done 只表示席位执行结束，不等于验收通过**。reviewer/PUA 裁决记入
   `acceptance.verdict`；复用一个 done 评审必须同时满足：裁决为
   satisfied、`review_scope` 覆盖当前范围、其绑定的制品身份仍有效。
@@ -240,16 +297,31 @@ resume 时先核对 dispatch record 与实际产物：done 且产物未失效、
 评审类任务）裁决仍满足的任务不重复派发；timeout 不等于未执行，重新派发
 写入任务前必须检查实际改动。
 
+### Minimal Recovery Read Set
+
+`/resume` 先读以下最小状态集，再按缺口展开；不得默认读取全部 archive、全部
+reviewer findings 或完整派发正文：
+
+1. 目标定义（goal 卡 JSON fence 或严格包指针）；
+2. dispatch record：`active_slice`、未完成任务、未决 `actions`、
+   `failure_counters`；
+3. 当前产物基线与工作区状态；
+4. 已采纳的接口结论（任务 `next_context` 摘要）；
+5. 下一动作（首个 pending/blocked outcome 或等待中的 gate）。
+
+只有需要核对具体结论/证据时才展开对应的 `dispatch_ref`/`result_ref` 文件。
+
 ## Failure Branches
 
 | 失败 | 处理 |
 |---|---|
 | task 工具或 agent 不可见 | 记录 capability-unavailable；Normal/Guarded 主控降级执行并明确披露非独立；reviewer/test-author 类独立性 gate 按 SKILL.md 验收章节与 Audited 规则阻塞 |
 | 权限拒绝 | 不换更宽权限代理绕过；按不可用处理并记录 |
-| 子代理返回 needs_context | 补充输入后继续同一任务，不新建任务 |
+| 子代理返回 needs_input | 补充输入后恢复同一任务，不新建任务 |
+| 子代理返回 waiting_controller | 按 action_id 去重执行主控动作（见 `subagent-templates.md`），完成后恢复原席位 |
 | 子代理返回 blocked | 主控核实原因；属目标级阻塞按 SKILL.md 停止条件升级 |
 | 返修连续无新证据 | 轻量流程 3 轮返修上限后换 fresh seat；实际失败熔断（同签名三次）优先于返修轮数与换 seat，先触发者先生效；严格流程遵守既有熔断 |
-| 并行任务产物冲突 | 串行重放冲突任务；冲突检测在集成时执行 |
+| 并行任务产物冲突 | 先核对实际差异与所有权，再决定重派、合并或人工裁决；不默认重放已部分写入的任务（见并发协议） |
 
 ## Integration Duties
 

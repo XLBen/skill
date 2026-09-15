@@ -1,4 +1,7 @@
+import contextlib
+import io
 import json
+import shutil
 import sqlite3
 import sys
 import tempfile
@@ -137,14 +140,21 @@ class ExportTests(unittest.TestCase):
 
 class ValidateTests(unittest.TestCase):
     def setUp(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp = Path(tmp)
-            db = tmp / "opencode.db"
-            make_db(db, GOOD_SESSIONS, GOOD_PARTS)
-            self.trace = export_trace(Path("D:/proj"), str(db), None)
-        (tmp2 := Path(tempfile.mkdtemp()))  # keep dispatch load helper exercised
-        self.addCleanup(lambda: None)
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        db = self.tmp / "opencode.db"
+        make_db(db, GOOD_SESSIONS, GOOD_PARTS)
+        self.trace = export_trace(Path("D:/proj"), str(db), None)
+        self.reviewer_result = self.tmp / "reviewer-result.json"
+        self.reviewer_result.write_text(json.dumps({
+            "mode": "review",
+            "issues": [],
+            "checked_scope": ["acceptance items"],
+            "not_checked": [],
+            "pua_acceptance": {"stage_id": "review-verdict", "result": "satisfied"},
+        }), encoding="utf-8")
         self.dispatch = json.loads(json.dumps(GOOD_DISPATCH))
+        self.dispatch["tasks"][1]["result_ref"] = str(self.reviewer_result)
 
     def test_good_chain_passes(self):
         self.assertEqual(validate_chain(self.trace, self.dispatch, None), [])
@@ -188,6 +198,9 @@ class ValidateTests(unittest.TestCase):
         failures = validate_chain(self.trace, self.dispatch, None)
         self.assertTrue(any("fallback to 'general' not disclosed" in f for f in failures), failures)
         self.dispatch["tasks"][0]["provenance"]["agent"] = "general-fallback-as-worker"
+        next(
+            ev for ev in self.trace["task_events"] if ev["child_session"] == "ses_worker"
+        )["requested_agent"] = "general"
         self.assertEqual(validate_chain(self.trace, self.dispatch, None), [])
 
     def test_provenance_agent_mismatch_fails(self):
@@ -237,6 +250,147 @@ class ValidateTests(unittest.TestCase):
         policy = {"schema": "runtime-policy/1", "requirements": [{"kind": "bogus"}]}
         failures = validate_chain(self.trace, self.dispatch, policy)
         self.assertTrue(any("unknown requirement kind" in f for f in failures), failures)
+
+    def test_satisfied_verdict_on_non_done_task_fails(self):
+        self.dispatch["tasks"][1]["status"] = "pending"
+        failures = validate_chain(self.trace, self.dispatch, None)
+        self.assertTrue(any("only valid on a done task" in f for f in failures), failures)
+
+    def test_review_floor_requires_done_status(self):
+        policy = {"schema": "runtime-policy/1", "requirements": [{"kind": "review-satisfied-goal"}]}
+        self.dispatch["tasks"][1]["status"] = "pending"
+        failures = validate_chain(self.trace, self.dispatch, policy)
+        self.assertTrue(any("no satisfied goal-scope reviewer" in f for f in failures), failures)
+
+    def test_validate_cli_rejects_unsupported_store(self):
+        from runtime_trace import main as trace_main
+
+        planted = self.tmp / "planted.db"
+        make_db(planted, [{"id": "ses_other", "parent_id": None, "agent": None}], [])
+        trace = json.loads(json.dumps(self.trace))
+        trace["source"] = {"kind": "opencode-sqlite", "path": str(planted)}
+        trace_path = self.tmp / "cli-trace.json"
+        trace_path.write_text(json.dumps(trace), encoding="utf-8")
+        dispatch_path = self.tmp / "cli-dispatch.json"
+        dispatch_path.write_text(json.dumps(self.dispatch), encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            code = trace_main(["validate", str(trace_path), "--dispatch", str(dispatch_path)])
+        self.assertEqual(code, 1, output.getvalue())
+
+    def test_verify_native_trace_accepts_matching_failed_records(self):
+        from runtime_trace import verify_native_trace
+
+        db = self.tmp / "mixed.db"
+        failed_part = {
+            "id": "m2",
+            "session_id": "ses_ctrl",
+            "data": {
+                "type": "tool",
+                "tool": "bash",
+                "callID": "call_err",
+                "state": {"status": "error", "input": {}, "output": "boom"},
+            },
+        }
+        make_db(db, [{"id": "ses_ctrl", "parent_id": None, "agent": None}], [failed_part])
+        trace = export_trace(Path("D:/proj"), str(db), None)
+        self.assertEqual(verify_native_trace(trace), [])
+
+    def test_verify_native_trace_accepts_retry_after_failed_skill_load(self):
+        from runtime_trace import verify_native_trace
+
+        db = self.tmp / "retry.db"
+        make_db(
+            db,
+            [{"id": "ses_ctrl", "parent_id": None, "agent": None}],
+            [
+                skill_part("r1", "ses_ctrl", "computer-use", status="error"),
+                skill_part("r2", "ses_ctrl", "computer-use", status="completed"),
+            ],
+        )
+        trace = export_trace(Path("D:/proj"), str(db), None)
+        statuses = [ev["status"] for ev in trace["skill_events"] if ev["skill"] == "computer-use"]
+        self.assertEqual(sorted(statuses), ["completed", "error"])
+        self.assertEqual(verify_native_trace(trace), [])
+
+    def test_verify_native_trace_accepts_retry_after_failed_tool_call(self):
+        from runtime_trace import verify_native_trace
+
+        def bash_call(pid, status):
+            return {
+                "id": pid,
+                "session_id": "ses_ctrl",
+                "data": {
+                    "type": "tool",
+                    "tool": "bash",
+                    "callID": "call_retry",
+                    "state": {"status": status, "input": {}, "output": "x"},
+                },
+            }
+
+        db = self.tmp / "tool-retry.db"
+        make_db(
+            db,
+            [{"id": "ses_ctrl", "parent_id": None, "agent": None}],
+            [bash_call("t1", "error"), bash_call("t2", "completed")],
+        )
+        trace = export_trace(Path("D:/proj"), str(db), None)
+        statuses = [ev["status"] for ev in trace["tool_events"] if ev["call_id"] == "call_retry"]
+        self.assertIn("completed", statuses)
+        self.assertIn("error", statuses)
+        self.assertEqual(verify_native_trace(trace), [])
+
+    def test_non_native_trace_cannot_pass(self):
+        self.trace.pop("source", None)
+        failures = validate_chain(self.trace, self.dispatch, None)
+        self.assertTrue(any("native provenance" in f for f in failures), failures)
+
+    def test_truncated_trace_cannot_pass(self):
+        self.trace["truncated"] = True
+        failures = validate_chain(self.trace, self.dispatch, None)
+        self.assertTrue(any("truncated" in f for f in failures), failures)
+
+    def test_satisfied_reviewer_requires_result_ref(self):
+        self.dispatch["tasks"][1].pop("result_ref")
+        failures = validate_chain(self.trace, self.dispatch, None)
+        self.assertTrue(any("result_ref" in f for f in failures), failures)
+
+    def test_reviewer_issues_override_satisfied_claim(self):
+        payload = json.loads(self.reviewer_result.read_text(encoding="utf-8"))
+        payload["issues"] = [{"issue_id": "ISSUE-1", "severity": "high"}]
+        self.reviewer_result.write_text(json.dumps(payload), encoding="utf-8")
+        failures = validate_chain(self.trace, self.dispatch, None)
+        self.assertTrue(any("issue(s)" in f for f in failures), failures)
+
+    def test_pua_repair_overrides_satisfied_claim(self):
+        payload = json.loads(self.reviewer_result.read_text(encoding="utf-8"))
+        payload["pua_acceptance"]["result"] = "repair"
+        self.reviewer_result.write_text(json.dumps(payload), encoding="utf-8")
+        failures = validate_chain(self.trace, self.dispatch, None)
+        self.assertTrue(any("pua_acceptance" in f for f in failures), failures)
+
+    def test_unlinked_child_session_fails(self):
+        self.trace["task_events"] = [
+            ev for ev in self.trace["task_events"] if ev["child_session"] != "ses_rev"
+        ]
+        failures = validate_chain(self.trace, self.dispatch, None)
+        self.assertTrue(any("no matching task dispatch event" in f for f in failures), failures)
+
+    def test_unknown_status_and_duplicate_ids_fail(self):
+        self.dispatch["tasks"].append(dict(self.dispatch["tasks"][0]))
+        self.dispatch["tasks"][1]["status"] = "weird"
+        failures = validate_chain(self.trace, self.dispatch, None)
+        self.assertTrue(any("duplicate task_id" in f for f in failures), failures)
+        self.assertTrue(any("invalid status" in f for f in failures), failures)
+
+    def test_failed_task_is_not_reusable(self):
+        self.dispatch["tasks"][0]["status"] = "failed"
+        failures = validate_chain(self.trace, self.dispatch, None)
+        self.assertTrue(any("failed dispatch" in f for f in failures), failures)
+
+    def test_agent_name_substring_is_not_disclosure(self):
+        self.dispatch["tasks"][1]["provenance"]["agent"] = "mvp-reviewer-extra"
+        failures = validate_chain(self.trace, self.dispatch, None)
+        self.assertTrue(any("!= trace child agent" in f for f in failures), failures)
 
     def test_load_trace_rejects_wrong_schema(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -317,8 +471,34 @@ class RuntimeGateEngineTests(unittest.TestCase):
         self.card.write_text((ROOT / "tests/fixtures/goal-valid.md").read_text(encoding="utf-8"))
         self.trace_path = self.root / ".opencode" / "mvp" / "trace.json"
         self.dispatch_path = self.root / ".opencode" / "mvp" / "g-fixture.dispatch.json"
+        session_db = self.root / "session-store.db"
+        make_db(
+            session_db,
+            [
+                {"id": "ses_ctrl", "parent_id": None, "agent": None},
+                {"id": "ses_worker", "parent_id": "ses_ctrl", "agent": "mvp-worker"},
+                {"id": "ses_rev", "parent_id": "ses_ctrl", "agent": "mvp-reviewer"},
+            ],
+            [
+                skill_part("rg1", "ses_worker", "task-worker"),
+                skill_part("rg2", "ses_rev", "reviewer"),
+                skill_part("rg3", "ses_rev", "pua"),
+                task_part("rg4", "ses_ctrl", "mvp-worker", child="ses_worker"),
+                task_part("rg5", "ses_ctrl", "mvp-reviewer", child="ses_rev"),
+            ],
+        )
+        reviewer_result = self.root / "dispatch-archive" / "T-02-reviewer.json"
+        reviewer_result.parent.mkdir(parents=True)
+        reviewer_result.write_text(json.dumps({
+            "mode": "review",
+            "issues": [],
+            "checked_scope": ["goal finish acceptance"],
+            "not_checked": [],
+            "pua_acceptance": {"stage_id": "goal-finish", "result": "satisfied"},
+        }), encoding="utf-8")
         self.trace = {
             "schema": "runtime-trace/1",
+            "source": {"kind": "opencode-sqlite", "path": str(session_db)},
             "sessions": [
                 {"id": "ses_ctrl", "parent_id": None, "agent": "(primary)"},
                 {"id": "ses_worker", "parent_id": "ses_ctrl", "agent": "mvp-worker"},
@@ -346,6 +526,7 @@ class RuntimeGateEngineTests(unittest.TestCase):
                  "acceptance": {"verdict": "satisfied", "pending_actions": []}},
                 {"task_id": "T-02", "role": "reviewer", "status": "done", "review_scope": "goal",
                  "provenance": {"session_id": "ses_rev", "agent": "mvp-reviewer"},
+                 "result_ref": str(reviewer_result),
                  "acceptance": {"verdict": "satisfied", "pending_actions": []}},
             ],
         }
@@ -413,6 +594,148 @@ class RuntimeGateEngineTests(unittest.TestCase):
         with self.assertRaises(self.check.ValidationError) as ctx:
             self.check.finish_goal(self.card)
         self.assertIn("stale", str(ctx.exception))
+
+    def test_empty_policy_requirements_cannot_remove_defaults(self):
+        self._verify_all_outcomes()
+        policy = self.root / ".opencode" / "mvp" / "runtime-policy.json"
+        policy.write_text(
+            json.dumps({"schema": "runtime-policy/1", "goals": "all", "requirements": []}),
+            encoding="utf-8",
+        )
+        self.dispatch["tasks"] = []
+        self.dispatch_path.write_text(json.dumps(self.dispatch), encoding="utf-8")
+        sidecar, _ = self.check.runtime_gate(self.card, self.trace_path)
+        self.assertEqual(sidecar["verdict"], "fail")
+        self.assertTrue(any("reviewer" in f for f in sidecar["failures"]), sidecar["failures"])
+
+    def test_policy_change_after_gate_blocks_finish(self):
+        self._verify_all_outcomes()
+        policy = self._write_policy()
+        sidecar, _ = self.check.runtime_gate(self.card, self.trace_path)
+        self.assertEqual(sidecar["verdict"], "pass")
+        policy.write_text(
+            json.dumps({"schema": "runtime-policy/1", "goals": "all",
+                        "requirements": [{"kind": "independence"}]}),
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(self.check.ValidationError, "policy state changed"):
+            self.check.finish_goal(self.card)
+
+    def test_goal_definition_change_after_gate_blocks_finish(self):
+        self._verify_all_outcomes()
+        self._write_policy()
+        sidecar, _ = self.check.runtime_gate(self.card, self.trace_path)
+        self.assertEqual(sidecar["verdict"], "pass")
+        _, goal = self.check.read_artifact(self.card, "goal")
+        goal["demo"] = "changed after the gate"
+        self.card.write_text(self.check.render_goal(goal), encoding="utf-8")
+        with self.assertRaises(self.check.ValidationError):
+            self.check.finish_goal(self.card)  # the evidence binding already blocks
+        with self.assertRaisesRegex(self.check.ValidationError, "goal definition changed"):
+            self.check.enforce_runtime_gate(self.card, goal)
+
+    def test_hand_written_trace_fails_gate(self):
+        self._verify_all_outcomes()
+        self._write_policy()
+        self.trace.pop("source", None)
+        self.trace_path.write_text(json.dumps(self.trace), encoding="utf-8")
+        sidecar, _ = self.check.runtime_gate(self.card, self.trace_path)
+        self.assertEqual(sidecar["verdict"], "fail")
+        self.assertTrue(any("native provenance" in f for f in sidecar["failures"]), sidecar["failures"])
+
+    def test_trace_content_must_exist_in_the_source_store(self):
+        self._verify_all_outcomes()
+        empty_db = self.root / "empty-store.db"
+        make_db(empty_db, [{"id": "ses_other", "parent_id": None, "agent": None}], [])
+        self.trace["source"]["path"] = str(empty_db)
+        self.trace_path.write_text(json.dumps(self.trace), encoding="utf-8")
+        sidecar, _ = self.check.runtime_gate(self.card, self.trace_path)
+        self.assertEqual(sidecar["verdict"], "fail")
+        self.assertTrue(
+            any("not present in the source store" in f for f in sidecar["failures"]),
+            sidecar["failures"],
+        )
+
+    def test_store_record_must_be_completed(self):
+        self._verify_all_outcomes()
+        failed_db = self.root / "failed-store.db"
+        make_db(
+            failed_db,
+            [
+                {"id": "ses_ctrl", "parent_id": None, "agent": None},
+                {"id": "ses_worker", "parent_id": "ses_ctrl", "agent": "mvp-worker"},
+                {"id": "ses_rev", "parent_id": "ses_ctrl", "agent": "mvp-reviewer"},
+            ],
+            [
+                skill_part("fg1", "ses_worker", "task-worker"),
+                skill_part("fg2", "ses_rev", "reviewer", status="error"),
+                skill_part("fg3", "ses_rev", "pua"),
+                task_part("fg4", "ses_ctrl", "mvp-worker", child="ses_worker"),
+                task_part("fg5", "ses_ctrl", "mvp-reviewer", child="ses_rev"),
+            ],
+        )
+        self.trace["source"]["path"] = str(failed_db)
+        self.trace_path.write_text(json.dumps(self.trace), encoding="utf-8")
+        sidecar, _ = self.check.runtime_gate(self.card, self.trace_path)
+        self.assertEqual(sidecar["verdict"], "fail")
+        self.assertTrue(
+            any("no completed record" in f for f in sidecar["failures"]),
+            sidecar["failures"],
+        )
+
+    def test_custom_policy_path_gate_is_enforceable(self):
+        custom_policy = self.root / "custom-policy.json"
+        custom_policy.write_text(
+            json.dumps({"schema": "runtime-policy/1", "goals": ["G-FIXTURE"]}),
+            encoding="utf-8",
+        )
+        self._verify_all_outcomes()
+        sidecar, _ = self.check.runtime_gate(self.card, self.trace_path, policy_path=str(custom_policy))
+        self.assertEqual(sidecar["verdict"], "pass", sidecar["failures"])
+        goal = self.check.finish_goal(self.card)
+        self.assertEqual(goal["status"], "complete")
+
+    def test_default_policy_created_after_custom_gate_blocks_finish(self):
+        custom_policy = self.root / "custom-policy.json"
+        custom_policy.write_text(
+            json.dumps({"schema": "runtime-policy/1", "goals": ["G-FIXTURE"]}),
+            encoding="utf-8",
+        )
+        self._verify_all_outcomes()
+        sidecar, _ = self.check.runtime_gate(self.card, self.trace_path, policy_path=str(custom_policy))
+        self.assertEqual(sidecar["verdict"], "pass", sidecar["failures"])
+        self._write_policy()
+        with self.assertRaisesRegex(self.check.ValidationError, "default runtime policy now gates"):
+            self.check.finish_goal(self.card)
+
+    def test_policy_deletion_after_gate_blocks_finish(self):
+        self._verify_all_outcomes()
+        policy = self._write_policy()
+        sidecar, _ = self.check.runtime_gate(self.card, self.trace_path)
+        self.assertEqual(sidecar["verdict"], "pass", sidecar["failures"])
+        policy.unlink()
+        with self.assertRaisesRegex(self.check.ValidationError, "policy not found"):
+            self.check.finish_goal(self.card)
+
+    def test_policy_rescope_after_gate_blocks_finish(self):
+        self._verify_all_outcomes()
+        policy = self._write_policy()
+        sidecar, _ = self.check.runtime_gate(self.card, self.trace_path)
+        self.assertEqual(sidecar["verdict"], "pass", sidecar["failures"])
+        policy.write_text(
+            json.dumps({"schema": "runtime-policy/1", "goals": ["G-OTHER"], "requirements": []}),
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(self.check.ValidationError, "policy state changed"):
+            self.check.finish_goal(self.card)
+
+    def test_policy_created_after_gate_blocks_finish(self):
+        self._verify_all_outcomes()
+        sidecar, _ = self.check.runtime_gate(self.card, self.trace_path)
+        self.assertEqual(sidecar["verdict"], "pass", sidecar["failures"])
+        self._write_policy()
+        with self.assertRaisesRegex(self.check.ValidationError, "policy state changed"):
+            self.check.finish_goal(self.card)
 
     def test_malformed_policy_is_an_error_not_a_pass(self):
         self._verify_all_outcomes()

@@ -37,7 +37,14 @@ For a material Normal/Guarded acceptance handoff without a contract-bound mode,
 use that same existing `review` capability as a read-only acceptance review:
 scope findings to the supplied handoff, omit contract IDs that do not exist, and
 never invent a new reviewer mode or event schema. A fresh seat is still required
-for an independence claim.
+for an independence claim. When the handoff includes a `ui-acceptance/1`
+sidecar, check each scenario read-only per
+`../computer-use/references/ui-acceptance-protocol.md`: applicability decision
+and reasons, artifact binding, whether observed results satisfy
+`journey.expected`, whether `passed` scenarios carry result evidence and native
+call references, and whether failed/blocked scenarios are exposed unresolved.
+Never operate the UI, never convert `blocked` into `not-applicable`; missing
+controller-side execution is requested via CONTROLLER_ACTION.
 
 ## Invariants
 

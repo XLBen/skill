@@ -4,7 +4,8 @@
 > choosing an execution seat for a task, and before recording dispatch state.
 
 本协议是所有模式共用的唯一委派规则。主控制器（本 skill）持有目标、依赖、
-集成、最终验证和持久状态；实质工作默认交给子代理，主控不做实现者。
+集成、最终验证和持久状态；Guarded/Audited 的实质工作默认交给子代理，Normal
+允许主控直接实现但独立正确性判断与验证盲区仍应派发。
 阶段→能力→席位的权威映射见 `stage-routing.json`；本文件规定决策程序。
 
 ## Dispatch Trigger Matrix
@@ -19,10 +20,10 @@
    - 否，且确属拼写/格式/明确机械小改 → 主控直接处理；多个同类小改合并
      为一个工作包（`skip_reason: mechanical-batch`）。禁止拆分派发。
    - 是 → 进入 2。
-2. 当前是否 Audited 切片？
-   - 否 → 能力可用即派 worker 子代理（`mvp-worker`，加载 `task-worker`）；
-     根因/模块定位不明先派 research。`skip_reason` 只允许
-     `capability-unavailable`（须有 preflight 证据）。
+2. 当前是否 Guarded/Audited 切片？
+   - 否（Normal）：主控可直接实现；涉及独立正确性判断、验证盲区或用户要求时
+     派 worker/reviewer。`skip_reason` 只允许
+     `capability-unavailable`（须有 preflight 证据）或 `mechanical-batch`。
    - 是 → 按 Audited Execution Seat Selection 决策表执行。
 3. 能力不可用分支按 Failure Branches 降级或阻塞，并记录证据。
 
@@ -30,11 +31,13 @@
 |---|---|---|
 | 单点拼写/格式/明确机械小改 | 主控直接处理；多个同类小改合并为一个工作包 | 禁止拆分派发 |
 | 需要定位模块、依赖资料、根因分析 | 派 research 子代理；两个以上独立问题域并行 | 默认派发 |
-| Normal/Guarded 实质实现任务 | 派 worker 子代理（轻量实现席位） | 默认派发 |
+| Guarded/Audited 实质实现任务 | 派 worker 子代理（轻量实现席位） | 默认派发 |
+| Normal 实质实现任务 | 主控可直接实现；独立正确性判断或验证盲区时派发 | 按风险选择 |
 | `/fix` 根因不明 | 先派 research 诊断，凭证据再派实现 | 默认派发 |
 | 多个可独立复现的故障 | 按问题域并行派 research/worker | 默认派发 |
-| 每个实质切片验收交接 | 派 fresh reviewer（见 SKILL.md 验收章节） | 能力可用即必须 |
-| 全目标 finish 检查 | 派 reviewer 复用 review 能力做 whole-goal 检查 | 能力可用即必须 |
+| Guarded/Audited 实质切片验收交接 | 派 fresh reviewer（见 SKILL.md 验收章节） | 能力可用即必须 |
+| Normal 验收（独立判断/盲区/用户要求） | 派 fresh reviewer | 按风险选择 |
+| 全目标 finish 检查 | 派 reviewer 复用 review 能力做 whole-goal 检查 | Guarded/Audited 能力可用即必须 |
 | Audited 测试冻结/评审 | test-author / reviewer 独立席位 | 必须且阻塞 |
 | Audited 步骤实现席位 | 按 Audited Execution Seat Selection 决策表 | 按决策表 |
 
@@ -96,6 +99,12 @@
 边界（必须遵守）：
 
 - 目标是**适用能力覆盖**，不是调用全部可用 skill；不适用的不调用。
+- **UI 验收是硬规则而非候选**：受影响 outcomes 包含界面旅程（原生应用、
+  系统对话框、网页交互）时，`computer-use` 必须由主控加载并执行
+  ui-acceptance sidecar 中的必需场景（规则见
+  `stage-routing.json` 的 ui_acceptance 块与
+  `computer-use/references/ui-acceptance-protocol.md`）；缺后端是 blocked，
+  不是不适用。无界面范围必须记录 `applicability: none` 及理由。
 - 加载 skill 只证明取得说明，不证明验收完成；验收结果仍需行为证据。
 - 父会话加载过角色 skill 不代替 fresh 子代理自行加载。
 - 专业 skill 不扩大角色权限：只读 reviewer 需要运行命令/GUI 时经

@@ -70,6 +70,8 @@
 既有 disposition。`goal` 校验卡片，`verify-goal`
 逐项执行验证并保存引擎证据，`finish-goal` 才可完成；禁止手写 verified/complete。
 任意状态的 goal 都至少有一个 `user_entry: true` 结果，且应验证真实产品入口 demo。
+界面旅程用可选 `goal.ui`（`{"required": true, "outcome_ids": [...]}`）在目标卡声明，
+作为 UI 验收义务的持久来源；没有界面声明时不需要创建 sidecar。
 ID 和布尔标记只提供结构约束，不自动证明语义覆盖或真实边界。
 
 `/fix` 复用相关 active/blocked 卡片，不创建第二个 active 修复目标；已完成包保持
@@ -89,11 +91,13 @@ frontier ID 唯一且只指 open question，不要求列出全部 open question�
 
 流程强度按当前切片选择，不让所有任务缴纳相同的文档成本：
 
-- Normal：可逆的工作区内改动；目标卡、相关测试、真实 demo。实质验收交接
-  仍派 fresh reviewer（无契约 acceptance review），不因轻量档免除。
-- Guarded：外部边界或较高返工风险，增加小探针、验收测试和必要的独立 review。
-- Audited：资金、隐私、安全、迁移或不可逆副作用，内部调用契约、PLAN、CR 和
-  reconcile gate。
+- Normal：可逆的工作区内改动；相关测试、真实 demo，需要跟踪或恢复时才建目标卡。
+  不强制 worker 委派、独立 test-author、PUA 阶段卡或逐 slice reviewer；涉及独立正确性
+  判断、验证盲区或用户要求时派一次 fresh reviewer（无契约 acceptance review）。
+- Guarded：外部边界或较高返工风险，增加小探针、验收测试和一次独立 review（同一
+  版本同一范围可复用）。
+- Audited：资金、隐私、安全、迁移或不可逆副作用，内部调用契约、PLAN、CR、独立
+  test-author 和 reconcile gate；风险按实际接触的数据/副作用判断，不按主题词。
 
 无论采用哪一档，公开入口仍是 `/plan`、`/build`、`/fix` 和 `/resume`。严格能力
 完成后会把控制权交回交付循环，不要求用户换命令。
@@ -110,7 +114,7 @@ goal、deferred 和真实入口，按需复用 reviewer，不新增公开命令�
 ## 内部 skills
 
 - `mvp-delivery`：`plan/build/fix/resume` 的总控制器，负责持续收敛到原始目标；
-  实质任务默认派发子代理，规则见其 `references/subagent-orchestration.md`。
+  Guarded/Audited 实质任务默认派发子代理，规则见其 `references/subagent-orchestration.md`。
 - `grill`：深度需求澄清，只生成 brief。
 - `contract-review`：Audited 切片的契约评审和 PLAN 编译。
 - `construction`：执行并收尾 Audited PLAN，处理 CR 恢复。
@@ -118,14 +122,17 @@ goal、deferred 和真实入口，按需复用 reviewer，不新增公开命令�
 - `test-author`：由 fresh subagent 调度时独立生成和冻结验收测试。
 - `reviewer`：由 fresh subagent 调度时进行只读评审，含轻量验收与 whole-goal 检查。
 - `step-executor`：由 fresh subagent 隔离执行一个严格 PLAN 步骤。
-- `computer-use`：主控制器按需执行真实桌面 GUI 路径，观察、操作、验证；需要另行授权的 MCP。
-- `pua`：每个阶段验收前的主动质询、证据闭环和有界失败恢复；不替代 engine gate 或 owner 决定。
+- `computer-use`：主控制器按需执行真实桌面 GUI 路径，观察、操作、验证；UI 义务由
+  `goal.ui` 声明，需要另行授权的 MCP。
+- `pua`：Guarded/Audited 验收与失败恢复时的主动质询、证据闭环和有界恢复；Normal
+  直接执行同样的问题，不替代 engine gate 或 owner 决定。
 - `i-have-adhd`：用户沟通层，先给行动和状态；在验收交接前输出 preview，验收后输出
   delivery/blocker；不删除交给 reviewer/PUA 的完整事实。
 
 用户看到的是 `i-have-adhd` 的短视图，reviewer/PUA 收到的是完整
-`ACCEPTANCE_HANDOFF`。每个实质验收交接都自动尝试派 fresh reviewer，并传入
-`pua_stage_id`；没有既有 mode 时使用通用 read-only acceptance review，不新增角色或
+`ACCEPTANCE_HANDOFF`。Guarded/Audited 的实质验收交接自动尝试派 fresh reviewer，并传入
+`pua_stage_id`；Normal 由改动风险决定是否派发。没有既有 mode 时使用通用 read-only
+acceptance review，不新增角色或
 event schema。先 preview、再 PUA/reviewer、最后 delivery 或 blocker。Normal 的普通
 进度不制造 reviewer 仪式，且任何简洁格式都不能替代 engine、owner 或独立性 gate。
 `i-have-adhd` 不提供公开命令、hook 或全局状态。
@@ -174,6 +181,7 @@ skill 后必须重启 OpenCode。
 python scripts/check.py --selftest
 python -B -m unittest discover -s tests -p "test_*.py"
 python scripts/check_runtime.py doctor <target-project>   # 静态+宿主能力诊断
+python scripts/check_runtime.py doctor <target-project> --strict  # 问题或漂移时退出码 3
 python scripts/runtime_trace.py export <target-project> --out trace.json
 python scripts/runtime_trace.py validate trace.json --dispatch <goal>.dispatch.json
 ```
@@ -181,9 +189,23 @@ python scripts/runtime_trace.py validate trace.json --dispatch <goal>.dispatch.j
 运行时门禁（可选启用）：在目标项目 `.opencode/mvp/runtime-policy.json` 写
 `{"schema": "runtime-policy/1", "goals": "all"}` 后，`finish-goal` 会要求
 先运行 `check.py runtime-gate <goal>.md --trace <trace.json>` 并通过——
-它用原生会话证据（真实子会话、成功完成的 skill 加载、父子 provenance）
-核验 dispatch 声明，缺证据、席位回退违规或证据过期（文件 hash 变化）都会
-阻塞完成。策略文件不存在时保持既有行为；历史完成卡不受影响。
+它用原生会话证据（真实子会话、成功完成的 skill 加载、父子 provenance、
+与 trace 中的 task 调用事件关联的 dispatch）核验 dispatch 声明。只有
+本机 session store 导出的原生 trace 可以通过；手写/导入 trace、截断导出、
+缺证据、席位回退违规、reviewer 返回与 `satisfied` 声明不符，或证据过期
+（trace/dispatch/policy 文件 hash 或 goal 定义变化）都会阻塞完成。默认
+requirements 是最低要求，策略只能追加不能清空；`allow_independence_downgrade`
+对 audited 目标无效。策略文件不存在时保持既有行为；历史完成卡不受影响。
+
+UI 验收门禁：界面旅程由目标卡 `goal.ui.required`（可带 `outcome_ids`）声明，
+主控用 `computer-use` 执行 `.opencode/mvp/<goal>.ui-acceptance.json`
+（schema `ui-acceptance/1`）中的必需场景并记录真实执行证据；`check.py ui-gate
+<goal>.md --trace <trace.json> --bind` 首次绑定产物身份，之后核验场景状态、
+computer-use 真实加载、会话一致的已完成原生调用、存在的 observation/result
+文件、policy `ui_tools` 匹配（或 runner 证据）与产物身份。产物变化后必须重置
+受影响场景、重跑并重新绑定，`--bind` 不会给旧结果贴新构建；`finish-goal`
+重新计算身份并拒绝过期评估。删除 sidecar 或把必需场景标成 not-applicable
+不能取消义务；缺后端/权限的场景为 blocked。
 
 严格流程的单项排查命令仍可直接运行 `scripts/check.py`；合法示例位于
 `tests/fixtures/`。
@@ -195,7 +217,10 @@ OpenCode 的 PowerShell。执行前检查命令，对破坏、付费、凭据/�
 取得明确授权；引擎不是沙箱。`verify-step` 使用调用者 cwd，必须从项目根运行。
 
 引擎检查结构、绑定、退出/超时和 goal stdout 断言；测试命令仍须真正检查产品行为。
-hash 不能防止有写权限者伪造工件，也不证明身份、独立性或真实可用性。`--selftest`
+`verify-goal` 记录当前工作区内容快照，`finish-goal` 复算：验证后改动任何非排除
+文件都会使结果失效，直到重新验证；验证命令自身改动工作区时结果判为失败。快照
+排除 VCS、`.opencode/**`、workflow 工件、缓存和生成目录。hash 不能防止有写权限者
+伪造工件，也不证明身份、独立性或真实可用性。`--selftest`
 只检验引擎，不是产品 usability 证明。读取 source brief 时，引擎已有拒绝 draft 或
 未确认来源的规则，控制器仍需显式验证 final brief 并核对语义，不能把它说成仅提示层约束。
 
@@ -204,7 +229,8 @@ disposition 校验可能拒绝旧 active/blocked 卡或 draft。schema 1 和 has
 不自动重写历史卡：继续工作前显式修正未完成工件，定义变化按全量失效规则重新验证；
 涉及冻结输入则走 CR/新包。complete 卡和冻结历史保持不可变，即使不满足新规则也不能
 伪造“已按新规则重验”，后续修复另建当前卡并保留历史证据。
-当前引擎没有自动产品源码 fingerprint，也没有真实边界的自动语义证明。测试仍须检查每次
+工作区快照检测“验证后被改动”，但不证明产品语义正确，也不能识别快照排除目录内的
+变化。测试仍须检查每次
 子进程状态、操作前相关输入 snapshot、结果内容和重复运行稳定性，并按风险用少量故障
 注入验证断言能失败；不能把文件名集合未变当作未写入或正确增量。Audited approval
 依然不能替代 controller 对最终版本、原始范围、真实入口及安装可复现性的核实职责。

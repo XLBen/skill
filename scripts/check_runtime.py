@@ -44,7 +44,7 @@ from pathlib import Path
 from typing import Any
 
 SCHEMA_URL = "https://opencode.ai/config.json"
-BUILTIN_AGENTS = ("build", "plan", "general", "explore", "compaction", "title", "summary")
+BUILTIN_AGENTS = ("build", "plan", "general", "explore", "scout", "compaction", "title", "summary")
 SKILL_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 
 
@@ -102,13 +102,23 @@ def strip_jsonc(text: str) -> str:
     return "".join(out)
 
 
+def strip_trailing_commas(text: str) -> str:
+    """Remove commas before closing braces/brackets outside string literals."""
+
+    return re.sub(
+        r'("(?:\\.|[^"\\])*")|,(?=\s*[}\]])',
+        lambda match: match.group(1) or "",
+        text,
+    )
+
+
 def load_config_file(path: Path) -> tuple[dict[str, Any] | None, str]:
     try:
         raw = path.read_text(encoding="utf-8")
     except OSError as exc:
         return None, f"unreadable: {exc}"
     if path.suffix == ".jsonc":
-        raw = strip_jsonc(raw)
+        raw = strip_trailing_commas(strip_jsonc(raw))
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -169,9 +179,16 @@ def resolve_configs(project: Path) -> dict[str, Any]:
 
 
 def merge_config(project_data: dict[str, Any], global_data: dict[str, Any]) -> dict[str, Any]:
-    merged = json.loads(json.dumps(global_data))
-    merged.update(project_data)  # shallow: project wins; skills.paths replaced
-    return merged
+    def deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
+        merged = dict(base)
+        for key, value in overlay.items():
+            if isinstance(value, dict) and isinstance(merged.get(key), dict):
+                merged[key] = deep_merge(merged[key], value)
+            else:
+                merged[key] = value
+        return merged
+
+    return deep_merge(json.loads(json.dumps(global_data)), project_data)
 
 
 def validate_config_shapes(config: dict[str, Any]) -> list[str]:
@@ -255,6 +272,17 @@ def parse_frontmatter(text: str) -> dict[str, Any] | None:
             raw = raw[1:-1]
         parent[key] = raw
     return data
+
+
+def skill_tree_hash(skill_dir: Path) -> str:
+    digest = hashlib.sha256()
+    for path in sorted(item for item in skill_dir.rglob("*") if item.is_file()):
+        relative = path.relative_to(skill_dir).as_posix()
+        if "__pycache__" in path.parts or relative.endswith(".pyc"):
+            continue
+        digest.update(relative.encode("utf-8") + b"\0")
+        digest.update(hashlib.sha256(path.read_bytes()).hexdigest().encode("ascii"))
+    return digest.hexdigest()
 
 
 def scan_skill_files(root: Path) -> list[dict[str, Any]]:
@@ -399,17 +427,24 @@ def static_doctor(project: Path, fetch_schema: bool) -> dict[str, Any]:
             for name, entry in sorted(recorded.items()):
                 if not isinstance(entry, dict):
                     continue
-                skill_md = Path(entry.get("path", "")) / "SKILL.md"
-                try:
-                    current = hashlib.sha256(skill_md.read_bytes()).hexdigest()  # noqa: S324
-                except OSError:
-                    stale.append({"skill": name, "issue": "skill file missing at recorded path"})
-                    continue
+                skill_dir = Path(entry.get("path", ""))
+                if entry.get("algorithm") == "tree-sha256/1":
+                    if not skill_dir.is_dir():
+                        stale.append({"skill": name, "issue": "skill directory missing at recorded path"})
+                        continue
+                    current = skill_tree_hash(skill_dir)
+                else:
+                    skill_md = skill_dir / "SKILL.md"
+                    try:
+                        current = hashlib.sha256(skill_md.read_bytes()).hexdigest()  # noqa: S324
+                    except OSError:
+                        stale.append({"skill": name, "issue": "skill file missing at recorded path"})
+                        continue
                 if current != entry.get("sha256"):
                     stale.append(
                         {
                             "skill": name,
-                            "issue": "SKILL.md changed after install; engine/agents copied at install time may be older — re-run install.py to refresh",
+                            "issue": "skill content changed after install; engine/agents copied at install time may be older — re-run install.py to refresh",
                         }
                     )
             skills_freshness = {"status": "ok" if not stale else "drift", "stale": stale}
@@ -443,7 +478,13 @@ def open_runtime_db(explicit: str | None) -> tuple[sqlite3.Connection | None, st
         candidates.append(Path(explicit))
     else:
         base = os.environ.get("OPENCODE_DATA_DIR")
-        roots = [Path(base)] if base else [Path.home() / ".local" / "share" / "opencode"]
+        roots: list[Path] = []
+        if base:
+            roots.append(Path(base))
+        else:
+            if sys.platform == "win32":
+                roots.append(Path.home() / "AppData" / "Local" / "opencode")
+            roots.append(Path.home() / ".local" / "share" / "opencode")
         for root in roots:
             candidates.append(root / "opencode.db")
             candidates.append(root / "db.sqlite")
@@ -494,7 +535,7 @@ def host_doctor(project: Path, db_arg: str | None, lookback_days: int | None) ->
             continue
         if lookback_days is not None:
             cutoff = (_dt.datetime.now() - _dt.timedelta(days=lookback_days)).timestamp() * 1000
-            if r["time_created"] or 0 < cutoff:
+            if (r["time_created"] or 0) < cutoff:
                 continue
         matched.append(r)
     sids = {r["id"] for r in matched}
@@ -693,6 +734,35 @@ def human_summary(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def strict_problems(report: dict[str, Any]) -> list[str]:
+    """Machine-actionable problems for --strict; diagnosis mode always exits 0."""
+
+    problems: list[str] = []
+    static = report.get("static")
+    if isinstance(static, dict):
+        problems += list(static["config"].get("shape_problems") or [])
+        problems += [f"duplicate skill: {item['skill']}" for item in static.get("skills_duplicate_names") or []]
+        relevant_skill_sources = {"project-default", "global-default", "skills.paths"}
+        for entry in static.get("skills_expected") or []:
+            if entry.get("source") in relevant_skill_sources:
+                problems += [f"skill {entry['name']}: {problem}" for problem in entry.get("problems") or []]
+        relevant_agent_sources = {"project-file", "global-file", "inline-config"}
+        for entry in static.get("agents_expected") or []:
+            if entry.get("source") in relevant_agent_sources:
+                problems += [f"agent {entry['name']}: {problem}" for problem in entry.get("problems") or []]
+        freshness = static.get("skills_freshness")
+        if isinstance(freshness, dict) and freshness.get("status") != "ok":
+            problems.append("skill freshness drift; re-run install.py")
+    host = report.get("host")
+    if isinstance(host, dict):
+        coverage = host.get("coverage") or {}
+        total = coverage.get("task_dispatches_total", 0)
+        verified = coverage.get("task_dispatches_verified", 0)
+        if coverage.get("status") == "available" and total and verified != total:
+            problems.append(f"subagent provenance partial: {verified}/{total} verified")
+    return problems
+
+
 def main(argv: list[str] | None = None) -> int:
     _utf8_stdout()
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -702,6 +772,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--lookback-days", type=int, default=None)
     parser.add_argument("--fetch-schema", action="store_true", help="validate config keys against the live schema URL")
     parser.add_argument("--json", help="also write the JSON report to this file")
+    parser.add_argument("--strict", action="store_true", help="exit nonzero when static problems or skill drift are found")
     args = parser.parse_args(argv)
 
     project = Path(args.target)
@@ -710,7 +781,8 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     if args.mode == "static":
-        report = static_doctor(project, args.fetch_schema)
+        static_report = static_doctor(project, args.fetch_schema)
+        report = static_report
     elif args.mode == "host":
         report = host_doctor(project, args.db, args.lookback_days)
     else:
@@ -724,6 +796,13 @@ def main(argv: list[str] | None = None) -> int:
         Path(args.json).write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     if args.mode != "doctor":
         print(json.dumps(report, ensure_ascii=False, indent=2))
+    if args.strict:
+        normalized = report if args.mode == "doctor" else {"static": static_report} if args.mode == "static" else {"host": report}
+        problems = strict_problems(normalized)
+        for problem in problems:
+            print(f"strict: {problem}", file=sys.stderr)
+        if problems:
+            return 3
     return 0
 
 

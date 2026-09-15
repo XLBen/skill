@@ -27,9 +27,12 @@ acceptance verdict still holds — pending owner/controller actions from an
 unchanged. A timeout is not proof of non-execution, so verify the working
 tree before replaying write tasks; records missing result references are
 rebuilt, not trusted from their status label.
-On each material handoff, dispatch a fresh reviewer and pass the full
+On each Guarded/Audited material handoff, dispatch a fresh reviewer and pass the full
 `ACCEPTANCE_HANDOFF` with `pua_stage_id` before reporting completion; stale
-review results are not evidence for changed artifacts.
+review results are not evidence for changed artifacts. If a
+`ui-acceptance/1` sidecar exists, re-observe the current window/app state and
+re-execute scenarios whose artifact binding no longer matches; never replay
+stale clicks or reuse observations of an older build.
 For an Audited goal, reconcile its named package and load the appropriate
 planning or construction phase internally. Validate `goal` and its final source
 brief before product edits; do not substitute a complete history card. Reset
@@ -50,6 +53,7 @@ the clean current slice. Required success and original real boundaries stay in
 outcomes; missing implementation/verification remain distinct pending/blocked gaps.
 Report delivery location, prerequisites,
 working directory/use steps or verified quickstart, sample result, tested environment
-and limitations; load the `pua` skill for the resumed `stage_id` before each
-handoff and for `goal-finish` before completion. On blockage, state what remains
+and limitations; for Audited goals or missing/suspect evidence load the `pua`
+skill for the resumed `stage_id` before the handoff and for `goal-finish` before
+completion. On blockage, state what remains
 unusable and the next owner action.

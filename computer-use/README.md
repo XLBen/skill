@@ -1,9 +1,17 @@
 # Computer Use
 
-Optional desktop interaction for the existing `/build`, `/fix` and `/resume`
-delivery loop. No new slash command. The controller loads `computer-use` only
-when a real GUI boundary needs it; browser-only tasks prefer dedicated browser
-automation. `/plan` may identify prerequisites but must not begin GUI execution.
+User-interface acceptance capability for the existing `/build`, `/fix` and
+`/resume` delivery loop. No new slash command. When an affected outcome
+includes an interface journey (native app, OS dialog, web interaction), the
+controller loads `computer-use`, executes the declared scenarios from the
+user's seat, and records evidence in
+`.opencode/mvp/<goal-slug>.ui-acceptance.json` (see
+`references/ui-acceptance-protocol.md`); the independent reviewer checks that
+evidence at the acceptance handoff, and `check.py ui-gate` enforces it before
+`finish-goal` under the runtime policy. Browser-only journeys prefer
+dedicated browser automation; missing backend blocks acceptance instead of
+waiving it. `/plan` may identify prerequisites and design scenarios but must
+not begin GUI execution.
 
 ## Selected Upstream
 
@@ -86,9 +94,15 @@ verify; it must not assume permission to operate any open desktop application.
 
 ## Acceptance Boundary
 
-Interactive screenshots/MCP results are supporting evidence, not a replacement
-for `verify-goal`, `verify-step`, or actual owner acceptance. Purely manual GUI
-goals cannot pass the current executable goal gate without a real verification
-runner. Report that limitation early rather than promise automatic completion.
+Interactive screenshots/MCP results are acceptance evidence recorded in the
+UI acceptance sidecar; they are not a replacement for `verify-goal`,
+`verify-step`, or actual owner acceptance. Under `runtime-policy/1`, run
+`check.py ui-gate <goal-card> --trace <trace.json>` before `finish-goal`:
+required scenarios must be `passed` (or reasoned `not-applicable`), the
+executing session must show a completed `computer-use` load and native call
+references in the trace, and the recorded artifact identity must match the
+current bound files. Purely manual GUI goals still need a real verification
+runner for the executable goal gate; report that limitation early rather
+than promise automatic completion.
 
 See `SKILL.md` for the full control, safety, recovery and evidence rules.

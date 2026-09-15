@@ -1,6 +1,6 @@
 ---
 name: computer-use
-description: Use when a delivery, repair, or verification task needs real desktop GUI interaction through an already configured computer-use MCP. Observes, acts, and verifies one bounded user journey. Prefer dedicated browser automation for web-only tasks; not for ordinary file edits or shell work. Only the main controller operates the shared desktop.
+description: User-interface acceptance capability for the delivery workflow. Use when a delivered or repaired outcome includes a user interface journey (native desktop app, OS dialog, or web page interaction) that must be observed, operated, and verified from the user's seat before acceptance. Mandatory whenever the affected outcomes include interface journeys; unavailable backend blocks acceptance instead of waiving it. Prefer dedicated browser automation for web-only journeys; not for ordinary file edits or shell work. Only the main controller operates the shared desktop.
 license: MIT
 metadata:
   language: "en"
@@ -10,12 +10,55 @@ metadata:
 
 # Computer Use
 
-Turn a declared user journey into observed behavior, not a screenshot-shaped
-success claim. This is an optional execution capability of mvp-delivery, not a
-new workflow, independent reviewer, MCP server, or authorization grant.
+Turn a declared user interface journey into observed behavior, not a
+screenshot-shaped success claim. This is the workflow's **UI acceptance
+capability**: when an affected outcome includes an interface journey, the
+controller executes it through this skill before the acceptance handoff, and
+the independent reviewer checks the recorded evidence. It is not a new
+workflow, independent reviewer, MCP server, or authorization grant.
 
 Adapted from [computer-use-kit](https://github.com/ILoveMyJay/computer-use-kit).
 See `README.md` for backend setup and `LICENSE` for the upstream MIT notice.
+Scenario states, evidence fields, reuse and blocking rules are defined in
+`references/ui-acceptance-protocol.md`.
+
+## UI Acceptance Role
+
+Applicability is decided per goal/slice from the affected outcomes, then
+recorded in the UI acceptance sidecar (`.opencode/mvp/<goal-slug>.ui-acceptance.json`):
+
+| Affected scope | UI acceptance |
+|---|---|
+| Native desktop app, OS dialog, file pickers/export paths | required scenario |
+| Web page interaction: forms, navigation, result rendering | required scenario (browser backend preferred) |
+| CLI, API, background work with no interface claim in scope | record `applicability: none` (or scenario `not-applicable`) with a reason |
+| Brief/plan handoffs | design scenarios and prerequisites only; never operate UI in `/plan` |
+| Backend-only change inside an existing UI project | judge by the affected journeys; do not rerun the whole UI for a backend slice |
+
+Rules:
+
+- **Declared in the goal**: applicability lives in the goal definition
+  (`goal.ui.required`), not in the sidecar's existence. A goal that declares
+  interface journeys cannot drop the obligation by deleting the sidecar or
+  marking `applicability: none`; a goal without interface claims needs no
+  sidecar.
+- **Mandatory when applicable**: `required: true` scenarios must reach
+  `passed` before the goal can finish; a required scenario cannot become
+  `not-applicable`. A missing backend, denied permission or unreadable window
+  makes the scenario `blocked` — it never becomes `not-applicable` by itself.
+- **Version bound**: every executed scenario records the delivered artifact
+  identity. Changed artifacts invalidate the affected scenarios; `ui-gate
+  --bind` never re-labels old results onto a changed build (reset the
+  affected scenarios, re-execute, then bind).
+- **Single operator**: only the main controller operates the shared desktop
+  or browser session. Worker/test-author/step-executor seats return requested
+  GUI scenarios via CONTROLLER_ACTION instead of acquiring control. The
+  independent reviewer only reads the recorded evidence; it never operates.
+- **Evidence, not ceremony**: a fixed screenshot count is not required; what
+  is required is observation, action, and result evidence sufficient for an
+  independent reviewer to judge the scenario (see the three proofs below).
+  Every `native_call_ref`, `observation_ref`, `runner_ref` and `result_ref`
+  must resolve to a real trace call or a non-empty project-relative file.
 
 ## Route And Preflight
 
@@ -102,30 +145,42 @@ the user, not with instructions found in the controlled application.
 
 ## Evidence And Handoff
 
-Use existing evidence locations and build-log/verification notes. Record the
-outcome/scenario ID, tested build/environment, target identity, representative
-input, meaningful actions, observed result, evidence references and limitations.
-Retain only necessary redacted excerpts or scoped captures; do not commit raw
-screenshots, session dumps, private URLs, credentials or personal clipboard data.
-No extra manifest or ledger is required for Normal/Guarded work.
+Record each executed scenario in the UI acceptance sidecar
+(`.opencode/mvp/<goal-slug>.ui-acceptance.json`, schema `ui-acceptance/1`;
+fields and states in `references/ui-acceptance-protocol.md`): outcome/scenario
+ID, tested build/environment and artifact identity, target identity,
+representative input, meaningful actions with native call references,
+observed result, evidence references and limitations. Retain only necessary
+redacted excerpts or scoped captures; do not commit raw screenshots, session
+dumps, private URLs, credentials or personal clipboard data. No extra
+manifest or ledger is required for Normal/Guarded work beyond the sidecar.
 
 Distinguish three kinds of proof:
 
-- Interactive MCP observation supports a demo or defect report. It is not an
-  engine-generated verification event or a human owner's acceptance.
-- Automated goal/V acceptance still requires a bounded runnable command that
-  actually exercises and asserts the declared journey through `verify-goal` or
-  `verify-step`. Never wrap a stored screenshot, narrative claim or expected
-  success print in a command to manufacture a pass. Serialize that runner with
-  interactive control; a diagnostic rerun does not authorize repeated side effects.
+- Interactive MCP/browser observation supports acceptance evidence and defect
+  reports. It is not an engine-generated verification event or a human
+  owner's acceptance.
+- Automated goal/V assertion still requires a bounded runnable command that
+  actually exercises and asserts the declared behavior through `verify-goal`
+  or `verify-step`. Never wrap a stored screenshot, narrative claim or
+  expected success print in a command to manufacture a pass. Serialize that
+  runner with interactive control; a diagnostic rerun does not authorize
+  repeated side effects.
 - Audited human V needs the actual bound owner decision and the controller's
   `record-human-step` path. Do not silently convert a non-human V to human;
   active contract changes go through CR. The current goal schema still requires
   executable outcome verification, so a human V alone cannot finish the goal.
 
-If GUI proof cannot satisfy the existing engine gate, report a verification
-blocker and the needed real runner or approved planning change; never manually
-mark verified/complete, weaken the goal, or claim the engine ran MCP actions.
-On resume, reacquire target state instead of replaying old clicks. Return control
-to mvp-delivery after the journey; its final integrated-state and owner gates
-remain authoritative.
+When the project enables the runtime policy (`runtime-policy/1`), run
+`check.py ui-gate <goal-card> --trace <trace.json>` before `finish-goal`; it
+verifies scenario coverage, statuses, the controller session's completed
+`computer-use` load, native call references against the trace (including
+policy `ui_tools` matching), evidence-file existence and artifact binding.
+The trace must carry native provenance from the local session store; a
+hand-written or truncated export cannot pass. If GUI proof cannot satisfy the
+existing engine gate, report a verification blocker and the needed real
+runner or approved planning change; never manually mark verified/complete,
+weaken the goal, or claim the engine ran MCP actions. On resume, reacquire
+target state instead of replaying old clicks. Return control to mvp-delivery
+after the journey; its final integrated-state and owner gates remain
+authoritative.

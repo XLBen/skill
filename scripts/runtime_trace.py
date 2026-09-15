@@ -35,6 +35,12 @@ from typing import Any
 TRACE_SCHEMA = "runtime-trace/1"
 POLICY_SCHEMA = "runtime-policy/1"
 
+# context-only tools excluded from the generic tool_events export; everything
+# else (bash, edit, MCP/browser tools like desktop_*, playwright_*) is kept so
+# UI acceptance native call references can be verified against the trace.
+TOOL_EVENT_EXCLUDE = {"read", "grep", "glob", "list"}
+TOOL_EVENT_CAP = 3000
+
 ROLE_REQUIRED_SKILLS = {
     "worker": ["task-worker"],
     "reviewer": ["reviewer"],
@@ -44,8 +50,182 @@ ROLE_REQUIRED_SKILLS = {
 PUA_REQUIRING_ROLES = {"reviewer"}  # reviewer executes its stage card itself
 INDEPENDENCE_ROLES = {"reviewer", "test-author", "step-executor"}
 FALLBACK_ALLOWED_ROLES = {"research", "worker"}
+KNOWN_TASK_ROLES = {"research", "worker", "reviewer", "test-author", "step-executor"}
+KNOWN_TASK_STATUS = {"pending", "dispatched", "done", "failed", "skipped"}
+BUILTIN_AGENT_FALLBACKS = {"general", "explore", "scout"}
 SKIP_WHITELIST = {"mechanical-batch", "capability-unavailable"}
 TASK_CHILD_RE = re.compile(r'<task id="(ses_[A-Za-z0-9]+)"')
+
+
+def trace_provenance(trace: dict[str, Any]) -> str:
+    """Return "native" only for a trace exported from the local session store.
+
+    A hand-written or imported trace is structurally checkable but is not
+    proof that the calls happened on this host; gates must not treat it as
+    native provenance. The source path must still exist and carry the SQLite
+    file header."""
+
+    source = trace.get("source") or {}
+    if source.get("kind") != "opencode-sqlite":
+        return "unverified"
+    raw_path = source.get("path")
+    try:
+        path = Path(raw_path) if raw_path else None
+        if path is not None and path.is_file():
+            with path.open("rb") as stream:
+                if stream.read(16) == b"SQLite format 3\x00":
+                    return "native"
+    except OSError:
+        pass
+    return "unverified"
+
+
+def _resolve_ref(ref: Any, base_dir: Path | None) -> Path:
+    path = Path(str(ref))
+    if not path.is_absolute() and base_dir is not None:
+        path = Path(base_dir) / path
+    return path
+
+
+def verify_native_trace(trace: dict[str, Any]) -> list[str]:
+    """Cross-check a trace's claims against the session store it names.
+
+    Native provenance means the file at `source.path` is a readable SQLite
+    session store whose rows actually support the trace: every session,
+    skill load, task child and tool call referenced by the trace must exist in
+    that store with matching parent/agent data. Fails closed."""
+
+    provenance = trace_provenance(trace)
+    if provenance != "native":
+        return [
+            "runtime trace has no verified native provenance (hand-written or imported "
+            "evidence cannot pass the gate); re-export from the local session store"
+        ]
+    problems: list[str] = []
+    db_path = Path(str(trace["source"]["path"]))
+    try:
+        con = sqlite3.connect(f"file:{db_path.as_posix()}?mode=ro", uri=True)
+        con.row_factory = sqlite3.Row
+    except sqlite3.Error as exc:
+        return [f"runtime trace source store is unreadable: {exc}"]
+    try:
+        for entry in trace.get("sessions", []) or []:
+            if not isinstance(entry, dict) or not entry.get("id"):
+                continue
+            sid = entry["id"]
+            row = con.execute("select parent_id, agent from session where id=?", (sid,)).fetchone()
+            if row is None:
+                problems.append(f"trace session {sid} is not present in the source store")
+                continue
+            if (entry.get("parent_id") or None) != (row["parent_id"] or None):
+                problems.append(f"trace session {sid} parent does not match the source store")
+            store_agent = row["agent"] or "(primary)"
+            if entry.get("agent") and entry["agent"] != store_agent:
+                problems.append(
+                    f"trace session {sid} agent {entry['agent']!r} does not match the source store"
+                )
+        for ev in trace.get("skill_events", []) or []:
+            sid, name = ev.get("session_id"), ev.get("skill")
+            if not sid or not name:
+                continue
+            rows = con.execute(
+                "select json_extract(data,'$.state.status') as status from part "
+                "where session_id=? and json_extract(data,'$.tool')='skill' "
+                "and json_extract(data,'$.state.input.name')=?",
+                (sid, name),
+            ).fetchall()
+            statuses = [row["status"] for row in rows]
+            claimed = ev.get("status")
+            if not statuses:
+                problems.append(f"skill load {name!r} in {sid} is not present in the source store")
+            elif claimed == "completed" and "completed" not in statuses:
+                problems.append(
+                    f"skill load {name!r} in {sid} has no completed record in the source store"
+                )
+            elif claimed and claimed not in statuses:
+                problems.append(
+                    f"skill load {name!r} in {sid} status {claimed!r} does not match the source store"
+                )
+        for ev in trace.get("tool_events", []) or []:
+            sid, call_id = ev.get("session_id"), ev.get("call_id")
+            if not sid or not call_id:
+                continue
+            rows = con.execute(
+                "select json_extract(data,'$.state.status') as status from part "
+                "where session_id=? and json_extract(data,'$.callID')=?",
+                (sid, call_id),
+            ).fetchall()
+            statuses = [row["status"] for row in rows]
+            claimed = ev.get("status")
+            if not statuses:
+                problems.append(f"tool call {sid}:{call_id} is not present in the source store")
+            elif claimed == "completed" and "completed" not in statuses:
+                problems.append(
+                    f"tool call {sid}:{call_id} has no completed record in the source store"
+                )
+            elif claimed and claimed not in statuses:
+                problems.append(
+                    f"tool call {sid}:{call_id} status {claimed!r} does not match the source store"
+                )
+        for ev in trace.get("task_events", []) or []:
+            child = ev.get("child_session")
+            if not child:
+                continue
+            row = con.execute("select parent_id, agent from session where id=?", (child,)).fetchone()
+            if row is None:
+                problems.append(f"task child session {child} is not present in the source store")
+                continue
+            if (ev.get("controller_session") or None) != (row["parent_id"] or None):
+                problems.append(f"task child {child} parent does not match controller_session")
+            if ev.get("child_agent") and (row["agent"] or None) != ev.get("child_agent"):
+                problems.append(f"task child {child} agent does not match the source store")
+            controller = ev.get("controller_session")
+            if controller:
+                controller_row = con.execute(
+                    "select 1 from part where session_id=? and json_extract(data,'$.tool')='task' "
+                    "and json_extract(data,'$.state.output') like ? limit 1",
+                    (controller, f'%<task id="{child}"%'),
+                ).fetchone()
+                if controller_row is None:
+                    problems.append(
+                        f"task child {child} has no matching task call in controller session {controller}"
+                    )
+    except sqlite3.Error as exc:
+        problems.append(f"runtime trace source store could not be verified: {exc}")
+    finally:
+        con.close()
+    return problems
+
+
+def reviewer_result_problems(task_id: str, task: dict[str, Any], base_dir: Path | None) -> list[str]:
+    """Verify that a claimed satisfied reviewer verdict is backed by the raw return."""
+
+    problems: list[str] = []
+    ref = task.get("result_ref")
+    if not isinstance(ref, str) or not ref.strip():
+        problems.append(f"task {task_id}: satisfied reviewer verdict requires result_ref to the raw return")
+        return problems
+    try:
+        data = json.loads(_resolve_ref(ref, base_dir).read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        problems.append(f"task {task_id}: reviewer result_ref unreadable: {exc}")
+        return problems
+    if not isinstance(data, dict) or not data.get("mode") or not isinstance(data.get("issues"), list):
+        problems.append(f"task {task_id}: reviewer result_ref is not a structured review payload")
+        return problems
+    if data["issues"]:
+        problems.append(
+            f"task {task_id}: dispatch claims satisfied but the reviewer return has "
+            f"{len(data['issues'])} issue(s)"
+        )
+    if not isinstance(data.get("checked_scope"), list) or not isinstance(data.get("not_checked"), list):
+        problems.append(f"task {task_id}: reviewer return must declare checked_scope and not_checked")
+    pua = data.get("pua_acceptance")
+    if isinstance(pua, dict) and pua.get("result") not in (None, "satisfied"):
+        problems.append(
+            f"task {task_id}: dispatch claims satisfied but pua_acceptance result is {pua.get('result')!r}"
+        )
+    return problems
 
 
 def _utf8() -> None:
@@ -104,9 +284,11 @@ def export_trace(target: Path, db_arg: str | None, lookback_days: int | None) ->
         "sessions": [],
         "skill_events": [],
         "task_events": [],
+        "tool_events": [],
     }
     if con is None:
         trace["export_error"] = db_note
+        trace["provenance"] = "unverified"
         return trace
     cutoff = None
     if lookback_days is not None:
@@ -142,10 +324,14 @@ def export_trace(target: Path, db_arg: str | None, lookback_days: int | None) ->
     q = ",".join("?" * len(sids)) if sids else "''"
     parts = con.execute(
         f"select session_id, time_created, data from part where session_id in ({q}) "
-        "and json_extract(data,'$.type')='tool' and json_extract(data,'$.tool') in ('skill','task') "
-        "order by time_created",
-        list(sids),
+        "and json_extract(data,'$.type')='tool' "
+        "and json_extract(data,'$.tool') not in ('read','grep','glob','list') "
+        "order by time_created desc limit ?",
+        [*sids, TOOL_EVENT_CAP],
     ).fetchall()
+    parts.reverse()  # restore chronological order after the desc limit
+    if len(parts) >= TOOL_EVENT_CAP:
+        trace["truncated"] = True
     for p in parts:
         data = json.loads(p["data"])
         state = data.get("state", {})
@@ -160,7 +346,7 @@ def export_trace(target: Path, db_arg: str | None, lookback_days: int | None) ->
                     "time": _ts(p["time_created"]),
                 }
             )
-        else:
+        elif data.get("tool") == "task":
             out = state.get("output")
             child = None
             if isinstance(out, str):
@@ -181,7 +367,18 @@ def export_trace(target: Path, db_arg: str | None, lookback_days: int | None) ->
                     "time": _ts(p["time_created"]),
                 }
             )
+        else:
+            trace["tool_events"].append(
+                {
+                    "session_id": p["session_id"],
+                    "call_id": data.get("callID"),
+                    "tool": data.get("tool"),
+                    "status": state.get("status"),
+                    "time": _ts(p["time_created"]),
+                }
+            )
     con.close()
+    trace["provenance"] = trace_provenance(trace)
     return trace
 
 
@@ -210,6 +407,9 @@ def load_trace(path: Path) -> dict[str, Any]:
     for key in ("sessions", "skill_events", "task_events"):
         if not isinstance(trace.get(key), list):
             raise TraceValidationError(f"trace missing list field '{key}'")
+    if not isinstance(trace.get("tool_events"), list):
+        trace["tool_events"] = []  # optional since runtime-trace/1; older exports lack it
+    trace["provenance"] = trace_provenance(trace)
     return trace
 
 
@@ -223,30 +423,72 @@ def load_dispatch(path: Path) -> dict[str, Any]:
     return data
 
 
-def validate_chain(trace: dict[str, Any], dispatch: dict[str, Any], policy: dict[str, Any] | None) -> list[str]:
+def validate_chain(trace: dict[str, Any], dispatch: dict[str, Any], policy: dict[str, Any] | None,
+                   base_dir: Path | None = None, rigor: str | None = None) -> list[str]:
+    """Validate a dispatch claim against a native trace. Fail-closed.
+
+    Every done dispatch must be linked to a real task tool event for its
+    claimed child session, a satisfied reviewer verdict must be backed by the
+    raw reviewer return, and only native traces can pass."""
+
     failures: list[str] = []
+    if trace.get("truncated"):
+        failures.append("runtime trace is truncated; narrow the export window and re-export")
+    provenance = trace_provenance(trace)
+    if provenance != "native":
+        failures.append(
+            "runtime trace has no verified native provenance (hand-written or imported "
+            "evidence cannot pass the runtime gate); re-export from the local session store"
+        )
+    if (policy or {}).get("allow_independence_downgrade") and rigor == "audited":
+        failures.append("policy: allow_independence_downgrade cannot apply to an audited goal")
+
     sessions = {s["id"]: s for s in trace["sessions"] if isinstance(s, dict) and s.get("id")}
     skill_ok: dict[str, set[str]] = {}
     for ev in trace["skill_events"]:
         if ev.get("status") == "completed" and ev.get("skill") and ev.get("session_id"):
             skill_ok.setdefault(ev["session_id"], set()).add(ev["skill"])
     child_ids = {sid for sid, s in sessions.items() if s.get("parent_id")}
+    task_events = [ev for ev in trace.get("task_events", []) if isinstance(ev, dict)]
 
     implementer_sessions: set[str] = set()
     reviewer_sessions: set[str] = set()
+    seen_task_ids: set[str] = set()
 
-    for task in dispatch["tasks"]:
+    for task in dispatch.get("tasks", []):
         if not isinstance(task, dict):
             failures.append("dispatch task is not an object")
             continue
-        tid = task.get("task_id", "?")
+        tid = task.get("task_id")
+        if not isinstance(tid, str) or not tid:
+            failures.append("dispatch task is missing a string task_id")
+            continue
+        if tid in seen_task_ids:
+            failures.append(f"task {tid}: duplicate task_id in dispatch record")
+        seen_task_ids.add(tid)
         role = task.get("role")
+        if role not in KNOWN_TASK_ROLES:
+            failures.append(f"task {tid}: unknown role {role!r}")
+            continue
         status = task.get("status")
+        if status not in KNOWN_TASK_STATUS:
+            failures.append(f"task {tid}: invalid status {status!r}")
+            continue
         prov = task.get("provenance") or {}
         claimed_session = prov.get("session_id")
         claimed_agent = prov.get("agent")
+        acc = task.get("acceptance") or {}
+        verdict = acc.get("verdict")
+        if verdict == "satisfied" and status != "done":
+            failures.append(
+                f"task {tid}: acceptance verdict 'satisfied' is only valid on a done task "
+                f"(status {status!r})"
+            )
 
         if status in ("pending", "dispatched"):
+            continue
+        if status == "failed":
+            failures.append(f"task {tid}: failed dispatch is not reusable state; rebuild it")
             continue
         if status == "skipped":
             reason = task.get("skip_reason")
@@ -256,8 +498,8 @@ def validate_chain(trace: dict[str, Any], dispatch: dict[str, Any], policy: dict
                 if not (policy or {}).get("allow_independence_downgrade", False):
                     failures.append(f"task {tid}: independence seat {role} cannot be skipped without policy")
             continue
-        if status != "done":
-            continue
+
+        # status == done
         if role == "research":
             pass  # read-only research: provenance recommended, chain not gating
         elif role in ROLE_REQUIRED_SKILLS:
@@ -271,21 +513,54 @@ def validate_chain(trace: dict[str, Any], dispatch: dict[str, Any], policy: dict
                 )
             else:
                 real_agent = (sessions[claimed_session] or {}).get("agent")
-                if claimed_agent and real_agent and claimed_agent != real_agent:
-                    disclosed = str(claimed_agent) in str(real_agent) or str(real_agent) in str(claimed_agent)
-                    if not disclosed:
-                        failures.append(
-                            f"task {tid}: provenance.agent {claimed_agent!r} != trace child agent {real_agent!r}"
-                        )
-                if role in INDEPENDENCE_ROLES and real_agent in ("general", "explore", "scout", None):
+                disclosed = (
+                    claimed_agent is not None and real_agent is not None
+                    and str(claimed_agent).startswith(str(real_agent))
+                    and real_agent in BUILTIN_AGENT_FALLBACKS
+                )
+                if claimed_agent and real_agent and claimed_agent != real_agent and not disclosed:
+                    failures.append(
+                        f"task {tid}: provenance.agent {claimed_agent!r} != trace child agent {real_agent!r}"
+                    )
+                if role in INDEPENDENCE_ROLES and real_agent in BUILTIN_AGENT_FALLBACKS | {None}:
                     failures.append(
                         f"task {tid}: independence seat {role} ran as built-in agent {real_agent!r} (fallback forbidden)"
                     )
-                if role not in INDEPENDENCE_ROLES and real_agent in ("general", "explore", "scout"):
-                    if not (claimed_agent and str(real_agent) in str(claimed_agent)):
+                if role not in INDEPENDENCE_ROLES and real_agent in BUILTIN_AGENT_FALLBACKS:
+                    if not (claimed_agent and str(claimed_agent).startswith(str(real_agent))):
                         failures.append(
                             f"task {tid}: worker fallback to {real_agent!r} not disclosed in provenance.agent"
                         )
+                linkage = [
+                    ev for ev in task_events
+                    if ev.get("child_session") == claimed_session
+                ]
+                if not linkage:
+                    failures.append(
+                        f"task {tid}: claimed child session {claimed_session} has no matching "
+                        "task dispatch event in the trace"
+                    )
+                else:
+                    if not any(ev.get("status") == "completed" for ev in linkage):
+                        failures.append(
+                            f"task {tid}: task dispatch event for {claimed_session} was not completed"
+                        )
+                    requested = {
+                        str(ev.get("requested_agent")) for ev in linkage if ev.get("requested_agent")
+                    }
+                    if requested and not (
+                        str(claimed_agent) in requested or str(real_agent) in requested
+                    ):
+                        fallback_disclosed = (
+                            role in FALLBACK_ALLOWED_ROLES
+                            and real_agent in BUILTIN_AGENT_FALLBACKS
+                            and any(str(claimed_agent).startswith(name) for name in requested)
+                        )
+                        if not fallback_disclosed:
+                            failures.append(
+                                f"task {tid}: requested agent {sorted(requested)} does not match "
+                                f"provenance.agent {claimed_agent!r}"
+                            )
                 required = list(ROLE_REQUIRED_SKILLS[role])
                 if role in PUA_REQUIRING_ROLES:
                     required.append("pua")
@@ -304,6 +579,8 @@ def validate_chain(trace: dict[str, Any], dispatch: dict[str, Any], policy: dict
         verdict = acc.get("verdict")
         if verdict in ("owner", "blocked") and acc.get("pending_actions"):
             failures.append(f"task {tid}: unresolved {verdict} pending actions {acc['pending_actions']}")
+        if role == "reviewer" and status == "done" and verdict == "satisfied":
+            failures.extend(reviewer_result_problems(tid, task, base_dir))
 
     for reviewer in reviewer_sessions:
         parent = (sessions.get(reviewer) or {}).get("parent_id")
@@ -337,12 +614,28 @@ def validate_chain(trace: dict[str, Any], dispatch: dict[str, Any], policy: dict
                 ok = any(
                     isinstance(t, dict)
                     and t.get("role") == "reviewer"
+                    and t.get("status") == "done"
                     and (t.get("acceptance") or {}).get("verdict") == "satisfied"
                     and (t.get("review_scope") in (None, "goal") or req.get("accept_any_scope"))
                     for t in dispatch["tasks"]
                 )
                 if not ok:
                     failures.append("policy: no satisfied goal-scope reviewer verdict for finish")
+            elif kind == "native-tool-calls":
+                refs = req.get("refs") or []
+                if not isinstance(refs, list) or not refs:
+                    failures.append("policy: native-tool-calls requires a nonempty refs list")
+                    continue
+                completed = {
+                    f"{ev.get('session_id')}:{ev.get('call_id')}"
+                    for ev in trace.get("tool_events", [])
+                    if ev.get("status") == "completed" and ev.get("session_id") and ev.get("call_id")
+                }
+                for ref in refs:
+                    if ref not in completed:
+                        failures.append(f"policy: native tool call '{ref}' not found as completed in trace")
+            elif kind == "ui-acceptance":
+                pass  # enforced by check.py ui-gate against the ui-acceptance sidecar, not by chain validation
             elif kind == "independence":
                 if reviewer_sessions & implementer_sessions:
                     failures.append("policy: reviewer/implementer independence violated")
@@ -391,7 +684,7 @@ def main(argv: list[str] | None = None) -> int:
     except TraceValidationError as exc:
         print(f"INVALID: {exc}", file=sys.stderr)
         return 2
-    failures = validate_chain(trace, dispatch, policy)
+    failures = verify_native_trace(trace) + validate_chain(trace, dispatch, policy)
     if args.report:
         Path(args.report).parent.mkdir(parents=True, exist_ok=True)
         Path(args.report).write_text(

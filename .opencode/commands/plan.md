@@ -38,4 +38,7 @@ load the `pua` skill for `goal-validation`, `contract-release` or
 Include the intended delivery form, target environment and prerequisites, actual
 user entry and representative input/result. Map each promised user-facing outcome
 to a public-interface journey using existing card fields; shared journeys are fine.
+When an affected outcome includes an interface journey, declare `goal.ui.required`
+(with optional `outcome_ids`) and design the UI acceptance scenarios and
+prerequisites in the sidecar; never operate the UI in `/plan`.
 Do not assume agent-only setup is available to the user or add unrequested deployment.

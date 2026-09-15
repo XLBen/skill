@@ -79,9 +79,11 @@ def main():
     engine_root = target / ".opencode" / "workflow"
     manifest_path = engine_root / "install-manifest.json"
     previous_files = {}
+    previous_manifest = {}
     if manifest_path.exists():
         try:
-            previous_files = json.loads(manifest_path.read_text(encoding="utf-8")).get("files", {})
+            previous_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            previous_files = previous_manifest.get("files", {})
         except (json.JSONDecodeError, OSError, AttributeError) as exc:
             raise SystemExit(f"cannot verify previous installation manifest: {exc}") from exc
         if not isinstance(previous_files, dict):
@@ -89,7 +91,9 @@ def main():
     installed_files = {}
     command_names = {path.stem for path in source.glob("*.md")}
     agent_names = (
-        {path.stem for path in agents_source.glob("*.md")} if agents_source.is_dir() else set()
+        {path.stem for path in agents_source.glob("*.md")}
+        if agents_source.is_dir() and not args.commands_only
+        else set()
     )
 
     def reject_inline_conflicts(data, config_label):
@@ -166,6 +170,16 @@ def main():
     def file_hash(path):
         return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
+    def skill_tree_hash(skill_dir):
+        digest = hashlib.sha256()
+        for path in sorted(item for item in skill_dir.rglob("*") if item.is_file()):
+            relative = path.relative_to(skill_dir).as_posix()
+            if "__pycache__" in path.parts or relative.endswith(".pyc"):
+                continue
+            digest.update(relative.encode("utf-8") + b"\0")
+            digest.update(hashlib.sha256(path.read_bytes()).hexdigest().encode("ascii"))
+        return digest.hexdigest()
+
     def safe_copy(source_path, destination_path, key):
         source_hash = file_hash(source_path)
         if destination_path.exists() and file_hash(destination_path) != source_hash:
@@ -183,7 +197,7 @@ def main():
         (command, destination / command.name, f"commands/{command.name}")
         for command in sorted(source.glob("*.md"))
     ]
-    if agents_source.is_dir():
+    if agents_source.is_dir() and not args.commands_only:
         copy_jobs.extend(
             (agent, agents_destination / agent.name, f"agents/{agent.name}")
             for agent in sorted(agents_source.glob("*.md"))
@@ -196,26 +210,29 @@ def main():
         folder, stem = relative.parts[0], relative.stem
         if folder == "commands" and stem not in command_names:
             retired_command_jobs.append((destination / relative.name, key, owned_hash))
-        elif folder == "agents" and stem not in agent_names:
+        elif folder == "agents" and not args.commands_only and stem not in agent_names:
             retired_command_jobs.append((agents_destination / relative.name, key, owned_hash))
-    copy_jobs.append((repo / "scripts" / "check.py", engine_root / "scripts" / "check.py", "scripts/check.py"))
-    copy_jobs.append(
-        (repo / "scripts" / "runtime_trace.py", engine_root / "scripts" / "runtime_trace.py", "scripts/runtime_trace.py")
-    )
-    copy_jobs.append(
-        (repo / "scripts" / "check_runtime.py", engine_root / "scripts" / "check_runtime.py", "scripts/check_runtime.py")
-    )
-    copy_jobs.append((repo / "tests" / "final_review.py", engine_root / "tests" / "final_review.py", "tests/final_review.py"))
-    copy_jobs.extend(
-        (fixture, engine_root / "tests" / "fixtures" / fixture.name, f"tests/fixtures/{fixture.name}")
-        for fixture in sorted((repo / "tests" / "fixtures").glob("*.md"))
-    )
+    if not args.commands_only:
+        copy_jobs.append((repo / "scripts" / "check.py", engine_root / "scripts" / "check.py", "scripts/check.py"))
+        copy_jobs.append(
+            (repo / "scripts" / "runtime_trace.py", engine_root / "scripts" / "runtime_trace.py", "scripts/runtime_trace.py")
+        )
+        copy_jobs.append(
+            (repo / "scripts" / "check_runtime.py", engine_root / "scripts" / "check_runtime.py", "scripts/check_runtime.py")
+        )
+        copy_jobs.append((repo / "tests" / "final_review.py", engine_root / "tests" / "final_review.py", "tests/final_review.py"))
+        copy_jobs.extend(
+            (fixture, engine_root / "tests" / "fixtures" / fixture.name, f"tests/fixtures/{fixture.name}")
+            for fixture in sorted((repo / "tests" / "fixtures").glob("*.md"))
+        )
     current_script_keys = {key for _, _, key in copy_jobs if key.startswith("scripts/")}
-    for key, owned_hash in previous_files.items():
-        if key.startswith("scripts/") and key not in current_script_keys:
-            stale = engine_root / key
-            if stale.exists() and (args.force or file_hash(stale) == owned_hash):
-                stale.unlink()
+    stale_script_jobs = []
+    if not args.commands_only:
+        for key, owned_hash in previous_files.items():
+            if key.startswith("scripts/") and key not in current_script_keys:
+                stale = engine_root / key
+                if stale.exists() and (args.force or file_hash(stale) == owned_hash):
+                    stale_script_jobs.append(stale)
     for source_path, destination_path, key in copy_jobs:
         if destination_path.exists() and file_hash(destination_path) != file_hash(source_path):
             if not args.force and file_hash(destination_path) != previous_files.get(key):
@@ -236,6 +253,7 @@ def main():
     rollback_paths = (
         [destination_path for _, destination_path, _ in copy_jobs]
         + [path for path, _, _ in retired_command_jobs]
+        + list(stale_script_jobs)
         + [manifest_path]
     )
     if not args.commands_only and not manual_config:
@@ -245,6 +263,9 @@ def main():
     retired = []
     preserved_retired = []
     try:
+        for stale in stale_script_jobs:
+            stale.unlink()
+
         for path, key, owned_hash in retired_command_jobs:
             if not path.exists():
                 continue
@@ -259,41 +280,46 @@ def main():
             safe_copy(command, destination / command.name, f"commands/{command.name}")
             copied.append(command.stem)
 
-        if agents_source.is_dir():
+        if agents_source.is_dir() and not args.commands_only:
             agents_destination.mkdir(parents=True, exist_ok=True)
             for agent in sorted(agents_source.glob("*.md")):
                 safe_copy(agent, agents_destination / agent.name, f"agents/{agent.name}")
 
-        engine_scripts = engine_root / "scripts"
-        engine_fixtures = engine_root / "tests" / "fixtures"
-        safe_copy(repo / "scripts" / "check.py", engine_scripts / "check.py", "scripts/check.py")
-        safe_copy(
-            repo / "scripts" / "runtime_trace.py",
-            engine_scripts / "runtime_trace.py",
-            "scripts/runtime_trace.py",
-        )
-        safe_copy(
-            repo / "scripts" / "check_runtime.py",
-            engine_scripts / "check_runtime.py",
-            "scripts/check_runtime.py",
-        )
-        safe_copy(repo / "tests" / "final_review.py", engine_root / "tests" / "final_review.py", "tests/final_review.py")
-        for fixture in sorted((repo / "tests" / "fixtures").glob("*.md")):
-            safe_copy(fixture, engine_fixtures / fixture.name, f"tests/fixtures/{fixture.name}")
+        if not args.commands_only:
+            engine_scripts = engine_root / "scripts"
+            engine_fixtures = engine_root / "tests" / "fixtures"
+            safe_copy(repo / "scripts" / "check.py", engine_scripts / "check.py", "scripts/check.py")
+            safe_copy(
+                repo / "scripts" / "runtime_trace.py",
+                engine_scripts / "runtime_trace.py",
+                "scripts/runtime_trace.py",
+            )
+            safe_copy(
+                repo / "scripts" / "check_runtime.py",
+                engine_scripts / "check_runtime.py",
+                "scripts/check_runtime.py",
+            )
+            safe_copy(repo / "tests" / "final_review.py", engine_root / "tests" / "final_review.py", "tests/final_review.py")
+            for fixture in sorted((repo / "tests" / "fixtures").glob("*.md")):
+                safe_copy(fixture, engine_fixtures / fixture.name, f"tests/fixtures/{fixture.name}")
         manifest_path.parent.mkdir(parents=True, exist_ok=True)
-        skills_fingerprint = {}
-        for skill_dir in sorted(repo.iterdir()):
-            skill_md = skill_dir / "SKILL.md"
-            if skill_dir.is_dir() and skill_md.is_file():
-                skills_fingerprint[skill_dir.name] = {
-                    "path": skill_dir.as_posix(),
-                    "sha256": file_hash(skill_md),
-                }
+        skills_fingerprint = dict(previous_manifest.get("skills", {})) if args.commands_only else {}
+        if not args.commands_only:
+            for skill_dir in sorted(repo.iterdir()):
+                skill_md = skill_dir / "SKILL.md"
+                if skill_dir.is_dir() and skill_md.is_file():
+                    skills_fingerprint[skill_dir.name] = {
+                        "path": skill_dir.as_posix(),
+                        "algorithm": "tree-sha256/1",
+                        "sha256": skill_tree_hash(skill_dir),
+                    }
+        recorded_files = dict(previous_files) if args.commands_only else {}
+        recorded_files.update(installed_files)
         with manifest_path.open("w", encoding="utf-8", newline="\n") as stream:
             stream.write(
                 json.dumps(
                     {
-                        "files": installed_files,
+                        "files": recorded_files,
                         "install_mode": "live-paths",
                         "skills": skills_fingerprint,
                     },
@@ -327,7 +353,7 @@ def main():
         raise
 
     print(f"installed commands: {', '.join(copied)}")
-    if agents_source.is_dir():
+    if agents_source.is_dir() and not args.commands_only:
         installed_agents = sorted(agent_names)
         print(f"installed subagents (.opencode/agents/): {', '.join(installed_agents)}")
     if retired:
@@ -338,8 +364,8 @@ def main():
             + ", ".join(sorted(preserved_retired))
             + " (remove manually or reinstall with --force)"
         )
-    print("installed workflow engine: .opencode/workflow/scripts/check.py")
     if not args.commands_only:
+        print("installed workflow engine: .opencode/workflow/scripts/check.py")
         if manual_config:
             print("opencode.jsonc was not edited because comments must be preserved.")
             print("WARNING: config pending — skills are NOT active until the field below is merged and OpenCode restarts.")

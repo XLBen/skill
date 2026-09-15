@@ -27,18 +27,28 @@ metadata:
 “是否继续”。用户请求交付目标时，默认授权的是可逆的工作区内实现与测试，而
 不是只交付第一片。
 
-主控是协调者，不是默认实现者：实质任务（改变产品行为、公开接口、修复缺陷、
-跨文件逻辑、需要独立正确性判断）默认派发子代理执行；只有单点机械小改或
-合并后的机械工作包由主控直接处理。所有派发决定、并发限制、角色映射、
-失败分支和恢复记录统一遵循 `references/subagent-orchestration.md`，
-派发与返回格式遵循 `references/subagent-templates.md`。阶段→能力→席位
-的权威映射是 `references/stage-routing.json`：每个实质交接按其确定
-reviewer mode、`pua_stage_id` 与必读 skill，其他文档只引用不另立规则。
-专业验收 skill 经
+主控是协调者：Guarded/Audited 切片中的实质任务（改变产品行为、公开接口、修复缺陷、
+跨文件逻辑、需要独立正确性判断）默认派发子代理执行；Normal 切片允许主控直接实现，
+但涉及独立正确性判断或验证盲区时仍应派发。机械小改由主控直接处理。所有派发决定、
+并发限制、角色映射、失败分支和恢复记录统一遵循
+`references/subagent-orchestration.md`，派发与返回格式遵循
+`references/subagent-templates.md`。阶段→能力→席位的权威映射是
+`references/stage-routing.json`：每个实质交接按其确定 reviewer mode、
+`pua_stage_id` 与必读 skill，其他文档只引用不另立规则。专业验收 skill 经
 `references/subagent-orchestration.md` 的 Skill Appliciability Selection
 按验收边界选择使用。每个 goal 维护
 `.opencode/mvp/<goal-slug>.dispatch.json`，跳过委派必须记录封闭白名单内的
 原因。
+
+档位差异只改变仪式与席位，不降低证据要求：
+
+- **Normal**：目标卡仅在需要跨会话跟踪或用户要求时创建；相关测试与真实 demo
+  必需。worker 委派、独立 test-author、PUA 阶段卡、逐 slice reviewer 都不是
+  必需；涉及独立正确性判断、验证盲区或用户要求时派 fresh reviewer。
+- **Guarded**：加有预算探针、受影响范围验证和一次独立 review；同一版本同一
+  范围的结论可复用，不逐阶段重复。
+- **Audited**：契约、PLAN、独立 test-author、逐步/收敛审计与 PUA 卡按既有
+  规则执行。
 
 只有以下情况停下来问：
 
@@ -61,32 +71,45 @@ engine gate、owner 决定或 reviewer 独立性。用户看到的是短视图�
 
 1. 主控制器先建立完整 `ACCEPTANCE_HANDOFF`，列出原始目标、当前完成声明、验收项、
    当前产物身份、证据、已知缺口、owner 决定和真实用户入口。
-2. 用 `i-have-adhd` 的 `acceptance-preview` 告知用户正在验收什么；不能在 reviewer
+2. 受影响 outcomes 包含界面旅程（原生应用、系统对话框、网页交互）时，`/plan` 在
+   目标卡声明 `goal.ui.required: true`（可用 `outcome_ids` 限定覆盖范围），
+   交接前由主控执行 UI 验收：在 `.opencode/mvp/<goal-slug>.ui-acceptance.json`
+   （schema `ui-acceptance/1`，规则见 `../computer-use/references/ui-acceptance-protocol.md`）
+   记录场景并加载 `computer-use` 从用户席位执行每条必需场景
+   （observe → act → verify），记录 `executed_at`、目标、构建、原生调用引用、
+   runner/观察/结果证据（引用必须是存在且非空的项目相对文件）；无界面范围时
+   目标卡不声明 `goal.ui`，不强制创建 `applicability: none` 文件。缺后端/权限时
+   场景置 `blocked`，不得判为不适用，也不得删除 sidecar 逃避义务。首次
+   `ui-gate --bind` 绑定产物身份；产物变化后必须重置受影响场景、重跑并重新绑定，
+   禁止把旧结果贴到新构建。场景结果进入交接包，由 reviewer 核对。
+3. 用 `i-have-adhd` 的 `acceptance-preview` 告知用户正在验收什么；不能在 reviewer
    返回前宣布阶段通过或整个目标完成。普通实现中的无实质进展不发送重复消息。
-3. 阶段达到实质验收点时，dispatch fresh reviewer（能力可用即必须，不受
-   成本裁量豁免），任务正文同时传入 `pua_stage_id`、完整交接包、对应 PUA
-   检查卡和既有 mode；若没有既有 review gate，使用 reviewer 的通用
+4. Guarded/Audited 阶段达到实质验收点、或 Normal 改动涉及独立正确性判断/验证
+   盲区/用户要求时，dispatch fresh reviewer（能力可用即必须，不受成本裁量豁免），
+   任务正文同时传入 `pua_stage_id`、完整交接包（含 UI 验收 sidecar 摘要）、对应
+   PUA 检查卡和既有 mode；若没有既有 review gate，使用 reviewer 的通用
    read-only acceptance review 能力，不新增 mode、角色或 event schema。
-   reviewer 必须加载 `pua` 并返回结构化 `issues` 与 `pua_acceptance`。加载
-   skill 不能冒充独立身份。Normal 的普通进度消息不触发本条。
-4. 控制器核对 reviewer 的证据：`repair` 就修复并复验受影响范围，`owner` 就保留
+   reviewer 拿到 `pua_stage_id` 时加载 `pua` 并返回结构化 `issues` 与
+   `pua_acceptance`。同一版本、同一范围的结论可复用。加载 skill 不能冒充独立
+   身份。Normal 的普通进度消息不触发本条。
+5. 控制器核对 reviewer 的证据：`repair` 就修复并复验受影响范围（含受影响 UI
+   场景），`owner` 就保留
    owner gate，`blocked` 就停止并报告阻塞；只有既有 engine/owner gate 和 reviewer
    结果都满足后才继续。
-5. 用 `delivery` 输出结果、关键验证、位置、限制和一个下一步；未满足时用
+6. 用 `delivery` 输出结果、关键验证、位置、限制和一个下一步；未满足时用
    `progress` 或 `blocker`。完整交接包不能被五项展示上限裁剪。
 
-没有可用 fresh reviewer seat 时，仍执行当前阶段的 PUA card，但必须明确这是控制器检查，
-不能声称独立评审；Normal/Guarded 记录 capability-unavailable 后继续，Audited 的
-独立性要求不能降级、按阻塞处理。不要为 Normal 的每条进度消息制造
-reviewer 仪式，只在实质验收交接或受影响范围变化时派发。上述矩阵优先于
-任何成本或风险裁量；唯一豁免是 mechanical-batch（机械小改合并）。
+没有可用 fresh reviewer seat 时，Guarded/Audited 按上面的分档记录
+capability-unavailable 或阻塞；Audited 的独立性要求不能降级。不要为 Normal 的
+每条进度消息制造 reviewer 或 PUA 仪式；PUA 用于缺证据、失败恢复和 Audited
+验收，不作为 Normal 的常规步骤。唯一豁免是 mechanical-batch（机械小改合并）。
 
 ## Command Modes
 
 - **Plan Mode (`/plan`)**：检查仓库，把参数或明确指定的 `docs/brief.md` 转成
   `.opencode/mvp/<goal-slug>.md`。只规划，不写产品代码。Normal/Guarded 使用轻量
-  目标卡；Audited 在内部加载 `contract-review` 完成契约与 PLAN。最后只提示
-  `/build`。
+  目标卡；Audited 在内部加载 `contract-review` 完成契约与 PLAN。界面旅程在目标卡
+  声明 `goal.ui.required` 并设计场景（不执行 GUI）。最后只提示 `/build`。
 - **Build Mode (`/build [goal]`)**：先解析并复用已有目标卡；无参数时读取
   唯一 active 目标卡或严格 PLAN。持续实现、验证并自动完成收尾，直到原始结果
   清单全部 verified。
@@ -161,8 +184,9 @@ fence, using schema 1 from `tests/fixtures/goal-valid.md` and `check.py`:
 
 ### PUA Acceptance: `goal-validation`
 
-Before editing or resuming a product goal, load `../pua/SKILL.md` and execute
-the `goal-validation` card. Ask “BS 被悄悄缩水、改名或塞进 deferred 了吗？”
+For Guarded/Audited goals, before editing or resuming a product goal, load
+`../pua/SKILL.md` and execute the `goal-validation` card. For Normal goals,
+apply the same questions directly. Ask “BS 被悄悄缩水、改名或塞进 deferred 了吗？”
 against every source coverage item and outcome. Verify that the executable
 assertions, real `user_entry`, target environment and original external boundary
 remain intact. Return the PUA acceptance result alongside `check.py goal`; it
@@ -231,14 +255,21 @@ sandbox, and approval may stop the delivery loop.
 
 按当前切片风险选择最轻但足够的强度，不把整个项目粗暴分成“零流程”或“全流程”：
 
-- Normal：可逆的工作区内改动；目标卡、相关测试、真实 demo。
+- Normal：可逆的工作区内改动；相关测试、真实 demo，以及需要跨会话跟踪或用户
+  要求时的轻量目标卡。不强制 worker 委派、独立 test-author、PUA 阶段卡或逐
+  slice reviewer；独立正确性判断、验证盲区或用户要求触发一次 fresh reviewer。
 - Guarded：外部边界、兼容性或较高返工风险；加有预算探针、验收测试和一次独立
   review（fresh reviewer 能力可用即必须派发；不可用时记录
-  capability-unavailable 并按控制器检查披露）。
+  capability-unavailable 并按控制器检查披露）。同一版本同一范围的 review 可复用。
 - Audited：资金、隐私、安全、迁移、不可逆副作用或用户明确要求；加载
   `contract-review`，在 `docs/audit-slices/<goal-slug>/<slice-id>/` 建立只覆盖当前片的
-  不可变契约、PLAN、ledger 和 CR 文件。本 skill 仍是总控制器，完成 gate 后自动
-  继续实现、验证和后续目标切片，不要求用户手工接力命令。
+  不可变契约、PLAN、ledger 和 CR 文件，并按既有规则执行 test-author、逐步审计与
+  PUA 卡。本 skill 仍是总控制器，完成 gate 后自动继续实现、验证和后续目标切片，
+  不要求用户手工接力命令。
+
+风险按实际操作判断，不按主题词判断：阅读认证代码、修改本地可逆逻辑、接触真实
+凭据或私人数据、执行生产迁移或不可逆写入是四类不同风险；只有后者组合才构成
+Audited 依据，且必须落在当前受影响范围。
 
 风险下降后的下一片可以回到较轻强度。提高强度是增加当前风险需要的证据，不是把
 工作交还给文档流水线。
@@ -273,9 +304,10 @@ brief 版本路径持久化在 dispatch record 的 `active_slice`。每次切片
 需属于当前 write set，否则走 CR。缺依赖或服务不是行为 red，不能用 mock 冒充真实边界。
 
 1. 为当前切片创建少量可执行 todo，不为完整远期路线展开大计划。
-2. 实质实现任务默认派 worker 子代理执行（触发矩阵与工作包划分见
-   `references/subagent-orchestration.md`）；主控负责拆解、交接、集成与
-   复验，不把 worker 的返回直接当作验证通过。机械小改合并后主控直接处理。
+2. Guarded/Audited 的实质实现任务默认派 worker 子代理执行（触发矩阵与工作包
+   划分见 `references/subagent-orchestration.md`）；Normal 允许主控直接实现。
+   主控负责拆解、交接、集成与复验，不把 worker 的返回直接当作验证通过。机械
+   小改合并后主控直接处理。
 3. 先实现最短正确路径，遵循仓库现有结构；避免无关重构和预防性抽象。
 4. 测试策略与风险相称。行为明确且适合自动化时先写一个会因缺失行为而失败的
    验收测试；微小修复可复用现有测试。不要为了角色仪式强制生成独立 manifest。
@@ -306,12 +338,19 @@ Web/服务类验证必须是有界的：启动本次待交付实例，等待 rea
 不得把常驻启动命令当作完整验证，或静默借用未知端口上的旧实例。浏览器目标应实际
 操作页面；UI 的单元测试不能证明交互、导航和结果呈现已接通。缺工具时如实标为未验证。
 
-需要原生桌面、系统对话框或浏览器工具无法覆盖的真实 GUI 边界时，主控制器内部加载
-`computer-use`，遵守其 preflight 与 observe/act/verify 循环；纯 Web 优先专用浏览器工具。
-`/plan` 只识别前提，不执行 GUI 操作。共享桌面只允许主控制器串行操作，子代理返回
+受影响 outcomes 包含界面旅程时，UI 验收是验收交接的必需环节：`/plan` 在目标卡
+声明 `goal.ui.required`，主控制器内部加载
+`computer-use`，按 `../computer-use/references/ui-acceptance-protocol.md` 在
+ui-acceptance sidecar 中记录并执行场景，遵守其 preflight 与 observe/act/verify
+循环；纯 Web 旅程优先专用浏览器自动化，原生桌面/系统对话框使用桌面 MCP。
+引用必须是真实 trace 调用或存在且非空的项目相对文件；无 policy `ui_tools` 时
+必须记录 runner 输出；产物身份变化后必须重跑场景而不是重新绑定。
+共享桌面/浏览器只允许主控制器
+串行操作，子代理返回
 场景请求，不同时控制鼠标键盘。缺 MCP/权限时按 `../computer-use/README.md` 报告前提，
-不自动安装、开放权限或把缺能力记为通过。GUI 操作记录只是辅助证据，仍需真实可执行
-runner 通过 goal/step gate；Audited human V 仍需真实 owner 决定，不能替代 goal 验证。
+场景置 blocked，不自动安装、开放权限或把缺能力记为通过。GUI 操作记录是验收证据的
+组成部分，可执行 outcome 断言仍需通过 goal/step gate；Audited human V 仍需真实
+owner 决定，不能替代 goal 验证。
 
 独立测试作者与 reviewer 的使用由 `references/subagent-orchestration.md`
 的触发矩阵统一决定：实质验收能力可用即必须派发，机械小改与
@@ -352,12 +391,13 @@ internally after approval, without asking merely to continue approved steps.
 
 ### PUA Acceptance: `slice-acceptance`
 
-Before requesting the SI decision, load `../pua/SKILL.md` and execute the
-`slice-acceptance` card. Ask “clean 了当前 slice，整件事也交付了吗？” Show
-the owner the real input, output, environment, limitations and evidence for the
-observed slice. Keep goal-level pending outcomes visible; the original goal
-approval is not future acceptance or construction preauthorization. A missing
-owner decision is `待 owner 决定`, not a retry or a pass.
+For an Audited slice, before requesting the SI decision, load `../pua/SKILL.md`
+and execute the `slice-acceptance` card. Ask “clean 了当前 slice，整件事也交付了
+吗？” Show the owner the real input, output, environment, limitations and
+evidence for the observed slice. Keep goal-level pending outcomes visible; the
+original goal approval is not future acceptance or construction
+preauthorization. A missing owner decision is `待 owner 决定`, not a retry or a
+pass.
 
 Fixing a defect in an already completed Audited package is not an SI, cannot use
 the engine's same-PLAN CR recovery, and never mutates that package. Create a
@@ -406,7 +446,12 @@ must first export the native trace
 .opencode/mvp/trace.json`) and pass
 `check.py runtime-gate <goal>.md --trace .opencode/mvp/trace.json`; missing
 dispatch provenance, non-official reviewer seats, failed skill loads or stale
-gate evidence block `finish-goal`. If the engine is unavailable, report a blocker in every
+gate evidence block `finish-goal`. A `ui-acceptance/1` sidecar (or a policy
+`ui-acceptance` requirement) additionally requires a passing
+`check.py ui-gate <goal>.md --trace .opencode/mvp/trace.json` — required UI
+scenarios unresolved, missing `computer-use` execution evidence, native call
+references absent from the trace, or a changed artifact identity all block
+completion. If the engine is unavailable, report a blocker in every
 rigor mode. If an independent seat is unavailable, apply the tiering in
 Communication And Acceptance Handoff: an Audited independence gate blocks; a
 Normal/Guarded reviewer seat records capability-unavailable, is replaced by the
@@ -420,12 +465,14 @@ not remove these controller duties. Selftest checks the engine, not product usab
 
 ### PUA Acceptance: `goal-verification` and `goal-finish`
 
-Before treating any outcome as verified, load `../pua/SKILL.md` and execute the
-`goal-verification` card against the current product identity, fresh evidence,
-real boundary and user-entry journey. Before `finish-goal`, execute the
-`goal-finish` card: compare the original request or every brief BS, the whole
-goal, deferred work, final integrated path, isolated setup/use replay and the
-remaining limitations. “证据呢？” means locate the actual output; it never
+For Audited goals, and whenever evidence is missing or suspect, load
+`../pua/SKILL.md` and execute the `goal-verification` card against the current
+product identity, fresh evidence, real boundary and user-entry journey. Before
+`finish-goal`, execute the `goal-finish` card: compare the original request or
+every brief BS, the whole goal, deferred work, final integrated path, isolated
+setup/use replay and the remaining limitations. For Normal/Guarded goals the
+same comparison is the controller's direct duty; PUA cards are not required
+ceremony. “证据呢？” means locate the actual output; it never
 means add a second unbounded ceremony. Missing implementation, missing
 verification, owner decisions and external blockers remain distinct.
 

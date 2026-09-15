@@ -95,10 +95,16 @@ class InstallTests(unittest.TestCase):
             self.assertEqual(destination.read_bytes(), source.read_bytes())
         expected_skills = {}
         for name in ("computer-use", "planning"):
-            skill_md = self.repo / name / "SKILL.md"
+            skill_dir = self.repo / name
+            digest = hashlib.sha256()
+            for path in sorted(item for item in skill_dir.rglob("*") if item.is_file()):
+                relative = path.relative_to(skill_dir).as_posix()
+                digest.update(relative.encode("utf-8") + b"\0")
+                digest.update(hashlib.sha256(path.read_bytes()).hexdigest().encode("ascii"))
             expected_skills[name] = {
-                "path": skill_md.parent.as_posix(),
-                "sha256": hashlib.sha256(skill_md.read_bytes()).hexdigest(),
+                "path": skill_dir.as_posix(),
+                "algorithm": "tree-sha256/1",
+                "sha256": digest.hexdigest(),
             }
         self.assertEqual(
             manifest,

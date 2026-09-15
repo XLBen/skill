@@ -1,6 +1,6 @@
 ---
 name: pua
-description: Use internally at workflow acceptance gates when a stage is about to claim completion, evidence is missing, a repeated failure needs a different approach, or a handoff needs active gap checking. Apply evidence-first, fact-driven, try-harder discipline without bypassing gates or fabricating success.
+description: Use internally at Guarded/Audited workflow acceptance gates, when completion is claimed without evidence, when a repeated failure needs a different approach, or when a handoff needs active gap checking. Normal work applies the same questions directly and does not require loading this skill. Apply evidence-first, fact-driven, try-harder discipline without bypassing gates or fabricating success.
 license: MIT
 metadata:
   language: "zh-CN"
@@ -14,7 +14,8 @@ metadata:
 
 # PUA 验收纪律
 
-这是一个内部验收能力，不是新的公开命令，也不是把压力话术当作通过条件。
+这是一个内部验收能力，用于 Guarded/Audited 验收、证据缺失或失败恢复；它不是新的
+公开命令，也不是把压力话术当作通过条件，Normal 工作直接执行同样的检查问题即可。
 它把 [tanweai/pua](https://github.com/tanweai/pua) 的主动性、闭环和失败恢复方法
 适配到本仓库已有的 goal、contract、PLAN、reviewer、owner 和 engine gate。
 
@@ -24,7 +25,8 @@ metadata:
 
 ## Runtime Contract
 
-1. 在阶段验收前加载本 skill，并按 `stage_id` 读取对应检查卡。子代理不会因为父代理
+1. 在 Guarded/Audited 阶段验收前加载本 skill，并按 `stage_id` 读取对应检查卡；
+   Normal 工作直接执行同样的问题，不要求加载。子代理不会因为父代理
    加载过本 skill 而自动获得它；派发任务时必须显式要求子代理加载并执行检查卡。
 2. 用一行外部诊断绑定事实和动作，不输出隐藏思考过程：
 

@@ -59,8 +59,9 @@ class OrchestrationProtocolTests(unittest.TestCase):
 
     def test_worker_delegation_is_part_of_build_loop(self):
         mvp = (ROOT / "mvp-delivery/SKILL.md").read_text(encoding="utf-8")
-        marker = "实质实现任务默认派 worker 子代理"
+        marker = "Guarded/Audited 的实质实现任务默认派 worker 子代理执行"
         self.assertIn(marker, mvp)
+        self.assertIn("Normal 允许主控直接实现", mvp)
 
     def test_task_worker_skill_exists_with_controller_contract(self):
         skill = (ROOT / "task-worker/SKILL.md").read_text(encoding="utf-8")

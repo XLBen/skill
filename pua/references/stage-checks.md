@@ -167,6 +167,9 @@ artifact identity、范围和证据；test manifest、工作树 diff、reconcile
   路径记录 `not-applicable` 及理由，不伪造 manifest、behavior-red 或作者隔离。
 - 无契约 Normal/Guarded handoff 只检查声明、artifact identity、范围、实际证据和
   user-entry；不得把 Audited 的契约字段或 construction 专用工件升级为新要求。
+- handoff 含 ui-acceptance sidecar 时，逐场景核对适用性判定、`artifact_identity`
+  绑定、`passed` 是否有结果证据与原生调用引用，未决 `failed/blocked` 场景是否
+  如实暴露；reviewer 只读，不操作界面，缺执行证据经 CONTROLLER_ACTION 请求主控补测。
 - reviewer 只读，只返回发现；controller 负责裁决、修复路由、owner 和 engine 状态。
 
 **证据**：结构化 reviewer JSON、发现对应的路径/ID/输出、独立派发 provenance。
@@ -199,6 +202,9 @@ artifact identity、范围和证据；test manifest、工作树 diff、reconcile
 **质询与动作**：
 
 - “所有结果都拿到了，还是只把首片包装成 MVP 完成？”逐项对照原始范围、每个 outcome、deferred 和真实用户旅程。
+- 存在 ui-acceptance sidecar 时，最终核对交付产物身份与 `artifact_identity` 一致、
+  必需场景全部 `passed` 或有理由的 `not-applicable`，晚于绑定的新改动已使受影响
+  场景失效并重验。
 - 检查最后版本的集成路径、受影响回归、setup/use 隔离复跑、README、依赖和环境差异。
 - 再跑一次主动查漏：测试是否被弱化、是否硬编码样例、吞错、漏接线、同类问题未扫。
 - 只有 PUA 检查、适用 Audited gate、owner acceptance 和 `finish-goal` 全部满足，才允许完成；engine 不可用一律 blocker；独立席位不可用按 mvp-delivery 验收章节分档（Audited 独立性 gate 阻塞，Normal/Guarded 记录 capability-unavailable 后按控制器检查披露收尾）。

@@ -4,9 +4,10 @@
 Commands:
   check.py brief <docs/brief.md>
   check.py goal <.opencode/mvp/goal.md>
-  check.py verify-goal <.opencode/mvp/goal.md> <O-NN> --evidence <path>
+  check.py verify-goal <.opencode/mvp/goal.md> <O-NN> --evidence <path> [--recover-interrupted]
   check.py finish-goal <.opencode/mvp/goal.md>
   check.py runtime-gate <.opencode/mvp/goal.md> --trace <trace.json> [--dispatch <dispatch.json>] [--policy <policy.json>]
+  check.py ui-gate <.opencode/mvp/goal.md> --trace <trace.json> [--bind]
   check.py contract <docs/contract.md>
   check.py compile <docs/contract.md> <docs/PLAN.md> --change-orders <docs/change-orders.md> --ledger <docs/workflow-events.jsonl>
   check.py plan <docs/PLAN.md> --contract <docs/contract.md> --change-orders <docs/change-orders.md> --ledger <docs/workflow-events.jsonl>
@@ -20,7 +21,7 @@ Commands:
   check.py event <state.json> <events.jsonl> <event.json> --expected-revision N
   check.py release <contract.md> <state.json> <events.jsonl> <event.json> --expected-revision N
   check.py record <events.jsonl> <event.json>
-  check.py verify-step <PLAN.md> <S-ID> <V-ID> --contract <contract.md> --ledger <events.jsonl> --evidence <path> --event-id <ID>
+  check.py verify-step <PLAN.md> <S-ID> <V-ID> --contract <contract.md> --ledger <events.jsonl> --evidence <path> --event-id <ID> [--recover-interrupted]
   check.py record-human-step <PLAN.md> <S-ID> <V-ID> --contract <contract.md> --ledger <events.jsonl> --owner-event <ID> --event-id <ID>
   check.py cr-event <change-orders.md> <events.jsonl> <event.json> --expected-revision N
   check.py --selftest
@@ -29,6 +30,7 @@ The engine validates only deterministic structure. Semantic claims remain the
 responsibility of an independent audit recorded by event ID.
 """
 import hashlib
+import fnmatch
 import json
 import os
 import re
@@ -551,6 +553,26 @@ def validate_goal(goal):
     if goal.get("status") == "blocked" and not any(
             item.get("status") == "blocked" for item in outcomes if isinstance(item, dict)):
         problems.append("blocked goal requires at least one blocked outcome")
+    ui = goal.get("ui")
+    if ui is not None:
+        if not isinstance(ui, dict):
+            problems.append("goal.ui must be an object")
+        else:
+            require(ui, ("required",), "goal.ui", problems)
+            if not isinstance(ui.get("required"), bool):
+                problems.append("goal.ui.required must be a boolean")
+            reason = ui.get("reason")
+            if reason is not None and (not isinstance(reason, str) or not reason.strip()):
+                problems.append("goal.ui.reason must be a non-empty string when present")
+            ui_outcomes = ui.get("outcome_ids")
+            if ui_outcomes is not None:
+                if (not isinstance(ui_outcomes, list)
+                        or any(not isinstance(ref, str) for ref in ui_outcomes)):
+                    problems.append("goal.ui.outcome_ids must be an array of outcome IDs")
+                else:
+                    for ref in ui_outcomes:
+                        if ref not in outcome_ids:
+                            problems.append(f"goal.ui.outcome_ids references unknown outcome {ref}")
     return problems
 
 
@@ -998,50 +1020,165 @@ def evaluate_assertion(stdout, assertion):
     return False
 
 
-def run_command_evidence(command, cwd, evidence_path, metadata, timeout_seconds, recover=False):
-    evidence_path = Path(evidence_path)
-    if evidence_path.exists():
-        if recover:
+SNAPSHOT_SKIP_DIRS = {
+    ".git", ".hg", ".svn", ".opencode", "__pycache__", "node_modules",
+    ".venv", "venv", ".tox", ".pytest_cache", ".mypy_cache", ".ruff_cache",
+    ".idea", ".vscode", "dist", "build", "target", "coverage", "htmlcov",
+}
+SNAPSHOT_SKIP_REL_PREFIXES = (
+    "docs/audit-slices/", "docs/evidence/", "docs/test-manifests/",
+    "docs/slice-increments/",
+)
+SNAPSHOT_SKIP_REL_FILES = {
+    "docs/PLAN.md", "docs/contract.md", "docs/change-orders.md",
+    "docs/build-log.md", "docs/mvp-observation.md", "docs/review-log.md",
+    "docs/review-charter.md", "docs/workflow-state.json",
+    "docs/workflow-events.jsonl",
+}
+SNAPSHOT_SKIP_NAMES = {".DS_Store", "Thumbs.db", "desktop.ini"}
+SNAPSHOT_SKIP_SUFFIXES = (".pyc", ".pyo", ".tmp", ".log", ".swp", ".swo", ".orig", ".rej")
+
+
+def _snapshot_skips(relative_posix):
+    parts = relative_posix.split("/")
+    if any(part in SNAPSHOT_SKIP_DIRS for part in parts):
+        return True
+    if relative_posix in SNAPSHOT_SKIP_REL_FILES:
+        return True
+    if any(relative_posix.startswith(prefix) for prefix in SNAPSHOT_SKIP_REL_PREFIXES):
+        return True
+    if relative_posix.startswith("docs/brief") and relative_posix.endswith(".md"):
+        return True
+    name = parts[-1]
+    if name in SNAPSHOT_SKIP_NAMES or name.endswith(SNAPSHOT_SKIP_SUFFIXES):
+        return True
+    return False
+
+
+def workspace_snapshot(root, extra_excludes=()):
+    """Conservative content snapshot of the delivered workspace.
+
+    Excludes VCS metadata, workflow state/artifacts, caches and generated
+    outputs (documented lists above). Everything else is included on purpose:
+    when the impact of a change cannot be decided, the snapshot treats it as
+    product-affecting. Returns (sha256_hex, file_count)."""
+
+    root = Path(root).resolve()
+    excluded = set()
+    for item in extra_excludes:
+        if item is None:
+            continue
+        try:
+            excluded.add(Path(item).resolve())
+        except OSError:
+            continue
+    digest = hashlib.sha256()
+    counted = 0
+    for dirpath, dirnames, filenames in os.walk(root):
+        current = Path(dirpath)
+        relative_dir = current.relative_to(root).as_posix()
+        if relative_dir == ".":
+            relative_dir = ""
+        dirnames[:] = sorted(
+            name for name in dirnames
+            if not _snapshot_skips((relative_dir + "/" + name).lstrip("/"))
+        )
+        for name in sorted(filenames):
+            relative = (relative_dir + "/" + name).lstrip("/")
+            if _snapshot_skips(relative):
+                continue
+            path = current / name
             try:
-                raw = evidence_path.read_bytes()
-                payload = json.loads(raw)
-                expected = dict(metadata, schema_version=1, command=command,
-                                cwd=str(Path(cwd).resolve()), timeout_seconds=timeout_seconds)
-                if not isinstance(payload, dict) or any(
-                        canonical_bytes(payload.get(key)) != canonical_bytes(value)
-                        for key, value in expected.items()):
-                    raise ValueError("evidence bindings mismatch")
-                if (type(payload.get("timed_out")) is not bool
-                        or not isinstance(payload.get("stdout"), str)
-                        or not isinstance(payload.get("stderr"), str)
-                        or (payload["timed_out"] and payload.get("exit_code") is not None)
-                        or (not payload["timed_out"] and type(payload.get("exit_code")) is not int)
-                        or type(payload.get("elapsed_seconds")) not in (int, float)
-                        or not 0 <= payload["elapsed_seconds"] < float("inf")):
-                    raise ValueError("invalid execution result")
-                start = datetime.fromisoformat(payload["started_at"].replace("Z", "+00:00"))
-                finish = datetime.fromisoformat(payload["finished_at"].replace("Z", "+00:00"))
-                if start.tzinfo is None or finish.tzinfo is None or finish < start:
-                    raise ValueError("invalid execution timestamps")
-                passed = payload["exit_code"] == 0 and not payload["timed_out"]
-                if "assertion" in metadata:
-                    asserted = evaluate_assertion(payload["stdout"], metadata["assertion"])
-                    if payload.get("assertion_passed") is not asserted:
-                        raise ValueError("invalid assertion result")
-                    passed = passed and asserted
-                if payload.get("result") != ("passed" if passed else "failed"):
-                    raise ValueError("inconsistent execution result")
-                if set(payload) != set(expected) | {
-                        "started_at", "finished_at", "elapsed_seconds", "timed_out",
-                        "exit_code", "stdout", "stderr", "result"} | (
-                            {"assertion_passed"} if "assertion" in metadata else set()):
-                    raise ValueError("unexpected evidence fields")
-                return payload, hashlib.sha256(raw).hexdigest()
-            except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
-                raise ValidationError(f"orphaned verification evidence is invalid: {exc}") from exc
-        raise ValidationError(f"evidence file already exists: {evidence_path}")
+                if path.resolve() in excluded:
+                    continue
+                data = path.read_bytes()
+            except OSError:
+                digest.update(relative.encode("utf-8") + b"\0unreadable\0")
+                counted += 1
+                continue
+            digest.update(relative.encode("utf-8") + b"\0")
+            digest.update(hashlib.sha256(data).hexdigest().encode("ascii"))
+            counted += 1
+    return digest.hexdigest(), counted
+
+
+def run_command_evidence(command, cwd, evidence_path, metadata, timeout_seconds,
+                         recover=False, recover_interrupted=False):
+    evidence_path = Path(evidence_path)
+    expected = dict(metadata, schema_version=1, command=command,
+                    cwd=str(Path(cwd).resolve()), timeout_seconds=timeout_seconds)
+
+    def validate_payload(raw):
+        payload = json.loads(raw)
+        if not isinstance(payload, dict) or any(
+                canonical_bytes(payload.get(key)) != canonical_bytes(value)
+                for key, value in expected.items()):
+            raise ValueError("evidence bindings mismatch")
+        if (type(payload.get("timed_out")) is not bool
+                or not isinstance(payload.get("stdout"), str)
+                or not isinstance(payload.get("stderr"), str)
+                or (payload["timed_out"] and payload.get("exit_code") is not None)
+                or (not payload["timed_out"] and type(payload.get("exit_code")) is not int)
+                or type(payload.get("elapsed_seconds")) not in (int, float)
+                or not 0 <= payload["elapsed_seconds"] < float("inf")):
+            raise ValueError("invalid execution result")
+        start = datetime.fromisoformat(payload["started_at"].replace("Z", "+00:00"))
+        finish = datetime.fromisoformat(payload["finished_at"].replace("Z", "+00:00"))
+        if start.tzinfo is None or finish.tzinfo is None or finish < start:
+            raise ValueError("invalid execution timestamps")
+        passed = payload["exit_code"] == 0 and not payload["timed_out"]
+        if "assertion" in metadata:
+            asserted = evaluate_assertion(payload["stdout"], metadata["assertion"])
+            if payload.get("assertion_passed") is not asserted:
+                raise ValueError("invalid assertion result")
+            passed = passed and asserted
+        if payload.get("workspace_changed") is True:
+            passed = False
+        if payload.get("result") != ("passed" if passed else "failed"):
+            raise ValueError("inconsistent execution result")
+        required_fields = set(expected) | ({"assertion_passed"} if "assertion" in metadata else set())
+        allowed = required_fields | {
+            "started_at", "finished_at", "elapsed_seconds", "timed_out",
+            "exit_code", "stdout", "stderr", "result",
+            "workspace_before", "workspace_after", "workspace_changed",
+            "reservation_recovered",
+        }
+        if not required_fields <= set(payload) or not set(payload) <= allowed:
+            raise ValueError("unexpected evidence fields")
+        return payload
+
+    if evidence_path.exists():
+        if not recover:
+            raise ValidationError(f"evidence file already exists: {evidence_path}")
+        try:
+            raw = evidence_path.read_bytes()
+            payload = validate_payload(raw)
+        except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+            raise ValidationError(f"orphaned verification evidence is invalid: {exc}") from exc
+        return payload, hashlib.sha256(raw).hexdigest()
+
     evidence_path.parent.mkdir(parents=True, exist_ok=True)
     temp = evidence_path.with_suffix(evidence_path.suffix + ".tmp")
+    snapshot_excludes = (evidence_path, temp)
+    workspace_before, _ = workspace_snapshot(cwd, snapshot_excludes)
+    reservation_recovered = False
+    if temp.exists():
+        try:
+            raw = temp.read_bytes()
+            payload = validate_payload(raw)
+        except (OSError, ValueError, TypeError, KeyError, AttributeError):
+            if not recover_interrupted:
+                raise ValidationError(
+                    f"temporary evidence file already exists: {temp}; the interrupted "
+                    "verification may already have run with unknown side effects. Inspect "
+                    "them, then either remove the temporary file deliberately or re-run "
+                    "with --recover-interrupted"
+                ) from None
+            temp.unlink()
+            reservation_recovered = True
+        else:
+            os.replace(temp, evidence_path)
+            return payload, hashlib.sha256(evidence_path.read_bytes()).hexdigest()
     try:
         # Reserve before execution; an interrupted run must not silently rerun side effects.
         with temp.open("x", encoding="utf-8"):
@@ -1086,6 +1223,8 @@ def run_command_evidence(command, cwd, evidence_path, metadata, timeout_seconds,
     stdout = stdout.decode("utf-8", errors="replace")
     stderr = stderr.decode("utf-8", errors="replace")
     finished = datetime.now(timezone.utc)
+    workspace_after, _ = workspace_snapshot(cwd, snapshot_excludes)
+    workspace_changed = workspace_before != workspace_after
     payload = dict(metadata)
     payload.update({
         "schema_version": 1,
@@ -1099,8 +1238,13 @@ def run_command_evidence(command, cwd, evidence_path, metadata, timeout_seconds,
         "exit_code": exit_code,
         "stdout": stdout,
         "stderr": stderr,
-        "result": "passed" if exit_code == 0 and not timed_out else "failed",
+        "workspace_before": workspace_before,
+        "workspace_after": workspace_after,
+        "workspace_changed": workspace_changed,
+        "result": "passed" if exit_code == 0 and not timed_out and not workspace_changed else "failed",
     })
+    if reservation_recovered:
+        payload["reservation_recovered"] = True
     if metadata.get("kind") == "goal-verification" or "assertion" in metadata:
         payload["assertion_passed"] = evaluate_assertion(stdout, metadata.get("assertion"))
         if not payload["assertion_passed"]:
@@ -1116,7 +1260,7 @@ def run_command_evidence(command, cwd, evidence_path, metadata, timeout_seconds,
     return payload, hashlib.sha256(evidence_path.read_bytes()).hexdigest()
 
 
-def verify_goal_outcome(goal_path, outcome_id, evidence_path):
+def verify_goal_outcome(goal_path, outcome_id, evidence_path, recover_interrupted=False):
     with file_lock(str(goal_path) + ".runtime"):
         meta, goal, problems = validate_goal_artifact(goal_path)
         if problems:
@@ -1150,6 +1294,7 @@ def verify_goal_outcome(goal_path, outcome_id, evidence_path):
                 "assertion": verification["assertion"],
             },
             verification.get("timeout_seconds", 120),
+            recover_interrupted=recover_interrupted,
         )
         updated = json.loads(json.dumps(goal))
         updated_outcome = next(item for item in updated["outcomes"] if item["id"] == outcome_id)
@@ -1177,6 +1322,9 @@ def verify_goal_outcome(goal_path, outcome_id, evidence_path):
 
 RUNTIME_POLICY_SCHEMA = "runtime-policy/1"
 RUNTIME_GATE_SCHEMA = "runtime-gate/1"
+UI_SIDECAR_SCHEMA = "ui-acceptance/1"
+UI_GATE_SCHEMA = "ui-gate/1"
+UI_SCENARIO_STATUS = {"pending", "passed", "failed", "blocked", "not-applicable"}
 RUNTIME_GATE_DEFAULT_REQUIREMENTS = (
     {"kind": "task-dispatch", "role": "reviewer"},
     {"kind": "review-satisfied-goal"},
@@ -1221,6 +1369,39 @@ def load_runtime_policy(goal_path, goal_id):
     return data, []
 
 
+def policy_binding_state(goal_path, goal_id, policy_path=None):
+    """Return (policy_or_None, binding, problems).
+
+    The binding always describes the current policy state so gate sidecars can
+    detect a policy created, changed, removed, or newly re-scoped after the
+    gate ran. `path: null` means no policy file exists.
+    """
+
+    card = Path(goal_path)
+    if policy_path is not None:
+        path = Path(policy_path)
+        if not path.is_file():
+            return None, None, [f"policy not found: {path}"]
+        try:
+            data = json.loads(path.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError) as exc:
+            return None, None, [f"policy unreadable: {exc}"]
+        if not isinstance(data, dict) or data.get("schema") != RUNTIME_POLICY_SCHEMA:
+            return None, None, [f"policy schema must be {RUNTIME_POLICY_SCHEMA}"]
+        goals = data.get("goals")
+        gating = goals == "all" or (isinstance(goals, list) and goal_id in goals)
+        binding = {"path": str(path), "sha256": _sha256_file(path), "gating": bool(gating)}
+        return (data if gating else None), binding, []
+    path = card.parent / "runtime-policy.json"
+    if not path.is_file():
+        return None, {"path": None, "sha256": None, "gating": False}, []
+    policy, problems = load_runtime_policy(goal_path, goal_id)
+    if problems:
+        return None, None, problems
+    binding = {"path": str(path), "sha256": _sha256_file(path), "gating": policy is not None}
+    return policy, binding, []
+
+
 def runtime_gate(goal_path, trace_path, dispatch_path=None, policy_path=None):
     """Validate the goal's dispatch chain against a native runtime trace.
 
@@ -1255,26 +1436,36 @@ def runtime_gate(goal_path, trace_path, dispatch_path=None, policy_path=None):
         raise ValidationError(
             f"dispatch record goal_id {dispatch.get('goal_id')!r} does not match goal {goal['id']}"
         )
-    policy = None
-    if policy_path is not None:
-        policy = json.loads(Path(policy_path).read_text(encoding="utf-8-sig"))
-        if policy.get("schema") != RUNTIME_POLICY_SCHEMA:
-            raise ValidationError(f"policy schema must be {RUNTIME_POLICY_SCHEMA}")
-    else:
-        policy, policy_problems = load_runtime_policy(goal_path, goal["id"])
-        if policy_problems:
-            raise ValidationError(";\n".join(policy_problems))
-        if policy is not None:
-            policy = dict(policy)
-            policy.setdefault("requirements", list(RUNTIME_GATE_DEFAULT_REQUIREMENTS))
-    failures = _runtime_trace.validate_chain(trace, dispatch, policy)
+    policy, policy_binding, policy_problems = policy_binding_state(goal_path, goal["id"], policy_path)
+    if policy_problems:
+        raise ValidationError(";\n".join(policy_problems))
+    if policy is not None:
+        # The default requirements are a floor: a project policy may add
+        # requirements but an empty or partial list cannot remove them.
+        policy = dict(policy)
+        configured = policy.get("requirements", [])
+        if not isinstance(configured, list):
+            configured = []
+        effective = list(RUNTIME_GATE_DEFAULT_REQUIREMENTS)
+        for req in configured:
+            if req not in effective:
+                effective.append(req)
+        policy["requirements"] = effective
+    native_problems = _runtime_trace.verify_native_trace(trace)
+    failures = native_problems + _runtime_trace.validate_chain(
+        trace, dispatch, policy,
+        base_dir=goal_project_root(goal_path), rigor=goal.get("rigor"),
+    )
     sidecar = {
         "schema": RUNTIME_GATE_SCHEMA,
         "goal_id": goal["id"],
         "verdict": "pass" if not failures else "fail",
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "goal_definition_hash": goal_definition_hash(goal),
+        "trace_provenance": "native" if not native_problems else "unverified",
         "trace": {"path": str(trace_path), "sha256": _sha256_file(trace_path)},
         "dispatch": {"path": str(dispatch_path), "sha256": _sha256_file(dispatch_path)},
+        "policy": policy_binding,
         "failures": failures,
     }
     gate_path = card.parent / f"{slug}.runtime-gate.json"
@@ -1286,16 +1477,21 @@ def runtime_gate(goal_path, trace_path, dispatch_path=None, policy_path=None):
 
 
 def enforce_runtime_gate(goal_path, goal):
-    """Called from finish_goal when a runtime policy gates this goal."""
+    """Called from finish_goal when a runtime policy gates this goal.
+
+    When a gate sidecar exists it is always checked (even if the default
+    policy file is absent now), and the recorded policy state is revalidated
+    against the store's recorded path so explicit `--policy` gates stay
+    enforceable while deletion or re-scoping is detected."""
 
     policy, problems = load_runtime_policy(goal_path, goal["id"])
     if problems:
         raise ValidationError(";\n".join(problems))
-    if policy is None:
-        return
     card = Path(goal_path)
     gate_path = card.parent / f"{card.stem}.runtime-gate.json"
     if not gate_path.is_file():
+        if policy is None:
+            return
         raise ValidationError(
             "runtime policy enables the runtime gate for this goal; run "
             "'check.py runtime-gate <card> --trace <native trace>' before finish-goal"
@@ -1312,6 +1508,12 @@ def enforce_runtime_gate(goal_path, goal):
         raise ValidationError(
             "runtime gate verdict is not pass: " + "; ".join(gate.get("failures") or ["unknown failures"])
         )
+    if gate.get("goal_definition_hash") != goal_definition_hash(goal):
+        raise ValidationError(
+            "runtime gate is stale: the goal definition changed after the gate ran; re-run runtime-gate"
+        )
+    if gate.get("trace_provenance") != "native":
+        raise ValidationError("runtime gate was not produced from native session evidence; re-export the trace")
     for key in ("trace", "dispatch"):
         recorded = gate.get(key) or {}
         recorded_path = recorded.get("path")
@@ -1325,6 +1527,487 @@ def enforce_runtime_gate(goal_path, goal):
             raise ValidationError(
                 f"runtime gate is stale: {key} file changed after the gate ran; re-run runtime-gate"
             )
+    recorded_policy = gate.get("policy")
+    if recorded_policy is None:
+        raise ValidationError("runtime gate predates policy binding; re-run runtime-gate")
+    recorded_policy_path = recorded_policy.get("path") if isinstance(recorded_policy, dict) else None
+    _, current_binding, current_problems = policy_binding_state(
+        goal_path, goal["id"], policy_path=recorded_policy_path if recorded_policy_path else None
+    )
+    if current_problems:
+        raise ValidationError(";\n".join(current_problems))
+    if recorded_policy != current_binding:
+        raise ValidationError(
+            "runtime gate is stale: the runtime policy state changed after the gate ran; re-run runtime-gate"
+        )
+    if recorded_policy_path:
+        # A gate recorded against an explicit path must not hide a default
+        # policy that has since started gating this goal.
+        _, default_binding, default_problems = policy_binding_state(goal_path, goal["id"])
+        if default_problems:
+            raise ValidationError(";\n".join(default_problems))
+        if default_binding != recorded_policy and default_binding.get("gating"):
+            raise ValidationError(
+                "runtime gate is stale: a default runtime policy now gates this goal; re-run runtime-gate"
+            )
+
+
+def ui_artifact_identity(project_root, files):
+    digest = hashlib.sha256()
+    for rel in sorted(files):
+        path = (project_root / rel).resolve()
+        digest.update(str(rel).encode("utf-8") + b"\0")
+        digest.update(path.read_bytes() + b"\0")
+    return digest.hexdigest()
+
+
+def _now_iso():
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _iso_after(later, earlier):
+    try:
+        later_dt = datetime.fromisoformat(str(later).replace("Z", "+00:00"))
+        earlier_dt = datetime.fromisoformat(str(earlier).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if later_dt.tzinfo is None or earlier_dt.tzinfo is None:
+        return False
+    return later_dt > earlier_dt
+
+
+def load_ui_sidecar(goal_path, goal):
+    path = Path(goal_path).parent / f"{Path(goal_path).stem}.ui-acceptance.json"
+    if not path.exists():
+        return None, path
+    try:
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValidationError(f"ui-acceptance sidecar unreadable: {exc}") from exc
+    if not isinstance(data, dict) or data.get("schema") != UI_SIDECAR_SCHEMA:
+        raise ValidationError(f"ui-acceptance sidecar schema must be {UI_SIDECAR_SCHEMA}")
+    if data.get("goal_id") != goal["id"]:
+        raise ValidationError(
+            f"ui-acceptance sidecar goal_id {data.get('goal_id')!r} does not match goal {goal['id']}"
+        )
+    return data, path
+
+
+def policy_requires_ui(goal_path, goal):
+    policy, problems = load_runtime_policy(goal_path, goal["id"])
+    if problems:
+        raise ValidationError(";\n".join(problems))
+    if policy is None:
+        return False
+    requirements = policy.get("requirements", [])
+    return any(
+        isinstance(req, dict) and req.get("kind") == "ui-acceptance"
+        for req in requirements if isinstance(requirements, list)
+    ) if isinstance(requirements, list) else False
+
+
+def _ui_ref_problems(scenario_id, label, refs, project_root):
+    """Evidence references must resolve to non-empty project-relative files."""
+
+    problems = []
+    if not isinstance(refs, list) or not refs:
+        problems.append(f"ui scenario {scenario_id}: passed without {label}")
+        return problems
+    for ref in refs:
+        if not isinstance(ref, str) or not ref.strip():
+            problems.append(f"ui scenario {scenario_id}: {label} entries must be non-empty strings")
+            continue
+        relative = Path(ref)
+        if relative.is_absolute() or ".." in relative.parts:
+            problems.append(f"ui scenario {scenario_id}: {label} '{ref}' must be a project-relative path")
+            continue
+        target = project_root / relative
+        try:
+            if not target.is_file():
+                problems.append(f"ui scenario {scenario_id}: {label} '{ref}' does not exist")
+            elif target.stat().st_size == 0:
+                problems.append(f"ui scenario {scenario_id}: {label} '{ref}' is empty")
+        except OSError as exc:
+            problems.append(f"ui scenario {scenario_id}: {label} '{ref}' unreadable: {exc}")
+    return problems
+
+
+def _ui_tool_matches(tool, patterns):
+    return any(fnmatch.fnmatch(str(tool), pattern) for pattern in patterns)
+
+
+def validate_ui_acceptance(goal_path, goal, trace=None, bind=False, rebind=False):
+    """Validate the ui-acceptance sidecar; returns (sidecar, path, failures).
+
+    `--bind` records the artifact identity on first binding only. After a
+    recorded identity exists, changed files are a failure until the affected
+    scenarios were reset and re-executed: `--rebind` refreshes the identity
+    only when every `passed` scenario carries an execution timestamp after the
+    previous binding. The gate never re-labels old results onto a changed
+    build.
+    """
+
+    sidecar, path = load_ui_sidecar(goal_path, goal)
+    if sidecar is None:
+        raise ValidationError(
+            "no ui-acceptance sidecar next to the goal card; the controller must "
+            "decide UI applicability (scenarios or applicability: none with reason)"
+        )
+    failures = []
+    project_root = goal_project_root(goal_path)
+    applicability = sidecar.get("applicability")
+    if applicability not in ("declared", "none"):
+        failures.append("ui-acceptance applicability must be 'declared' or 'none'")
+    if applicability == "none":
+        if not str(sidecar.get("applicability_reason") or "").strip():
+            failures.append("applicability 'none' requires a nonempty applicability_reason")
+    scenarios = sidecar.get("scenarios")
+    if not isinstance(scenarios, list):
+        scenarios = []
+        failures.append("ui-acceptance scenarios must be a list")
+    if applicability == "declared" and not scenarios:
+        failures.append("declared UI applicability requires at least one scenario")
+
+    policy, policy_problems = load_runtime_policy(goal_path, goal["id"])
+    if policy_problems:
+        raise ValidationError(";\n".join(policy_problems))
+    ui_tools = None
+    if isinstance(policy, dict):
+        candidate = policy.get("ui_tools")
+        if candidate is not None:
+            if (not isinstance(candidate, list) or not candidate
+                    or any(not isinstance(pattern, str) or not pattern.strip() for pattern in candidate)):
+                failures.append("runtime policy ui_tools must be a non-empty array of tool-name patterns")
+            else:
+                ui_tools = candidate
+    goal_ui = goal.get("ui") if isinstance(goal.get("ui"), dict) else {}
+    if goal_ui.get("required") is True and applicability != "declared":
+        failures.append("goal.ui.required is true; ui-acceptance applicability must be 'declared'")
+
+    outcome_ids = {o.get("id") for o in goal.get("outcomes", []) if isinstance(o, dict)}
+    seen_ids = set()
+    completed_calls = {}
+    skill_ok_sessions = set()
+    if trace is not None:
+        for ev in trace.get("tool_events", []):
+            if ev.get("status") == "completed" and ev.get("session_id") and ev.get("call_id"):
+                completed_calls[f"{ev['session_id']}:{ev['call_id']}"] = ev.get("tool")
+        for ev in trace.get("skill_events", []):
+            if ev.get("status") == "completed" and ev.get("skill") == "computer-use" and ev.get("session_id"):
+                skill_ok_sessions.add(ev["session_id"])
+
+    required_coverage = set()
+    for scenario in scenarios:
+        if not isinstance(scenario, dict):
+            failures.append("ui scenario is not an object")
+            continue
+        sid = scenario.get("scenario_id", "?")
+        if sid in seen_ids:
+            failures.append(f"ui scenario id duplicated: {sid}")
+        seen_ids.add(sid)
+        status = scenario.get("status")
+        if status not in UI_SCENARIO_STATUS:
+            failures.append(f"ui scenario {sid}: invalid status {status!r}")
+            continue
+        required_flag = scenario.get("required")
+        if not isinstance(required_flag, bool):
+            failures.append(f"ui scenario {sid}: required must be a boolean")
+        if status == "not-applicable" and not str(scenario.get("not_applicable_reason") or "").strip():
+            failures.append(f"ui scenario {sid}: not-applicable requires a reason")
+        if required_flag is True and status == "not-applicable":
+            failures.append(f"ui scenario {sid}: a required scenario cannot be not-applicable")
+        outcome_refs = scenario.get("outcome_ids")
+        if not isinstance(outcome_refs, list) or not outcome_refs:
+            if status != "not-applicable":
+                failures.append(f"ui scenario {sid}: outcome_ids must list at least one goal outcome")
+        else:
+            for oid in outcome_refs:
+                if oid not in outcome_ids:
+                    failures.append(f"ui scenario {sid}: unknown outcome {oid!r}")
+                elif required_flag is True:
+                    required_coverage.add(oid)
+        journey = scenario.get("journey") if isinstance(scenario.get("journey"), dict) else {}
+        expected = journey.get("expected")
+        if status != "not-applicable":
+            if (not isinstance(expected, list) or not expected
+                    or any(not isinstance(item, str) or not item.strip() for item in expected)):
+                failures.append(
+                    f"ui scenario {sid}: journey.expected must be a non-empty list of observable results"
+                )
+        if required_flag is True and status in ("pending", "failed", "blocked"):
+            failures.append(f"ui scenario {sid}: required scenario is {status}")
+        if status == "passed":
+            execution = scenario.get("execution") if isinstance(scenario.get("execution"), dict) else {}
+            session_id = execution.get("session_id")
+            if not isinstance(session_id, str) or not session_id:
+                failures.append(f"ui scenario {sid}: passed without execution.session_id")
+            for field in ("executed_at", "target", "build"):
+                if not isinstance(execution.get(field), str) or not execution[field].strip():
+                    failures.append(f"ui scenario {sid}: passed without execution.{field}")
+            executed_at = execution.get("executed_at")
+            if isinstance(executed_at, str) and executed_at.strip():
+                try:
+                    parsed = datetime.fromisoformat(executed_at.replace("Z", "+00:00"))
+                    if parsed.tzinfo is None:
+                        raise ValueError("timezone required")
+                except ValueError:
+                    failures.append(
+                        f"ui scenario {sid}: execution.executed_at must be an ISO-8601 timestamp with timezone"
+                    )
+            refs = execution.get("native_call_refs")
+            if not isinstance(refs, list) or not refs:
+                failures.append(f"ui scenario {sid}: passed without native_call_refs")
+                refs = []
+            if trace is not None:
+                if session_id and session_id not in skill_ok_sessions:
+                    failures.append(
+                        f"ui scenario {sid}: no completed computer-use load in executing session {session_id}"
+                    )
+                for ref in refs:
+                    if not isinstance(ref, str) or not ref.strip():
+                        failures.append(f"ui scenario {sid}: native_call_refs entries must be non-empty strings")
+                        continue
+                    if session_id and not str(ref).startswith(f"{session_id}:"):
+                        failures.append(
+                            f"ui scenario {sid}: native call '{ref}' does not belong to the declared "
+                            f"execution session {session_id}"
+                        )
+                    if ref not in completed_calls:
+                        failures.append(
+                            f"ui scenario {sid}: native call '{ref}' not found as completed in trace"
+                        )
+                runner_refs = execution.get("runner_refs")
+                if ui_tools:
+                    if not any(_ui_tool_matches(completed_calls.get(ref), ui_tools) for ref in refs):
+                        failures.append(
+                            f"ui scenario {sid}: native_call_refs do not include a call matching "
+                            f"policy ui_tools {ui_tools}"
+                        )
+                elif not (isinstance(runner_refs, list) and runner_refs):
+                    failures.append(
+                        f"ui scenario {sid}: no policy ui_tools are configured; a passed scenario must "
+                        "record execution.runner_refs (captured UI runner output) for review"
+                    )
+            if isinstance(execution.get("runner_refs"), list) and execution.get("runner_refs"):
+                failures += _ui_ref_problems(sid, "runner_refs", execution.get("runner_refs"), project_root)
+            failures += _ui_ref_problems(sid, "observation_refs", execution.get("observation_refs"), project_root)
+            failures += _ui_ref_problems(sid, "result_refs", execution.get("result_refs"), project_root)
+
+    if goal_ui.get("required") is True:
+        for oid in goal_ui.get("outcome_ids") or []:
+            if oid not in required_coverage:
+                failures.append(f"goal.ui.outcome_ids {oid} has no required UI scenario coverage")
+
+    files = sidecar.get("files")
+    if applicability == "declared":
+        if not isinstance(files, list) or not files or not all(isinstance(f, str) for f in files):
+            failures.append("declared ui-acceptance requires a nonempty files list for artifact binding")
+            files = []
+        try:
+            current_identity = ui_artifact_identity(project_root, files)
+        except (ValidationError, OSError) as exc:
+            failures.append(f"artifact binding unreadable: {exc}")
+            current_identity = None
+        if current_identity is not None:
+            recorded = sidecar.get("artifact_identity")
+            if not recorded:
+                if bind:
+                    sidecar["artifact_identity"] = current_identity
+                    sidecar["bound_at"] = _now_iso()
+                    path.write_text(
+                        json.dumps(sidecar, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                        encoding="utf-8",
+                    )
+                else:
+                    failures.append("artifact_identity not bound yet; run ui-gate --bind first")
+            elif recorded != current_identity:
+                stale_scenarios = []
+                if rebind:
+                    prior = sidecar.get("bound_at")
+                    for scenario in scenarios:
+                        if not isinstance(scenario, dict) or scenario.get("status") != "passed":
+                            continue
+                        execution = scenario.get("execution") if isinstance(scenario.get("execution"), dict) else {}
+                        if not _iso_after(execution.get("executed_at"), prior):
+                            stale_scenarios.append(str(scenario.get("scenario_id", "?")))
+                if rebind and not stale_scenarios:
+                    sidecar["artifact_identity"] = current_identity
+                    sidecar["bound_at"] = _now_iso()
+                    path.write_text(
+                        json.dumps(sidecar, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                        encoding="utf-8",
+                    )
+                elif rebind:
+                    failures.append(
+                        "artifact_identity mismatch: scenarios " + ", ".join(stale_scenarios)
+                        + " have no execution recorded after the previous binding; reset the affected "
+                        "scenarios, re-execute them, and re-run ui-gate --rebind"
+                    )
+                else:
+                    failures.append(
+                        "artifact_identity mismatch: bound files changed after the assessment; reset the "
+                        "affected scenarios, re-execute them, and re-run ui-gate --rebind"
+                    )
+    return sidecar, path, failures
+
+
+def ui_gate(goal_path, trace_path, bind=False, rebind=False):
+    """Validate UI acceptance evidence against a native trace and write the gate sidecar."""
+
+    if _runtime_trace is None:
+        raise ValidationError(
+            "runtime_trace.py is not available next to check.py; cannot gate on UI acceptance evidence: "
+            + (_RUNTIME_TRACE_IMPORT_ERROR or "unknown import error")
+        )
+    _, goal, problems = validate_goal_artifact(goal_path)
+    if problems:
+        raise ValidationError("goal is invalid:\n- " + "\n- ".join(problems))
+    trace_path = Path(trace_path)
+    if not trace_path.is_file():
+        raise ValidationError(f"runtime trace not found: {trace_path}")
+    trace = _runtime_trace.load_trace(trace_path)
+    sidecar, sidecar_path, failures = validate_ui_acceptance(
+        goal_path, goal, trace=trace, bind=bind, rebind=rebind
+    )
+    extra_failures = list(_runtime_trace.verify_native_trace(trace))
+    provenance = "native" if not extra_failures else "unverified"
+    if trace.get("truncated"):
+        extra_failures.append("runtime trace is truncated; narrow the export window and re-export")
+    failures = extra_failures + failures
+    card = Path(goal_path)
+    gate = {
+        "schema": UI_GATE_SCHEMA,
+        "goal_id": goal["id"],
+        "verdict": "pass" if not failures else "fail",
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "trace_provenance": provenance,
+        "sidecar": {"path": str(sidecar_path), "sha256": _sha256_file(sidecar_path)},
+        "trace": {"path": str(trace_path), "sha256": _sha256_file(trace_path)},
+        "failures": failures,
+    }
+    policy, policy_binding, policy_problems = policy_binding_state(goal_path, goal["id"])
+    if policy_problems:
+        raise ValidationError(";\n".join(policy_problems))
+    gate["policy"] = policy_binding
+    gate_path = card.parent / f"{card.stem}.ui-gate.json"
+    gate_path.write_text(json.dumps(gate, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return gate, gate_path
+
+
+def enforce_ui_gate(goal_path, goal):
+    """Called from finish_goal when UI acceptance gates this goal."""
+
+    sidecar, sidecar_path = load_ui_sidecar(goal_path, goal)
+    required_by_policy = policy_requires_ui(goal_path, goal)
+    goal_ui = goal.get("ui") if isinstance(goal.get("ui"), dict) else {}
+    required_by_goal = goal_ui.get("required") is True
+    if sidecar is None and not required_by_policy and not required_by_goal:
+        return
+    if sidecar is None:
+        raise ValidationError(
+            "this goal requires ui-acceptance (goal.ui.required or runtime policy); write the "
+            f"{Path(goal_path).stem}.ui-acceptance.json sidecar with the executed scenarios"
+        )
+    if (required_by_policy or required_by_goal) and sidecar.get("applicability") != "declared":
+        raise ValidationError(
+            "this goal requires UI acceptance; the sidecar must declare executed scenarios, "
+            "not applicability 'none'"
+        )
+    gate_path = Path(goal_path).parent / f"{Path(goal_path).stem}.ui-gate.json"
+    if not gate_path.is_file():
+        raise ValidationError(
+            "ui acceptance sidecar exists; run 'check.py ui-gate <card> --trace <native trace>' before finish-goal"
+        )
+    try:
+        gate = json.loads(gate_path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValidationError(f"ui gate sidecar unreadable: {exc}") from exc
+    if gate.get("schema") != UI_GATE_SCHEMA:
+        raise ValidationError(f"ui gate sidecar schema must be {UI_GATE_SCHEMA}")
+    if gate.get("goal_id") != goal["id"]:
+        raise ValidationError("ui gate sidecar was issued for a different goal")
+    if gate.get("verdict") != "pass":
+        raise ValidationError(
+            "ui acceptance gate verdict is not pass: " + "; ".join(gate.get("failures") or ["unknown failures"])
+        )
+    if gate.get("trace_provenance") != "native":
+        raise ValidationError("ui gate was not produced from native session evidence; re-export the trace")
+    for key in ("sidecar", "trace"):
+        recorded = gate.get(key) or {}
+        recorded_path = recorded.get("path")
+        recorded_hash = recorded.get("sha256")
+        if not recorded_path or not recorded_hash:
+            raise ValidationError(f"ui gate sidecar missing {key} path/sha256")
+        current = Path(recorded_path)
+        if not current.is_file():
+            raise ValidationError(f"ui gate {key} file no longer exists: {current}")
+        if _sha256_file(current) != recorded_hash:
+            raise ValidationError(
+                f"ui gate is stale: {key} file changed after the gate ran; re-run ui-gate"
+            )
+    recorded_policy = gate.get("policy")
+    if recorded_policy is None:
+        raise ValidationError("ui gate predates policy binding; re-run ui-gate")
+    _, current_binding, current_problems = policy_binding_state(goal_path, goal["id"])
+    if current_problems:
+        raise ValidationError(";\n".join(current_problems))
+    if recorded_policy != current_binding:
+        raise ValidationError(
+            "ui gate is stale: the runtime policy state changed after the gate ran; re-run ui-gate"
+        )
+    project_root = goal_project_root(goal_path)
+    files = sidecar.get("files")
+    if isinstance(files, list) and files and all(isinstance(f, str) for f in files):
+        try:
+            current_identity = ui_artifact_identity(project_root, files)
+        except (ValidationError, OSError) as exc:
+            raise ValidationError(f"ui artifact binding unreadable: {exc}") from exc
+        if sidecar.get("artifact_identity") != current_identity:
+            raise ValidationError(
+                "ui acceptance is stale: the delivered artifacts changed after the assessment; "
+                "reset the affected scenarios to pending, re-execute them, and re-run ui-gate"
+            )
+
+
+def enforce_workspace_binding(goal_path, goal):
+    """Reject verified outcomes whose evidence no longer matches the workspace.
+
+    The engine records a conservative content snapshot at verification time
+    (`workspace_after` in the evidence payload). Any later change to a
+    non-excluded file invalidates those results until the affected outcomes
+    are re-verified with fresh evidence. Workflow state, evidence files,
+    caches and generated outputs are excluded from the snapshot by design.
+    """
+
+    project_root = goal_project_root(goal_path)
+    current, _ = workspace_snapshot(project_root)
+    problems = []
+    for outcome in goal.get("outcomes", []):
+        if outcome.get("status") != "verified":
+            continue
+        evidence = outcome.get("evidence") or {}
+        rel_path = evidence.get("path")
+        if not isinstance(rel_path, str) or not rel_path:
+            problems.append(f"{outcome.get('id')}: verified outcome has no evidence path")
+            continue
+        evidence_file = project_root / rel_path
+        try:
+            payload = json.loads(evidence_file.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError):
+            problems.append(f"{outcome.get('id')}: evidence unreadable: {rel_path}")
+            continue
+        recorded = payload.get("workspace_after") if isinstance(payload, dict) else None
+        if not isinstance(recorded, str) or not recorded:
+            problems.append(
+                f"{outcome.get('id')}: evidence predates workspace binding; re-run verify-goal"
+            )
+        elif recorded != current:
+            problems.append(
+                f"{outcome.get('id')}: workspace changed after verification; re-run verify-goal "
+                "with fresh evidence once the delivered files are stable"
+            )
+    if problems:
+        raise ValidationError("workspace binding failed:\n- " + "\n- ".join(problems))
 
 
 def finish_goal(goal_path):
@@ -1337,6 +2020,8 @@ def finish_goal(goal_path):
         if any(item.get("status") != "verified" for item in goal.get("outcomes", [])):
             raise ValidationError("finish-goal requires every outcome to have engine-verified evidence")
         enforce_runtime_gate(goal_path, goal)
+        enforce_ui_gate(goal_path, goal)
+        enforce_workspace_binding(goal_path, goal)
         updated = json.loads(json.dumps(goal))
         updated["status"] = "complete"
         problems = validate_goal(updated)
@@ -2233,7 +2918,7 @@ def record_evidence_event(ledger_path, event_path):
 
 
 def verify_step(plan_path, step_id, v_id, contract_path, ledger_path,
-                evidence_path, event_id, owner_event=None):
+                evidence_path, event_id, owner_event=None, recover_interrupted=False):
     with file_lock(str(plan_path) + ".runtime"):
         meta, plan = read_artifact(plan_path, "plan")
         _, contract = read_checked_contract(
@@ -2357,7 +3042,7 @@ def verify_step(plan_path, step_id, v_id, contract_path, ledger_path,
                 "empty_result_policy": verification.get("empty_result_policy"),
                 **({"assertion": verification["assertion"]} if "assertion" in verification else {}),
             },
-            timeout_seconds, recover=True,
+            timeout_seconds, recover=True, recover_interrupted=recover_interrupted,
         )
         try:
             recorded_evidence_path = resolved_evidence.relative_to(Path.cwd().resolve()).as_posix()
@@ -4157,6 +4842,7 @@ def main(argv):
                 raise ValidationError("verify-goal requires --evidence")
             goal, payload = verify_goal_outcome(
                 argv[2], argv[3], argv[argv.index("--evidence") + 1],
+                recover_interrupted="--recover-interrupted" in argv,
             )
             print(f"goal outcome {argv[3]}: {payload['result']}")
             return 0 if payload["result"] == "passed" else 1
@@ -4175,6 +4861,19 @@ def main(argv):
             for failure in sidecar["failures"]:
                 print(f"  - {failure}")
             return 0 if sidecar["verdict"] == "pass" else 1
+        if command == "ui-gate" and len(argv) >= 4:
+            if "--trace" not in argv:
+                raise ValidationError("ui-gate requires --trace")
+            trace_arg = argv[argv.index("--trace") + 1]
+            gate, gate_path = ui_gate(
+                argv[2], trace_arg,
+                bind="--bind" in argv or "--rebind" in argv,
+                rebind="--rebind" in argv,
+            )
+            print(f"ui gate {gate_path}: {gate['verdict']}")
+            for failure in gate["failures"]:
+                print(f"  - {failure}")
+            return 0 if gate["verdict"] == "pass" else 1
         if command == "contract":
             meta, contract = read_artifact(argv[2], "contract")
             expected = contract_hash(contract)
@@ -4250,6 +4949,7 @@ def main(argv):
                 argv[argv.index("--ledger") + 1],
                 argv[argv.index("--evidence") + 1],
                 argv[argv.index("--event-id") + 1],
+                recover_interrupted="--recover-interrupted" in argv,
             )
             print(f"step verification {event['id']}: {event['result']}")
             return 0 if event["result"] == "passed" else 1

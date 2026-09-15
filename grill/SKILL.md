@@ -129,13 +129,15 @@ Before the final owner-confirmation prompt, use `../i-have-adhd/SKILL.md` to sho
 which one confirmation is needed. Keep the full brief and evidence available; the
 preview is not the brief itself.
 
-Before setting `status: final`, load `../pua/SKILL.md` and execute the
-`brief-final` card in `../pua/references/stage-checks.md`. Ask “这份 summary 是
-用户说的，还是你替用户补的？” against every decision, success signal and
-non-goal. Show the user the final summary, retain unresolved questions, and only
-then run the brief validator, compute the hash and freeze the brief. Return the
-PUA acceptance result with the confirmation evidence; PUA cannot manufacture the
-owner confirmation.
+Before setting `status: final`, apply the `brief-final` discipline: ask “这份
+summary 是用户说的，还是你替用户补的？” against every decision, success signal
+and non-goal. For Guarded/Audited briefs, load `../pua/SKILL.md` and execute the
+`brief-final` card in `../pua/references/stage-checks.md`; for Normal briefs the
+same questions are the controller's direct duty. Show the user the final
+summary, retain unresolved questions, and only then run the brief validator,
+compute the hash and freeze the brief. Return the PUA acceptance result with the
+confirmation evidence when the card was used; PUA cannot manufacture the owner
+confirmation.
 
 ## Handoff
 

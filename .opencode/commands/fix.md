@@ -10,9 +10,15 @@ $ARGUMENTS
 Load `i-have-adhd` for concise user-facing progress and final delivery. When
 the root cause is unclear, first dispatch a read-only research seat to
 reproduce and diagnose, then dispatch the fix as a bounded work package per
-`mvp-delivery/references/subagent-orchestration.md`. Before a material
-acceptance handoff, send its preview first, then dispatch a fresh reviewer
-with the full `ACCEPTANCE_HANDOFF` and `pua_stage_id`, and consume its
+`mvp-delivery/references/subagent-orchestration.md` for Guarded/Audited work;
+Normal repairs may stay in-session with the controller integrating and
+re-verifying. If the defect is
+observable through a user interface journey, reproduce it through that journey
+(controller loads `computer-use`, scenario recorded in the `ui-acceptance/1`
+sidecar) and re-execute the same scenario after repair. Before a Guarded/Audited
+material acceptance handoff, send its preview first, then dispatch a fresh
+reviewer with the full `ACCEPTANCE_HANDOFF`, `pua_stage_id` and any UI sidecar
+summary, and consume its
 structured result; do not hide unresolved gaps in the final summary.
 
 Resolve and reuse the matching active/blocked goal card; do not create a second
@@ -45,6 +51,8 @@ README/quickstart or update it and replay declared setup/dependencies in isolati
 existing global dependencies do not prove a clean install.
 Report the delivery location, verified setup/use steps and working directory,
 prerequisites, a sample result, tested environment and remaining limitations;
-before declaring completion load the `pua` skill and execute the affected
+before declaring completion apply the direct source/scope comparison, and for
+Audited goals or missing/suspect evidence load the `pua` skill and execute the
+affected
 `goal-verification` and `goal-finish` cards. If blocked, identify what is still
 unusable and the smallest required owner action.

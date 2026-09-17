@@ -37,7 +37,10 @@ Its chain of thought:
    mechanical questionnaire traversal.
 2. **Five to ten questions per round, grouped by dimension.** Absorb the
    answers, analyze what they changed, and only then derive the next round;
-   never dump every question at once.
+   never dump every question at once. Every round must be a **real
+   interaction**: asked via OpenCode's `question` tool when available, or by
+   ending the turn and waiting for the reply — never asked and answered in
+   the same turn; only answers the user actually gave enter the brief.
 3. **Close against a twelve-dimension coverage table**: user and scenario,
    public interface, environment, representative input, output and
    retrieval, **errors and boundaries**, data and state, authority and

@@ -30,6 +30,26 @@ only if the selected slice later requires Audited rigor.
 
 ## Interview
 
+### Questions Are Real Interactions
+
+An interview round exists only if the user actually answers it:
+
+- Deliver every round through the host's interactive question mechanism
+  (in OpenCode, the `question` tool) when available; otherwise end your
+  turn with the questions and wait for the user's next message. **Never
+  ask and answer within the same turn.**
+- Only text that arrives as actual user input in this session (or was
+  already persisted in the draft) may be recorded as answers, decisions
+  or confirmations. Self-generated answers are fabrication, not
+  interviewing; model them as assumptions (BA) at best, never as BD.
+- The `question` tool's options may offer choices, but must not embed
+  the desired answer (see neutral questioning below).
+- If no interactive channel exists, stop and report that clarification
+  is unavailable; do not write a final brief by guessing.
+- The final owner confirmation is also a real question (or a
+  turn-ending prompt). `owner_confirmation.confirmed: true` may only
+  follow an explicit user reply observed in this session.
+
 On `/resume` with no active/blocked goal and a draft `docs/brief.md`, validate
 the draft and resume its persisted frontier/revision. Do not restart intake,
 infer confirmation from chat, or start building. Ambiguous drafts require a target.

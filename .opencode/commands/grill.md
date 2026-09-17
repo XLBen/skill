@@ -7,6 +7,12 @@ Load the `grill` and `i-have-adhd` skills and follow them for this idea:
 
 $ARGUMENTS
 
+Every interview round must be a real interaction: ask through OpenCode's
+`question` tool when available, otherwise end the turn with the questions and
+wait for the user's reply. Never simulate the questions and the answers in
+one turn, and never record decisions or confirmations the user did not
+actually give. The final owner confirmation is likewise a real question.
+
 Stop after the brief is final, owner-confirmed, and passes the brief
 validator. Before finalizing, apply grill's Final Confirmation Check
 (attribution, dimension coverage, honesty of scope), and dispatch a fresh

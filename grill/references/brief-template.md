@@ -64,5 +64,7 @@ material prerequisites or environment gaps as facts, constraints, assumptions,
 or open questions as appropriate. Success items describe observable journeys
 through the intended public interface covering every promised user-facing
 outcome; one scenario may cover several outcomes. CLI commands and library API
-calls count, without adding a GUI or deployment requirement. Reuse established
-answers and ask only material unknowns; no extra fields or checklist artifact.
+calls count, without adding a GUI or deployment requirement. The dimension
+coverage table from `SKILL.md` is interviewing discipline for deciding what to
+ask next; it is not a separate artifact and adds no schema fields — the brief
+record stays this prose plus the `json brief` block.

@@ -104,9 +104,10 @@ For each new first-slice/SI acceptance path, invoke test-author before behavior
 implementation by step-executor. Persist the existing test manifest with
 `spec_source`, `spec_hash`, `test_author_id`, protected acceptance paths/hashes,
 expected critical scenario IDs, boundary/mock policy, classified pre-change
-output/hash, and a frozen-at timestamp, as specified by test-author. The
-controller and reviewer inspect integrity and actual scenario execution; these
-are prompt-layer safeguards, not additional machine enforcement.
+output/hash, and a frozen-at timestamp, as specified by test-author. Every hash
+in the manifest comes from engine output (`check.py hash`), never hand
+computation. The controller and reviewer inspect integrity and actual scenario
+execution; these are prompt-layer safeguards, not additional machine enforcement.
 
 ### PUA Acceptance: `test-freeze`
 

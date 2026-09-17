@@ -218,7 +218,7 @@ class PuaStageTimingTests(unittest.TestCase):
     def test_stage_check_index_links_every_card(self):
         index = read("pua/references/stage-checks.md")
         for name in (
-            "01-brief-final.md", "02-goal-validation.md", "03-contract-release.md",
+            "02-goal-validation.md", "03-contract-release.md",
             "04-plan-confirmation.md", "05-test-freeze.md", "06-step-verification.md",
             "07-slice-acceptance.md", "08-review-verdict.md", "09-goal-verification.md",
             "10-goal-finish.md",

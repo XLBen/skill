@@ -123,19 +123,23 @@ or skipped scenario into a passing freeze.
 3. Write the tests only in the allowed test paths. Keep the test data
    deterministic and safe; redact secrets and unnecessary personal data.
 4. Run the exact pre-change command before behavior implementation is called.
-   Capture the full relevant output, exit status, and output hash. A red test
-   may fail because the feature is absent, but not because the test cannot
-   parse, the fixture is missing, or the command was skipped.
+    Capture the full relevant output, exit status, and output hash (record the
+    hash with `check.py hash <file>` on a saved output file; never compute a
+    digest by hand or ad-hoc snippets). A red test
+    may fail because the feature is absent, but not because the test cannot
+    parse, the fixture is missing, or the command was skipped.
 5. Write the manifest at the caller-supplied `manifest_path`, using the
     manifest template below. For a new five-command Audited package this is
     the package-internal
     `docs/audit-slices/<goal-slug>/<slice-id>/test-manifests/<slice-id>.md`;
     legacy runs keep the root `docs/test-manifests/<slice-id>.md`. Do not
     recompute or override the path yourself; if no manifest path was supplied,
-    return `needs_input` instead of guessing a location. Include the
-    specification source/hash, scenarios, test paths/hashes,
-    `test_author_id`, classified pre-change evidence, allowed implementation
-    write set, and a `frozen_at` timestamp.
+     return `needs_input` instead of guessing a location. Include the
+     specification source/hash, scenarios, test paths/hashes,
+     `test_author_id`, classified pre-change evidence, allowed implementation
+     write set, and a `frozen_at` timestamp. All hashes recorded in the
+     manifest must come from engine output (`check.py hash`); hand-computed
+     digests are forbidden.
 6. Return only the test-author handoff. Do not implement, repair, or mark the
    step complete.
 
@@ -147,13 +151,13 @@ or skipped scenario into a passing freeze.
 | Field | Value |
 |---|---|
 | Spec source | <contract or SI path and IDs> |
-| Spec hash | <hash> |
+| Spec hash | <hash from `check.py hash <spec file>`> |
 | Test author ID | <subagent/session ID> |
 | Implementation author ID | pending |
 | Frozen at | <ISO-8601 timestamp> |
 | Allowed test command | <exact command> |
-| Protected test files | <path=sha256> |
-| Protected acceptance support | <relevant helpers/fixtures/runner config/wrappers: path=sha256> |
+| Protected test files | <path=sha256 from `check.py hash`, never hand-computed> |
+| Protected acceptance support | <relevant helpers/fixtures/runner config/wrappers: path=sha256 from `check.py hash`> |
 | Shared-file acceptance settings | <path, relevant settings, snapshot/hash; product dependency edits remain scoped> |
 | Expected critical scenario IDs | <all required IDs> |
 | Boundary/mock policy | <permitted doubles and required real boundaries> |

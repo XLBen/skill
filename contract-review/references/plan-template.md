@@ -11,6 +11,18 @@ python .opencode/workflow/scripts/check.py compile docs/contract.md docs/PLAN.md
 python .opencode/workflow/scripts/check.py plan docs/PLAN.md --contract docs/contract.md --change-orders docs/change-orders.md --ledger docs/workflow-events.jsonl
 ```
 
+## Step Briefs Are Execution Prompts
+
+While authoring contract step specifications (which the compiler projects into
+PLAN), follow `../../writing-plans/SKILL.md`: each step's specification must
+carry Context (why, and which outcome it serves), exact Files, a Change sketch
+(signatures/structures to reuse, or the investigation target when undecided),
+Bounds (boundary conditions: empty/extreme input, concurrency/idempotency,
+encoding, mid-failure recovery, cleanup, compatibility), the executable
+Verify command with its expected assertion, and Rollback. A step spec missing
+these fields produces an underspecified prompt for its executing seat —
+fix the contract, not the executor's guess.
+
 The file contains frontmatter and one `json plan` block. The engine compiles
 every legal I variant and segment to `S-Ixx-variant-segment`. Unselected
 variants remain `dormant`; `selected_variants` is runtime state and does not

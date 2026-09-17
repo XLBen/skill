@@ -3,6 +3,7 @@
 
 Commands:
   check.py brief <docs/brief.md>
+  check.py hash <file> [<file> ...]
   check.py goal <.opencode/mvp/goal.md>
   check.py verify-goal <.opencode/mvp/goal.md> <O-NN> --evidence <path> [--recover-interrupted]
   check.py finish-goal <.opencode/mvp/goal.md>
@@ -1735,7 +1736,7 @@ def validate_ui_acceptance(goal_path, goal, trace=None, bind=False, rebind=False
             if ev.get("status") == "completed" and ev.get("session_id") and ev.get("call_id"):
                 completed_calls[f"{ev['session_id']}:{ev['call_id']}"] = ev.get("tool")
         for ev in trace.get("skill_events", []):
-            if ev.get("status") == "completed" and ev.get("skill") == "computer-use" and ev.get("session_id"):
+            if ev.get("status") == "completed" and ev.get("skill") in ("computer-use", "webapp-testing") and ev.get("session_id"):
                 skill_ok_sessions.add(ev["session_id"])
 
     required_coverage = set()
@@ -1803,7 +1804,7 @@ def validate_ui_acceptance(goal_path, goal, trace=None, bind=False, rebind=False
             if trace is not None:
                 if session_id and session_id not in skill_ok_sessions:
                     failures.append(
-                        f"ui scenario {sid}: no completed computer-use load in executing session {session_id}"
+                        f"ui scenario {sid}: no completed computer-use/webapp-testing load in executing session {session_id}"
                     )
                 for ref in refs:
                     if not isinstance(ref, str) or not ref.strip():
@@ -4891,6 +4892,14 @@ def main(argv):
             meta, brief, expected, problems = validate_brief_artifact(argv[2])
             print(f"brief-hash: {expected}")
             return report("brief", problems)
+        if command == "hash" and len(argv) >= 3:
+            for raw in argv[2:]:
+                target = Path(raw)
+                if not target.is_file():
+                    print(f"{raw}: <missing file>")
+                    return 1
+                print(f"{target.as_posix()}: {_sha256_file(target)}")
+            return 0
         if command == "goal":
             _, _, problems = validate_goal_artifact(argv[2])
             return report("goal", problems)

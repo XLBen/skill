@@ -7,8 +7,7 @@
       "entry": "final brief handoff at the end of /grill",
       "rigors": ["normal", "guarded", "audited"],
       "required_skills": [
-        {"name": "grill", "seat": "controller", "roles": ["controller"]},
-        {"name": "pua", "stage_card": "brief-final", "seat": "controller", "roles": ["controller"], "applies_when": "guarded-or-audited"}
+        {"name": "grill", "seat": "controller", "roles": ["controller"]}
       ],
       "reviewer": {
         "mode": "review",
@@ -81,7 +80,7 @@
         "condition": {"rigors": ["guarded", "audited"], "optional_rigors": ["normal"], "dispatch": true, "mandatory": true, "blocking": false, "normal_trigger": "risk-triggered"},
         "scope": "current slice and affected scope; no reconcile/manifest/SI artifacts"
       },
-      "ui_acceptance": "execute before the handoff: every required scenario covering this slice's affected interface outcomes must be passed (or reasoned not-applicable); controller loads computer-use and operates the UI, reviewer checks the recorded sidecar evidence",
+      "ui_acceptance": "execute before the handoff: every required scenario covering this slice's affected interface outcomes must be passed (or reasoned not-applicable); controller operates the UI (webapp-testing for web-only journeys, computer-use for native boundaries), reviewer checks the recorded sidecar evidence",
       "domain_skills": "select when verifying the slice needs a specialized read-only capability; read-only reviewers request executions via CONTROLLER_ACTION"
     },
     {
@@ -204,10 +203,10 @@
     "unknown-rigor": "fail-closed: a missing rigor cannot exempt a guarded-or-audited card"
   },
   "ui_acceptance": {
-    "capability": "computer-use (controller-operated; browser backend preferred for web-only journeys, desktop MCP for native boundaries)",
+    "capability": "webapp-testing for web-only journeys (controller-operated browser automation, assertion-first); computer-use for native desktop/OS-dialog boundaries (desktop MCP)",
     "sidecar": ".opencode/mvp/<goal-slug>.ui-acceptance.json (schema ui-acceptance/1, see computer-use/references/ui-acceptance-protocol.md)",
     "applicability": "required whenever an affected outcome includes an interface journey; absence of backend blocks (never not-applicable); no interface in scope requires a recorded applicability: none with reason",
-    "gate": "check.py ui-gate <goal-card> --trace <trace.json> [--bind] enforces scenario statuses, controller computer-use load, native call references and artifact binding before finish-goal"
+    "gate": "check.py ui-gate <goal-card> --trace <trace.json> [--bind] enforces scenario statuses, controller computer-use/webapp-testing load, native call references and artifact binding before finish-goal"
   },
   "dispatch_levels": {
     "capability-available-mandatory": "dispatch whenever the seat exists at runtime; cost is never an exemption. Fallback tiers per subagent-orchestration.md Failure Branches.",

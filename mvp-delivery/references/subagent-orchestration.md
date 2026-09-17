@@ -107,9 +107,10 @@ step-executor。正常路由到主控（Normal 直接实现、Audited `direct`�
 边界（必须遵守）：
 
 - 目标是**适用能力覆盖**，不是调用全部可用 skill；不适用的不调用。
-- **UI 验收是硬规则而非候选**：受影响 outcomes 包含界面旅程（原生应用、
-  系统对话框、网页交互）时，`computer-use` 必须由主控加载并执行
-  ui-acceptance sidecar 中的必需场景（规则见
+- **UI 验收是硬规则而非候选**：受影响 outcomes 包含界面旅程时，主控必须加载
+  并执行 ui-acceptance sidecar 中的必需场景——Web-only 旅程加载
+  `webapp-testing`（断言式浏览器自动化），原生应用/系统对话框/文件选择器加载
+  `computer-use`（规则见
   `stage-routing.json` 的 ui_acceptance 块与
   `computer-use/references/ui-acceptance-protocol.md`）；缺后端是 blocked，
   不是不适用。无界面范围必须记录 `applicability: none` 及理由。
@@ -302,14 +303,17 @@ resume 时先核对 dispatch record 与实际产物：done 且产物未失效、
 `/resume` 先读以下最小状态集，再按缺口展开；不得默认读取全部 archive、全部
 reviewer findings 或完整派发正文：
 
-1. 目标定义（goal 卡 JSON fence 或严格包指针）；
-2. dispatch record：`active_slice`、未完成任务、未决 `actions`、
+1. `docs/delivery-log.md` 的既有条目（上下文压缩重入点，见
+   `delivery-finish.md` 的 Delivery Log And Context Compaction）；
+2. 目标定义（goal 卡 JSON fence 或严格包指针）；
+3. dispatch record：`active_slice`、未完成任务、未决 `actions`、
    `failure_counters`；
-3. 当前产物基线与工作区状态；
-4. 已采纳的接口结论（任务 `next_context` 摘要）；
-5. 下一动作（首个 pending/blocked outcome 或等待中的 gate）。
+4. 当前产物基线与工作区状态；
+5. 已采纳的接口结论（任务 `next_context` 摘要）；
+6. 下一动作（首个 pending/blocked outcome 或等待中的 gate）。
 
-只有需要核对具体结论/证据时才展开对应的 `dispatch_ref`/`result_ref` 文件。
+只有需要核对具体结论/证据时才展开对应的 `dispatch_ref`/`result_ref` 文件；
+已完成 goal 的 brief/PLAN/包全文不再默认加载。
 
 ## Failure Branches
 

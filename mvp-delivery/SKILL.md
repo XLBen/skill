@@ -6,7 +6,7 @@ metadata:
   language: "zh-CN"
   commands: "/plan <goal>, /build [goal], /fix <problem>, /resume"
   produces: "working product code and verification evidence"
-  calls-skills: "i-have-adhd, pua, grill, contract-review, construction, task-worker, reviewer, computer-use"
+  calls-skills: "i-have-adhd, pua, grill, contract-review, construction, task-worker, reviewer, computer-use, webapp-testing, writing-plans, systematic-debugging, brainstorming, research"
 ---
 
 # MVP Delivery
@@ -74,7 +74,9 @@ Skill Applicability Selection 按验收边界选择。每个 goal 维护
 2. 受影响 outcomes 包含界面旅程时，执行 UI 验收：目标卡声明
    `goal.ui.required`，主控在 `.opencode/mvp/<goal-slug>.ui-acceptance.json`
    （schema `ui-acceptance/1`）记录并执行必需场景，规则见
-   `../computer-use/references/ui-acceptance-protocol.md`。缺后端/权限置
+   `../computer-use/references/ui-acceptance-protocol.md`。Web-only 旅程优先
+   加载 `../webapp-testing/SKILL.md`（专用浏览器自动化与断言式脚本）；
+   原生桌面/OS 对话框走 `../computer-use/SKILL.md`。缺后端/权限置
    `blocked`，不得判不适用，也不得删除 sidecar；产物变化后重跑并重新绑定。
 3. 用 `acceptance-preview` 告知用户正在验收什么；不能在 reviewer 返回前宣布
    阶段通过或整个目标完成。普通实现中的无实质进展不发送重复消息。
@@ -98,14 +100,21 @@ reviewer 或 PUA 仪式；唯一豁免是 mechanical-batch（机械小改合并�
 
 - **Plan Mode (`/plan`)**：检查仓库，把参数或明确指定的 `docs/brief.md` 转成
   `.opencode/mvp/<goal-slug>.md`；只规划，不写产品代码。Normal/Guarded 使用
-  轻量目标卡；Audited 在内部加载 `contract-review`。界面旅程只设计不执行。
+  轻量目标卡，其首片 brief 按 `../writing-plans/SKILL.md` 写成可执行 prompt
+  （Context、精确 Files、Change 草稿、Bounds、Verify、Rollback）；方案形态
+  存在实质分叉时先加载 `../brainstorming/SKILL.md` 与 owner 收敛。Audited 在
+  内部加载 `contract-review`。界面旅程只设计不执行。
 - **Build Mode (`/build [goal]`)**：解析并复用已有目标卡；无参数时读取唯一
   active 目标卡或严格 PLAN。持续实现、验证并自动收尾，直到原始结果清单
   verified。
-- **Fix Mode (`/fix <problem>`)**：复用相关目标卡并复现、定位根因、最小修复、
-  加回归测试并验证；严格契约与现实冲突时内部执行 CR 恢复。
-- **Resume Mode (`/resume`)**：从持久状态恢复，不从聊天猜进度；最小恢复读取
-  集见 `references/subagent-orchestration.md`，失效与续跑规则见
+- **Fix Mode (`/fix <problem>`)**：复用相关目标卡，按
+  `../systematic-debugging/SKILL.md` 的四阶段（复现/隔离/假设/验证）完成
+  复现、定位根因、最小修复，加回归测试并验证；严格契约与现实冲突时内部执行
+  CR 恢复。
+- **Resume Mode (`/resume`)**：从持久状态恢复，不从聊天猜进度；读取顺序与
+  上下文压缩规则（delivery-log 优先、已完成工件停止默认加载）见
+  `references/delivery-finish.md`，最小恢复读取集见
+  `references/subagent-orchestration.md`，失效与续跑规则见
   `references/delivery-recovery.md`。
 
 ## Establish The Target
@@ -167,14 +176,19 @@ goal 顶层 `rigor`/`risk` 是累计风险下限，不等于当前切片强度�
 mock 冒充真实边界。详细执行规则见 `references/delivery-execution.md`。
 
 1. 为当前切片创建少量可执行 todo，不为完整远期路线展开大计划。
-2. Guarded/Audited 的实质实现任务默认派 worker 子代理执行；Normal 允许主控
+2. 首片实现前，把为推进而准备自作的全部可逆假设（brief 未覆盖、仓库无法
+   裁决的边缘选择）列成一份简短假设清单，一次性给 owner 扫认或纠正；
+   未获回应时按“最小可逆决定”继续并把清单原样附在交付报告中。假设清单
+   是一次确认动作，不逐条阻塞，也不新增持久工件。
+3. Guarded/Audited 的实质实现任务默认派 worker 子代理执行；Normal 允许主控
    直接实现。主控负责拆解、交接、集成与复验，不把 worker 的返回当作验证
-   通过。机械小改合并后主控直接处理。
-3. 先实现最短正确路径，遵循仓库现有结构；避免无关重构和预防性抽象。
-4. 测试策略与风险相称；不要为了角色仪式强制生成独立 manifest。
-5. 运行最窄相关测试，再运行真实 smoke/demo；测试必须检查内容、状态或不变量。
-6. 必要产物缺失、为空或为零时默认失败；只有目标明确 semantic zero 才通过。
-7. 失败时先读错误并修根因；失败计数绑定“子目标 + 归一化失败签名”跨
+   通过。机械小改合并后主控直接处理。派发给执行席位的任务正文按
+   `../writing-plans/SKILL.md` 的 step brief 组织。
+4. 先实现最短正确路径，遵循仓库现有结构；避免无关重构和预防性抽象。
+5. 测试策略与风险相称；不要为了角色仪式强制生成独立 manifest。
+6. 运行最窄相关测试，再运行真实 smoke/demo；测试必须检查内容、状态或不变量。
+7. 必要产物缺失、为空或为零时默认失败；只有目标明确 semantic zero 才通过。
+8. 失败时先读错误并修根因；失败计数绑定“子目标 + 归一化失败签名”跨
    seat/task/resume 累计，同签名三次无新证据即 no-progress blocker，向用户
    升级而不是机械重试。恢复分级见 `../pua/references/recovery-protocol.md`。
 
@@ -224,6 +238,8 @@ owner 决定和外部阻塞保持区分。
   声明产物在隔离环境复跑；借用全局依赖不算干净安装。
 - 引擎不可用时在所有档位报告 blocker；不伪造成功。hash 只检测旧绑定，不证明
   产品正确性或身份；ID 只是声明。selftest 不是产品可用性证明。
+- 完成后按 `references/delivery-finish.md` 的 Delivery Log And Context
+  Compaction 追加 `docs/delivery-log.md` 条目，压缩会话上下文。
 
 ## References
 

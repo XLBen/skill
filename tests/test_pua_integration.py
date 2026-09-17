@@ -4,7 +4,6 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 STAGES = (
-    "brief-final",
     "goal-validation",
     "contract-release",
     "plan-confirmation",
@@ -28,7 +27,6 @@ class PuaIntegrationTests(unittest.TestCase):
 
     def test_stage_hosts_expose_explicit_acceptance_hooks(self):
         hooks = {
-            "grill/SKILL.md": ("brief-final",),
             "mvp-delivery/SKILL.md": (
                 "goal-validation",
                 "slice-acceptance",

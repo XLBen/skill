@@ -164,7 +164,9 @@ in-session; any non-`direct` profile with `full` or
 `light + autonomous` stays in-session. For acceptance work, the controller
 first dispatches a fresh subagent that loads `test-author`, then (when the
 seat table dispatches one) a different fresh subagent that loads
-`step-executor` for each selected step, passing only that step's spec, its
+`step-executor` for each selected step, passing a step brief built per
+`../../writing-plans/SKILL.md` (Context, exact Files, Change sketch, Bounds,
+Verify command, Rollback) plus that step's spec, its
 exact V, and the acceptance manifest. Loading a skill in the controller
 session is not an independent dispatch. The controller stays responsible for
 state, the ledger, and event recording, and the attempt event carries the

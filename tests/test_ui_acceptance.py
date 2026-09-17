@@ -323,7 +323,7 @@ class UiAcceptanceValidationTests(unittest.TestCase):
         self.trace["skill_events"] = []
         self.trace_path.write_text(json.dumps(self.trace), encoding="utf-8")
         _, _, failures = self._validate(bind=True)
-        self.assertTrue(any("no completed computer-use load" in f for f in failures), failures)
+        self.assertTrue(any("no completed computer-use/webapp-testing load" in f for f in failures), failures)
 
     def test_without_ui_tools_a_runner_evidence_is_required(self):
         def mutate(s):

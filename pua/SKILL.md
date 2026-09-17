@@ -4,9 +4,9 @@ description: Use internally at Guarded/Audited workflow acceptance gates, when c
 license: MIT
 metadata:
   language: "zh-CN"
-  called-by: "mvp-delivery, grill, contract-review, construction, test-author, reviewer, step-executor"
+  called-by: "mvp-delivery, contract-review, construction, test-author, reviewer, step-executor"
   public-command: "none"
-  stages: "brief-final, goal-validation, contract-release, plan-confirmation, test-freeze, step-verification, slice-acceptance, review-verdict, goal-verification, goal-finish"
+  stages: "goal-validation, contract-release, plan-confirmation, test-freeze, step-verification, slice-acceptance, review-verdict, goal-verification, goal-finish"
   handoff: "ACCEPTANCE_HANDOFF"
   user-view: "i-have-adhd"
   source: "tanweai/pua adapted at e6e6cd237ad17750d179674bff52f8184abea8fd"
@@ -164,6 +164,6 @@ reviewer 的既有结构化结果继续放在 `issues` 中，并在有 `pua_stag
 | Need | Read |
 |---|---|
 | 通用验收顺序、结果路由和输出格式 | `references/acceptance-protocol.md` |
-| 十类阶段检查卡 | `references/stage-checks.md` |
+| 九类阶段检查卡 | `references/stage-checks.md` |
 | 失败计数、换方法、熔断和冰山范围 | `references/recovery-protocol.md` |
 | 上游来源、适配范围和许可证说明 | `UPSTREAM.md` |

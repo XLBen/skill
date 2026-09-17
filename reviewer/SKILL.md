@@ -111,6 +111,13 @@ controller-side execution is requested via CONTROLLER_ACTION.
 - Treat an SI as planned scope growth only after the current slice passed real
   verification and owner acceptance. Treat factual, interface, acceptance,
   or safety mismatches as CR findings.
+- Check boundary-condition coverage as its own review dimension: for each
+  delivered behavior, whether empty/extreme input, repeated execution
+  (idempotency), concurrent use where plausible, encoding/non-ASCII, mid-failure
+  recovery and cleanup were either tested, explicitly reasoned
+  not-applicable, or remain an untested limitation. An untested boundary is a
+  finding (severity by risk), not a silent pass; do not invent boundaries the
+  scope never claimed.
 - Never make an owner choice or lower a severity to help the contractor.
 
 ## PUA Acceptance (only when dispatched)

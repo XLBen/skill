@@ -81,6 +81,37 @@ required ceremony. “证据呢？” means locate the actual output; it never m
 a second unbounded ceremony. Missing implementation, missing verification,
 owner decisions and external blockers remain distinct.
 
+## Delivery Log And Context Compaction
+
+每个 goal（或无卡 Normal 交付）完成时，向 `docs/delivery-log.md` 追加一条
+commit 式条目——这是会话上下文的压缩点，不是新的 gate：
+
+```markdown
+## <date> <goal-slug> [<rigor>] — <一句话结果>
+- changed: <本次变更的产品文件/目录（一行级摘要，非全量 diff）>
+- decisions: <为推进而作出的关键可逆决定；无则 none>
+- verified: <验证命令与结果摘要；区分自动验证/人工验收/未验证>
+- evidence: <goal 卡、dispatch record、ui sidecar、包目录等证据指针>
+- remaining: <剩余限制、deferred、未测边界；无则 none>
+```
+
+规则：
+
+- 条目在 `finish-goal`（或 Normal 交付报告）之后追加；只追加，不改写历史
+  条目。文件按时间正序排列。
+- **停止加载旧全文**：后续会话与 `/resume` 的读取顺序是
+  `docs/delivery-log.md` → 当前 active 目标卡 → 代码。已完成的 brief、
+  PLAN、grill draft、严格包全文不再进入会话上下文；仅当需要核对具体
+  结论时按 delivery-log 的 evidence 指针展开对应文件。
+- **归档不删除**：引擎按路径绑定 hash（brief 冻结、证据、artifact
+  identity），被任何 goal/严格包引用的文件必须原地保留；只有确认未被
+  引用的 draft/中间工件可以移入 `docs/archive/`，移动前用
+  `check.py check-current`/`finish-goal` 的引用核对确认无绑定。
+- delivery-log 是给人和后续会话看的压缩记录；它不替代 goal 卡、dispatch
+  record 或引擎证据，也不能作为任何 gate 的通过依据。
+- OpenCode 自动压缩（compaction）后，delivery-log 是首选重入点：先读它
+  恢复“做过什么、还剩什么”，再按需展开。
+
 ## Final Report
 
 最终只报告：

@@ -94,16 +94,18 @@ Field rules:
   `["browser_*", "playwright_*"]`). When present, at least one native call
   reference of every `passed` scenario must match a pattern; a plain shell
   receipt or unrelated tool call does not satisfy it.
-- A `passed` scenario also requires a completed `computer-use` skill load in
-  the executing session when a trace is supplied.
+- A `passed` scenario also requires a completed `computer-use` or `webapp-testing`
+  skill load in the executing session when a trace is supplied.
 
 ## Execution Order In The Workflow
 
 ```text
 implementation done -> automated/engine verification
   -> UI applicability decided in the goal definition (scenarios designed)
-  -> controller loads computer-use, executes each required scenario
-     (observe -> act -> verify; one bounded journey per scenario)
+  -> controller executes each required scenario:
+     web-only journeys via webapp-testing (browser automation),
+     native/OS-dialog journeys via computer-use (observe -> act -> verify;
+     one bounded journey per scenario, under the skill's hard budget)
   -> first ui-gate --bind records the artifact identity
   -> ACCEPTANCE_HANDOFF includes the sidecar summary
   -> fresh reviewer + PUA check UI evidence with the other acceptance items
@@ -129,6 +131,10 @@ build that no longer matches `artifact_identity`.
   delivered files changed after the assessment; a changed runtime policy
   invalidates the gate as well.
 - Scope growth adds scenarios; it does not silently mark them covered.
+- A `failed` scenario (expected result observed to be absent or wrong) or a
+  budget-exhausted `blocked` scenario returns to the controller's repair
+  loop with the collected evidence; neither state authorizes extended
+  in-place retry by the executing seat.
 - A failed scenario blocks the acceptance handoff until repaired and
   re-executed; a blocked scenario blocks with the missing prerequisite
   named; both surface in `ui-gate` failures.

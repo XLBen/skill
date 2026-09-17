@@ -83,8 +83,10 @@ ID 和布尔标记只提供结构约束，不自动证明语义覆盖或真实�
 失效处理后同步 JSON/frontmatter 状态：仍有 blocked 结果则保持 blocked，否则置 active，
 重新校验后再修改产品。
 `/resume` 在没有未完成目标而有 draft brief 时继续 grill revision/frontier，不开始施工。
-grill 每次问下一轮（含首轮）或暂停前保存并校验 draft，记录访谈模式，默认 stepwise
-每轮一题，checkpoints 最多三题，绝对不超过五题。draft 的
+grill 每次问下一轮（含首轮）或暂停前保存并校验 draft，记录访谈模式，默认 checkpoints
+按维度分组提问、每轮 5–10 题（上限 10），回答后分析再出下一轮；stepwise 每轮一题。
+访谈由十二维需求覆盖表收口：每维要么有 item、要么显式不适用，全维关闭且一轮无新信息才
+终止。方案形态存在实质分叉时先经 brainstorming 收敛。draft 的
 `owner_confirmation.confirmed` 必须是 bool，`summary` 必须是 string 但可空；
 final 必须 confirmed 为 true 且确认 summary 非空。顶层 summary 仍需真实非空。
 frontier ID 唯一且只指 open question，不要求列出全部 open question。
@@ -117,15 +119,31 @@ goal、deferred 和真实入口，按需复用 reviewer，不新增公开命令�
 
 - `mvp-delivery`：`plan/build/fix/resume` 的总控制器，负责持续收敛到原始目标；
   Guarded/Audited 实质任务默认派发子代理，规则见其 `references/subagent-orchestration.md`。
-- `grill`：深度需求澄清，只生成 brief。
+  完成的 goal 按 `delivery-finish.md` 的规则追加 `docs/delivery-log.md` commit 式条目，
+  后续会话与 `/resume` 只加载 delivery-log、active 目标卡与代码，已完成的
+  brief/PLAN/包全文停止默认加载（上下文压缩重入点）。
+- `grill`：深度需求澄清，只生成 brief；按十二维覆盖表收口访谈。
+- `research`：外部事实查证（来源分级、引用、时效），服务 grill 与主控的
+  “事实归 agent”规则。
+- `brainstorming`：方案形态存在实质分叉时的替代方案探索与收敛，位于 grill
+  之后、plan 之前。
+- `writing-plans`：把计划写成可执行 prompt（Context/Files/Change/Bounds/
+  Verify/Rollback 与边界条件清单），嵌入 PLAN 编译、目标卡首片 brief 与
+  各席位派发模板。
+- `systematic-debugging`：四阶段根因排查（复现/隔离/假设/验证），服务
+  `/fix` 与重复失败场景。
 - `contract-review`：Audited 切片的契约评审和 PLAN 编译。
 - `construction`：执行并收尾 Audited PLAN，处理 CR 恢复。
 - `task-worker`：由 fresh subagent 调度时执行一个有界 Normal/Guarded 实现工作包。
 - `test-author`：由 fresh subagent 调度时独立生成和冻结验收测试。
-- `reviewer`：由 fresh subagent 调度时进行只读评审，含轻量验收与 whole-goal 检查。
+- `reviewer`：由 fresh subagent 调度时进行只读评审，含轻量验收与 whole-goal 检查；
+  边界条件覆盖是独立检查维度。
 - `step-executor`：由 fresh subagent 隔离执行一个严格 PLAN 步骤。
-- `computer-use`：主控制器按需执行真实桌面 GUI 路径，观察、操作、验证；UI 义务由
-  `goal.ui` 声明，需要另行授权的 MCP。
+- `webapp-testing`：Web-only 界面旅程的专用浏览器自动化验收（断言式脚本优先），
+  产出与 computer-use 相同的 `ui-acceptance/1` 证据。
+- `computer-use`：主控制器按需执行真实桌面 GUI 路径（原生应用、OS 对话框），
+  观察、操作、验证；Web 旅程优先 webapp-testing，桌面按场景硬预算执行；
+  UI 义务由 `goal.ui` 声明，需要另行授权的 MCP。
 - `pua`：Guarded/Audited 验收与失败恢复时的主动质询、证据闭环和有界恢复；Normal
   直接执行同样的问题，不替代 engine gate 或 owner 决定。
 - `i-have-adhd`：用户沟通层，先给行动和状态；在验收交接前输出 preview，验收后输出
@@ -181,7 +199,9 @@ skill 后必须重启 OpenCode。
 
 已融合 [computer-use-kit](https://github.com/ILoveMyJay/computer-use-kit) 的操作规程，
 保留 MIT 授权并适配本项目的风险、证据和子代理边界。无需新增命令，`/build`、`/fix`
-或 `/resume` 遇到需要 GUI 的路径时内部加载；纯 Web 优先使用专用浏览器自动化。
+或 `/resume` 遇到需要 GUI 的路径时内部加载；纯 Web 旅程优先加载 `webapp-testing`
+（Playwright 等专用浏览器自动化，断言式脚本优先），原生桌面/OS 对话框才走
+`computer-use`。
 
 安装 skill 不会自动安装或启用桌面 MCP，也不会更改全局权限。建议使用 Cua Driver，
 具体接入、默认禁用的配置示例和非敏感窗口 smoke 见 [computer-use/README.md](computer-use/README.md)。
@@ -193,6 +213,7 @@ skill 后必须重启 OpenCode。
 ```powershell
 python scripts/check.py --selftest
 python -B -m unittest discover -s tests -p "test_*.py"
+python scripts/check.py hash <file> [<file> ...]   # 供 brief/test manifest 等记录哈希；不手工计算
 python scripts/check_runtime.py doctor <target-project>   # 静态+宿主能力诊断
 python scripts/check_runtime.py doctor <target-project> --strict  # 静态问题或安装副本被改动时退出码 3
 python scripts/check_runtime.py doctor <target-project> --strict --strict-freshness  # 额外把 skill 源树漂移视为失败
@@ -218,10 +239,12 @@ requirements 是最低要求，策略只能追加不能清空；`allow_independe
 对 audited 目标无效。策略文件不存在时保持既有行为；历史完成卡不受影响。
 
 UI 验收门禁：界面旅程由目标卡 `goal.ui.required`（可带 `outcome_ids`）声明，
-主控用 `computer-use` 执行 `.opencode/mvp/<goal>.ui-acceptance.json`
-（schema `ui-acceptance/1`）中的必需场景并记录真实执行证据；`check.py ui-gate
+主控执行 `.opencode/mvp/<goal>.ui-acceptance.json`
+（schema `ui-acceptance/1`）中的必需场景并记录真实执行证据（Web-only 旅程用
+`webapp-testing`，原生边界用 `computer-use`）；`check.py ui-gate
 <goal>.md --trace <trace.json> --bind` 首次绑定产物身份，之后核验场景状态、
-computer-use 真实加载、会话一致的已完成原生调用、存在的 observation/result
+computer-use/webapp-testing 真实加载、会话一致的已完成原生调用、存在的
+observation/result
 文件、policy `ui_tools` 匹配（或 runner 证据）与产物身份。产物变化后必须重置
 受影响场景、重跑并重新绑定，`--bind` 不会给旧结果贴新构建；`finish-goal`
 重新计算身份并拒绝过期评估。删除 sidecar 或把必需场景标成 not-applicable
@@ -260,7 +283,10 @@ disposition 校验可能拒绝旧 active/blocked 卡或 draft。schema 1 和 has
 - [GitHub Spec Kit](https://github.com/github/spec-kit)：独立可验证的 MVP story。
 - [OpenSpec](https://github.com/Fission-AI/OpenSpec)：progressive rigor 和增量规格。
 - [Superpowers](https://github.com/obra/superpowers)：continuous execution 和真实
-  subagent 隔离。
+  subagent 隔离；本仓库的 writing-plans、systematic-debugging、brainstorming
+  适配自其方法论（见各自 UPSTREAM.md）。
+- [Anthropic skills](https://github.com/anthropics/skills)：webapp-testing 的
+  方法论来源（见其 UPSTREAM.md）。
 - [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD)：按任务规模选择流程。
 
 ## License

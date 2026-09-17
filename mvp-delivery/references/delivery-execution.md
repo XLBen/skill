@@ -54,15 +54,17 @@ When affected outcomes include interface journeys, UI acceptance is a required
 part of the acceptance handoff:
 
 - `/plan` declares `goal.ui.required` (optionally `outcome_ids`) and authors the
-  scenarios; the controller loads `computer-use` and executes them in the
+  scenarios; the controller executes them in the
   `.opencode/mvp/<goal-slug>.ui-acceptance.json` sidecar following
   `../computer-use/references/ui-acceptance-protocol.md` (preflight,
   observe/act/verify).
-- Prefer dedicated browser automation for web-only journeys and the desktop MCP
-  for native boundaries. References must be real trace calls or existing
-  non-empty project-relative files; without policy `ui_tools` record the runner
-  output. After the artifact identity changes, re-run scenarios instead of
-  re-binding old results.
+- Web-only journeys load `../webapp-testing/SKILL.md` first (assertion-first
+  browser automation, deterministic scripts preferred); the desktop MCP via
+  `../computer-use/SKILL.md` serves native app, OS-dialog and file-picker
+  boundaries, under its per-scenario hard budget. References must be real trace
+  calls or existing non-empty project-relative files; without policy `ui_tools`
+  record the runner output. After the artifact identity changes, re-run
+  scenarios instead of re-binding old results.
 - The shared desktop/browser is serialized by the controller only; subagents
   return scenario requests instead of controlling input. Missing MCP/permissions
   is reported per `../computer-use/README.md` and the scenario is `blocked` —

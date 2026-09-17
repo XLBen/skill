@@ -1,8 +1,9 @@
 # PUA Stage Checks (index)
 
-本目录定义十类验收的检查卡。每张卡只做主动查漏；实际通过仍由对应的 engine、
+本目录定义九类验收的检查卡。每张卡只做主动查漏；实际通过仍由对应的 engine、
 reviewer 或 owner gate 决定。加载时只读当前 stage 对应的一张卡，不要整目录
-读入。
+读入。brief 定稿不使用检查卡：grill 自带 Final Confirmation Check，
+reviewer 席位做通用只读验收评审。
 
 ## Card Format
 
@@ -34,16 +35,15 @@ reviewer 或 owner gate 决定。加载时只读当前 stage 对应的一张卡�
 
 | # | stage_id | 何时读 | Card |
 |---|---|---|---|
-| 1 | `brief-final` | grill 定稿与主控核对 | [`01-brief-final.md`](stage-checks/01-brief-final.md) |
-| 2 | `goal-validation` | 目标卡建立与校验 | [`02-goal-validation.md`](stage-checks/02-goal-validation.md) |
-| 3 | `contract-release` | Audited contract 释放 | [`03-contract-release.md`](stage-checks/03-contract-release.md) |
-| 4 | `plan-confirmation` | Audited PLAN 编译与确认 | [`04-plan-confirmation.md`](stage-checks/04-plan-confirmation.md) |
-| 5 | `test-freeze` | Audited 验收测试冻结 | [`05-test-freeze.md`](stage-checks/05-test-freeze.md) |
-| 6 | `step-verification` | Audited 步骤执行与 verify-step | [`06-step-verification.md`](stage-checks/06-step-verification.md) |
-| 7 | `slice-acceptance` | Audited 切片收尾与 owner SI | [`07-slice-acceptance.md`](stage-checks/07-slice-acceptance.md) |
-| 8 | `review-verdict` | reviewer 返回结论前（被派发时） | [`08-review-verdict.md`](stage-checks/08-review-verdict.md) |
-| 9 | `goal-verification` | 每个 outcome 的 verify-goal | [`09-goal-verification.md`](stage-checks/09-goal-verification.md) |
-| 10 | `goal-finish` | finish-goal 前的 whole-goal 检查 | [`10-goal-finish.md`](stage-checks/10-goal-finish.md) |
+| 1 | `goal-validation` | 目标卡建立与校验 | [`02-goal-validation.md`](stage-checks/02-goal-validation.md) |
+| 2 | `contract-release` | Audited contract 释放 | [`03-contract-release.md`](stage-checks/03-contract-release.md) |
+| 3 | `plan-confirmation` | Audited PLAN 编译与确认 | [`04-plan-confirmation.md`](stage-checks/04-plan-confirmation.md) |
+| 4 | `test-freeze` | Audited 验收测试冻结 | [`05-test-freeze.md`](stage-checks/05-test-freeze.md) |
+| 5 | `step-verification` | Audited 步骤执行与 verify-step | [`06-step-verification.md`](stage-checks/06-step-verification.md) |
+| 6 | `slice-acceptance` | Audited 切片收尾与 owner SI | [`07-slice-acceptance.md`](stage-checks/07-slice-acceptance.md) |
+| 7 | `review-verdict` | reviewer 返回结论前（被派发时） | [`08-review-verdict.md`](stage-checks/08-review-verdict.md) |
+| 8 | `goal-verification` | 每个 outcome 的 verify-goal | [`09-goal-verification.md`](stage-checks/09-goal-verification.md) |
+| 9 | `goal-finish` | finish-goal 前的 whole-goal 检查 | [`10-goal-finish.md`](stage-checks/10-goal-finish.md) |
 
 ## Cross-Stage Branches
 
@@ -54,7 +54,9 @@ reviewer 或 owner gate 决定。加载时只读当前 stage 对应的一张卡�
   也不传 `pua_stage_id`**。卡内容描述的“无契约 handoff”分支只适用于被派发
   `review-verdict` 卡的席位。
 - brief 定稿交接（`brief-final`）与轻量计划/目标定义交接（`goal-validation`）
-  同样是实质验收交接：能力可用即派 fresh reviewer 执行对应卡；`/grill` 尚无
+  同样是实质验收交接：能力可用即派 fresh reviewer；brief-final 的 reviewer
+  执行通用只读验收评审（不加载检查卡、不传 `pua_stage_id`），`goal-validation`
+  的 reviewer 执行对应卡；`/grill` 尚无
   goal 时该派发记录保存在 dispatch archive 或等价的 handoff 记录中，不为一次
   评审伪造 goal 卡。
 - Phase 0 检查属于 `contract-release`，不要另造一个 release 状态。

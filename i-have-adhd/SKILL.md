@@ -23,23 +23,15 @@ metadata:
 ```text
 完整 ACCEPTANCE_HANDOFF
         ├── ADHD acceptance-preview：告诉用户正在验收什么，不提前宣布通过
-        ├── fresh reviewer + pua：检查完整目标、产物、证据和缺口
+        ├── 主控按自身路由执行验收检查（reviewer/PUA 等，归 mvp-delivery 决定）
         └── ADHD delivery/blocker：根据检查结果输出最终结论或下一步
 ```
 
 1. 主控制器先建立完整交接包，不能用一条简短消息代替目标和证据。
 2. 有实质里程碑时，用 `acceptance-preview` 先报告状态；没有实质进展就不制造消息。
-3. 本 skill 只负责展示，不决定派发。是否派 fresh reviewer、传哪个 `pua_stage_id`
-   由主控制器按 `stage-routing.json` 的路由决定；需要验收时把完整交接包传给
-   reviewer，不把 ADHD 摘要当作唯一输入。缺少独立 seat 时按 routing 的失败分支
-   处理并明确披露。
-4. reviewer 返回 PUA 发现后，主控制器修复并复验受影响范围；缺 owner 决定或外部
-   条件时保持等待/阻塞。
-5. 只有检查结果和既有 engine/owner gate 满足后，才用 `delivery` 输出；否则用
+3. 本 skill 只负责展示，不决定派发、验收或任何 gate；路由和检查方法归主控制器。
+4. 只有检查结果和既有 engine/owner gate 满足后，才用 `delivery` 输出；否则用
    `blocker` 或继续状态，不能把 preview 改写成完成。
-
-PUA 是检查方法，reviewer 是检查角色，ADHD 是用户沟通格式。不要派一个“ADHD
-reviewer”，也不要让 PUA 子代理替主控制器对用户说最终结论。
 
 ## Output Modes
 
@@ -111,13 +103,13 @@ reviewer”，也不要让 PUA 子代理替主控制器对用户说最终结论�
 
 - 用户要求“详细解释”或“逐步讲解”时，完整解释优先，但仍保留标题和编号。
 - 破坏性操作、不可逆迁移、凭据、付费或外部写入仍必须停下确认；简洁不能绕过安全。
-- 连续失败时按 PUA 的 failure signature、L1/L2 和既有熔断规则处理，不因 ADHD 格式而减少排查。
+- 连续失败时按主控制器既有的 failure signature 和熔断规则处理，不因 ADHD 格式而减少排查。
 - 用户说“关闭简洁模式”“normal mode”时，停止本 skill 的展示约束；不删除已有证据，也不改变工作流 gate。
 - 任务要求完整清单时，展示完整清单；“最多五项”不能隐藏完成判断所需的缺口。
 
 ## Acceptance Handoff
 
-这是交给 reviewer/PUA 的完整输入，不直接逐字展示给用户，也不写入新的状态 schema：
+这是交给验收席位（reviewer 等）的完整输入，不直接逐字展示给用户，也不写入新的状态 schema：
 
 ```text
 ACCEPTANCE_HANDOFF
@@ -146,5 +138,5 @@ user_entry: <真实入口、代表性输入和结果位置>
 | Need | Read |
 |---|---|
 | 进度、验收预览、交付和阻塞模板 | `references/response-patterns.md` |
-| 与 reviewer/PUA 共享的完整交接字段 | 本文件 `Acceptance Handoff` |
+| 与验收席位共享的完整交接字段 | 本文件 `Acceptance Handoff` |
 | 上游来源和适配边界 | `UPSTREAM.md` |

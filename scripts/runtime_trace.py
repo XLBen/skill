@@ -373,6 +373,7 @@ def export_trace(target: Path, db_arg: str | None, lookback_days: int | None) ->
                 "parent_id": r["parent_id"],
                 "agent": r["agent"] or "(primary)",
                 "created": _ts(r["time_created"]),
+                "updated": _ts(r["time_updated"]),
             }
         )
 
@@ -390,6 +391,13 @@ def export_trace(target: Path, db_arg: str | None, lookback_days: int | None) ->
     for p in parts:
         data = json.loads(p["data"])
         state = data.get("state", {})
+        state_time = state.get("time")
+        timing = {}
+        if isinstance(state_time, dict):
+            if state_time.get("start"):
+                timing["start"] = _ts(state_time.get("start"))
+            if state_time.get("end"):
+                timing["end"] = _ts(state_time.get("end"))
         if data.get("tool") == "skill":
             meta = data.get("metadata") or {}
             trace["skill_events"].append(
@@ -399,6 +407,7 @@ def export_trace(target: Path, db_arg: str | None, lookback_days: int | None) ->
                     "status": state.get("status"),
                     "source_dir": meta.get("dir"),
                     "time": _ts(p["time_created"]),
+                    **timing,
                 }
             )
         elif data.get("tool") == "task":
@@ -420,6 +429,7 @@ def export_trace(target: Path, db_arg: str | None, lookback_days: int | None) ->
                     "child_session": child,
                     "child_agent": child_agent,
                     "time": _ts(p["time_created"]),
+                    **timing,
                 }
             )
         else:
@@ -430,6 +440,7 @@ def export_trace(target: Path, db_arg: str | None, lookback_days: int | None) ->
                     "tool": data.get("tool"),
                     "status": state.get("status"),
                     "time": _ts(p["time_created"]),
+                    **timing,
                 }
             )
     con.close()

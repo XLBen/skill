@@ -177,6 +177,10 @@ hash（brief 冻结、证据、artifact identity），被引用的文件不删�
 | `computer-use` | 桌面旅程：硬预算 GUI 操作与验证 |
 | `pua` | 验收质询：闭环/事实驱动/穷尽不盲目 |
 | `i-have-adhd` | 用户沟通：短视图，不删完整事实 |
+| `security-assurance` | 条件型：信任边界/认证/隐私/密钥的安全保证与威胁建模 |
+| `production-readiness` | 条件型：生产发布、渐进推进、回退与运维交接 |
+| `incident-response` | 条件型：线上事故定级、控制影响、恢复与复盘 |
+| `outcome-learning` | 条件型：用户/业务结果假设、基线与最小实验 |
 
 安装器另会部署 `mvp-researcher`、`mvp-worker`、`mvp-reviewer`、
 `mvp-test-author`、`mvp-step-executor` 五个项目子代理到
@@ -207,6 +211,11 @@ python -B -m unittest discover -s tests -p "test_*.py"
 python scripts/check.py hash <file> [<file> ...]   # 记录哈希；禁止手工计算
 python scripts/check_runtime.py doctor <target-project> [--strict [--strict-freshness]]
 python scripts/runtime_trace.py export <target-project> --out trace.json
+python scripts/workflow_metrics.py export <target-project> --out metrics.json
+python scripts/workflow_packets.py stage <stage> --role <role> --out packet.json
+python scripts/assurance_policy.py check <slice-package>
+python scripts/package_seal.py seal <slice-package> [--parent <base-seal.json>]
+python scripts/verification_runner.py run --command "<cmd>" --mode host|container
 python .opencode/workflow/scripts/check.py check-current .opencode/mvp/<goal>.md
 ```
 

@@ -27,14 +27,19 @@ metadata:
 “是否继续”。用户请求交付目标时，默认授权的是可逆的工作区内实现与测试，而
 不是只交付第一片。
 
-主控是协调者：**Guarded/Audited 的实质实现任务默认派 worker 子代理执行**；
-**Normal 允许主控直接实现**，但涉及独立正确性判断或验证盲区时仍应派发。
-机械小改由主控直接处理。所有派发决定、并发限制、角色映射、失败分支和恢复
-记录统一遵循 `references/subagent-orchestration.md`，派发与返回格式遵循
+主控是协调者，实现席位按档位解析（权威规则见 `references/stage-routing.json`
+的 `responsibilities.implementation_seat`）：**Normal 默认主控同会话直接
+实现**；**Guarded 的实质实现默认派 worker 子代理**；**Audited 严格步骤按
+seat table 解析为 controller 或 step-executor，从不派 task-worker**。
+涉及独立正确性判断或验证盲区时派 fresh reviewer；机械小改由主控直接处理。
+正式 `verify-step` 只由主控执行，执行席位只交接实现与诊断结果。所有派发
+决定、并发限制、角色映射、失败分支和恢复记录统一遵循
+`references/subagent-orchestration.md`，派发与返回格式遵循
 `references/subagent-templates.md`。阶段→能力→席位的权威映射是
-`references/stage-routing.json`：每个实质交接按其确定 reviewer mode、
-`pua_stage_id` 与必读 skill，其他文档只引用不另立规则。专业验收 skill 经
-Skill Applicability Selection 按验收边界选择。每个 goal 维护
+`references/stage-routing.json`：每个实质交接按其确定 implementation seat、
+semantic check owner、reviewer mode、`pua_stage_id` 与必读 skill，其他
+文档只引用不另立规则。专业验收 skill 经 Skill Applicability Selection 按
+验收边界选择。每个 goal 维护
 `.opencode/mvp/<goal-slug>.dispatch.json`。
 
 档位差异只改变仪式与席位，不降低证据要求：
@@ -184,8 +189,9 @@ mock 冒充真实边界。详细执行规则见 `references/delivery-execution.m
    裁决的边缘选择）列成一份简短假设清单，一次性给 owner 扫认或纠正；
    未获回应时按“最小可逆决定”继续并把清单原样附在交付报告中。假设清单
    是一次确认动作，不逐条阻塞，也不新增持久工件。
-3. Guarded/Audited 的实质实现任务默认派 worker 子代理执行；Normal 允许主控
-   直接实现。主控负责拆解、交接、集成与复验，不把 worker 的返回当作验证
+3. Guarded 的实质实现默认派 worker 子代理；Audited 严格步骤按 seat table
+   解析（controller 或 step-executor，禁止 worker）；Normal 允许主控直接
+   实现。主控负责拆解、交接、集成与复验，不把 worker 的返回当作验证
    通过。机械小改合并后主控直接处理。派发给执行席位的任务正文按
    `../writing-plans/SKILL.md` 的 step brief 组织。
 4. 先实现最短正确路径，遵循仓库现有结构；避免无关重构和预防性抽象。
@@ -196,10 +202,13 @@ mock 冒充真实边界。详细执行规则见 `references/delivery-execution.m
    seat/task/resume 累计，同签名三次无新证据即 no-progress blocker，向用户
    升级而不是机械重试。恢复分级见 `../pua/references/recovery-protocol.md`。
 
-独立测试作者与 reviewer 由 `references/subagent-orchestration.md` 的触发矩阵
-统一决定：实质验收能力可用即必须派发，mechanical-batch 豁免；不按“风险值得
-成本”裁量。Normal/Guarded 默认不创建 contract/PLAN/ledger/observation/
-ceremony 工件；Audited 切片按规则借用严格 gate，但本 skill 保留连续交付控制权。
+独立测试作者仅在 Audited 流程（contract-review/SI/FIX 包）触发；reviewer 在
+Guarded/Audited 实质验收能力可用即必须派发，Normal 仅风险触发；两者都由
+`references/subagent-orchestration.md` 的触发矩阵与 `stage-routing.json` 的
+`responsibilities.semantic_checks` 统一决定，mechanical-batch 豁免；不按
+“风险值得成本”裁量。Normal/Guarded 默认不创建 contract/PLAN/ledger/
+observation/ceremony 工件；Audited 切片按规则借用严格 gate，但本 skill 保留
+连续交付控制权。
 
 ## Converge On The Original Goal
 

@@ -29,17 +29,14 @@ The caller supplies:
 - the exact Given/When/Then scenarios and real input data;
 - the allowed test framework, test directory, and test command;
 - the implementation files that are out of scope for you;
-- a stable `test_author_id` and the manifest path. The ID must come from the
-  runtime dispatch provenance (recorded by the controller from the task tool
-  result), never self-invented by the subagent. Runtime task tools typically
-  report the session/task ID only in the completed dispatch result, so the
-  controller uses a two-step bootstrap: the first dispatch only establishes
-  the seat (load the skill, confirm the fixed spec; no test or manifest
-  writes); the controller records the real ID from the tool result and
-  resumes the same seat passing `test_author_id`, after which tests and the
-  manifest are written. If the runtime offers neither pre-allocated IDs nor
-  same-seat continuation, report the independence prerequisite as blocked;
-  never fabricate an ID;
+- the caller-resolved manifest path (package-internal or legacy). The real
+  `test_author_id` is **not known before dispatch**: write `pending-binding` in
+  the manifest's `Test author ID` and `Provenance status` rows and return in the
+  same dispatch. After your return the controller records the runtime
+  provenance (`workflow_runtime.py dispatch-result`) and binds it
+  (`workflow_runtime.py bind-test-author`); only the bound manifest may
+  authorize implementation. Never fabricate an ID, and never demand the ID
+  before writing tests — one dispatch authors, runs and freezes the tests;
 - any existing test harness or fixture files that may be reused.
 
 The controller owns minimal scoped setup/harness readiness before dispatch.
@@ -119,7 +116,11 @@ or skipped scenario into a passing freeze.
 1. Translate each scenario into a concrete test with a unique scenario ID.
 2. Choose the narrowest test level that still observes the claimed behavior;
    use integration or end-to-end for persistence, external boundaries, and
-   user-facing critical paths.
+   user-facing critical paths. When the slice's risk profile is not fully
+   covered by example-based tests, select techniques from
+   `references/risk-test-matrix.md` (property, fuzz, contract, load, fault
+   injection, migration reconciliation, ...) and bind each to an existing
+   scenario; never add product requirements through the matrix.
 3. Write the tests only in the allowed test paths. Keep the test data
    deterministic and safe; redact secrets and unnecessary personal data.
 4. Run the exact pre-change command before behavior implementation is called.
@@ -129,17 +130,20 @@ or skipped scenario into a passing freeze.
     may fail because the feature is absent, but not because the test cannot
     parse, the fixture is missing, or the command was skipped.
 5. Write the manifest at the caller-supplied `manifest_path`, using the
-    manifest template below. For a new five-command Audited package this is
-    the package-internal
-    `docs/audit-slices/<goal-slug>/<slice-id>/test-manifests/<slice-id>.md`;
-    legacy runs keep the root `docs/test-manifests/<slice-id>.md`. Do not
-    recompute or override the path yourself; if no manifest path was supplied,
-     return `needs_input` instead of guessing a location. Include the
-     specification source/hash, scenarios, test paths/hashes,
-     `test_author_id`, classified pre-change evidence, allowed implementation
-     write set, and a `frozen_at` timestamp. All hashes recorded in the
-     manifest must come from engine output (`check.py hash`); hand-computed
-     digests are forbidden.
+   manifest template below. For a new five-command Audited package this is the
+   package-internal
+   `docs/audit-slices/<goal-slug>/<slice-id>/test-manifests/<slice-id>.md`;
+   legacy runs keep the root `docs/test-manifests/<slice-id>.md`. Do not
+   recompute or override the path yourself; if no manifest path was supplied,
+   return `needs_input` instead of guessing a location. Include the
+   specification source/hash, scenarios, test paths/hashes,
+   `Test author ID: pending-binding` with
+   `Provenance status: pending-binding`, classified pre-change evidence,
+   allowed implementation write set, and a `frozen_at` timestamp. All hashes
+   recorded in the manifest must come from engine output (`check.py hash`);
+   hand-computed digests are forbidden. The controller binds the runtime
+   provenance after your return; you never need your own session ID to write
+   the manifest.
 6. Return only the test-author handoff. Do not implement, repair, or mark the
    step complete.
 
@@ -152,7 +156,8 @@ or skipped scenario into a passing freeze.
 |---|---|
 | Spec source | <contract or SI path and IDs> |
 | Spec hash | <hash from `check.py hash <spec file>`> |
-| Test author ID | <subagent/session ID> |
+| Test author ID | pending-binding |
+| Provenance status | pending-binding |
 | Implementation author ID | pending |
 | Frozen at | <ISO-8601 timestamp> |
 | Allowed test command | <exact command> |
@@ -194,18 +199,19 @@ but acceptance settings and actual scenario execution must be revalidated.
 （task_id、attempt、role、phase、status、summary、changes、evidence、
 not_verified、issues、controller_actions、next_context）。
 
-- 第一轮 bootstrap：`phase: bootstrap`、`status: completed`，只回报席位已加载、
-  固定规格已确认、未写测试或 manifest；不要求 manifest 字段，也不需要 pre-change
-  证据。主控从 task 工具结果记录真实 `test_author_id` 后 resume 同一席位。
-- 第二轮 `phase: work`：交回以下 payload；evidence 必须包含 per-scenario 的
-  pre-change 结果，not_verified 列出未覆盖场景。
+单一 `phase: work` 派发即完成测试编写、pre-change 运行与 manifest 冻结；交回
+以下 payload。`test_author_id` 在 manifest 与 payload 中均为
+`pending-binding`，由主控在返回后调用
+`.opencode/workflow/scripts/workflow_runtime.py bind-test-author` 绑定运行时
+provenance。evidence 必须包含 per-scenario 的 pre-change 结果，not_verified
+列出未覆盖场景。未绑定的 manifest 不得授权实现开始。
 
 ```text
 payload:
   TEST_AUTHOR_HANDOFF
   slice: <slice/SI ID>
   spec_hash: <hash>
-  test_author_id: <ID>
+  test_author_id: pending-binding
   manifest: <path>
   protected_acceptance: <tests and relevant support path=hash list>
   expected_scenarios: <critical IDs and boundary/mock policy>
@@ -217,8 +223,11 @@ payload:
   blockers: <none or concrete issue>
 ```
 
-The construction controller must pass the manifest and protected write set to
-step-executor, record the implementation author's ID, and have reviewer
-verify the authorized hashes, shared-file acceptance semantics, and actual
-critical scenario execution before completion. These are prompt-layer checks,
-not machine enforcement of test independence or acceptance integrity.
+The construction controller records the runtime provenance
+(`workflow_runtime.py dispatch-result`), binds it into the manifest
+(`workflow_runtime.py bind-test-author`), then passes the bound manifest and
+protected write set to step-executor, records the implementation author's ID,
+and has reviewer verify the authorized hashes, shared-file acceptance
+semantics, and actual critical scenario execution before completion. These are
+prompt-layer checks, not machine enforcement of test independence or
+acceptance integrity.

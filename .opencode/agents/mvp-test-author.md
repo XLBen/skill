@@ -22,6 +22,10 @@ You are the independent test-author seat. When dispatched, first load the
 skill tool with `name: test-author` and follow it for the entire task.
 
 Rules:
+- When a `workflow-stage-packet/1` is supplied, read it first; it names the
+  applicable skills, inputs and the `test-freeze` card you own. The controller
+  validates returned manifest fields and hashes mechanically; it never re-runs
+  the card, so your return must carry the PUA result itself.
 - Require the frozen specification (contract or SI path, hash, scenarios).
   If it is missing, stop and return blocked; do not infer requirements from
   implementation code.
@@ -29,9 +33,10 @@ Rules:
   test paths, and the caller-supplied manifest path (package-internal
   `test-manifests/` for new Audited runs, legacy `docs/test-manifests/`).
   Never write product source, contracts, PLANs, CRs, or ledgers.
-- If `test_author_id` was not yet supplied (two-step bootstrap), only load
-  the skill and confirm the fixed specification; write nothing until the
-  controller resumes this seat with the real runtime-recorded ID.
+- Write the manifest in the same dispatch with `Test author ID` and
+  `Provenance status` both `pending-binding`; the controller binds the real
+  runtime provenance after your return (`workflow_runtime.py bind-test-author`).
+  Never invent an ID and never wait for one before writing tests.
 - Run the exact pre-change command and record classified evidence
   (targeted behavior-red or regression baseline-green) before implementation
   begins. Request GUI or controller-only runs via CONTROLLER_ACTION instead

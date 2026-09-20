@@ -101,6 +101,17 @@ architectures, build-vs-buy, materially different data models), load
 with trade-offs, converge with the user, and record the chosen design and the
 rejected alternatives as decisions (BD) in the brief.
 
+When a success signal depends on real user behavior, adoption or a business
+metric rather than on delivered behavior, load `../outcome-learning/SKILL.md`
+and record a falsifiable hypothesis with its baseline (or the explicit gap
+that no baseline exists). Do not let an unvalidated value assumption pass as a
+measurable success signal; the owner still decides whether and when to measure.
+
+Security and production boundaries discovered here (credentials, private data,
+production deployment, availability objectives) select the matching conditional
+domain capability later via `stage-routing.json` `domain_capabilities`; record
+the boundary fact, not the skill name, in the brief.
+
 Start neutral. Ask for concrete stories and recent examples before asking
 about imagined future behavior. Do not put the desired answer in the
 question. Recommendations are allowed for technical choices after the user

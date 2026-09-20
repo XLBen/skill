@@ -1,6 +1,14 @@
 {
-  "schema_version": 2,
-  "note": "Authoritative stage-to-capability routing for the four public commands (/grill /plan /build /fix, plus /resume). Every skill body, command wrapper and reference defers to this table; summaries may cite it but must not weaken it. domain_skills are selected per acceptance boundary via the Skill Applicability Selection procedure in subagent-orchestration.md - they are additional, conditionally required capabilities, never a blanket call-everything rule. `required_skills[].applies_when` narrows a PUA stage card to guard/audit rigor; Normal work applies the same questions directly as a controller duty. `reviewer.condition` and `seat_selection` are the machine-readable forms consumed by scripts/workflow_protocol.py; the human-readable tables elsewhere must agree with them.",
+  "schema_version": 3,
+  "note": "Authoritative stage-to-capability routing for the four public commands (/grill /plan /build /fix, plus /resume). Every skill body, command wrapper and reference defers to this table; summaries may cite it but must not weaken it. domain_skills are selected per acceptance boundary via the Skill Applicability Selection procedure in subagent-orchestration.md - they are additional, conditionally required capabilities, never a blanket call-everything rule. `required_skills[].applies_when` narrows a PUA stage card to guard/audit rigor; Normal work applies the same questions directly as a controller duty. `reviewer.condition` and `seat_selection` are the machine-readable forms consumed by scripts/workflow_protocol.py; the human-readable tables elsewhere must agree with them. `responsibilities` names the single semantic owner of every check: a stage may have several checks, but each named check has exactly one seat that performs the semantic pass; other seats only validate returned fields and hashes mechanically.",
+  "responsibility_rules": {
+    "single_semantic_owner": "Every check in `responsibilities.semantic_checks` has exactly one semantic owner. Other seats may verify that the owner returned the required fields, cards and hashes; they never re-execute the same semantic pass.",
+    "formal_verification": "Only the controller runs check.py verify-step / record-human-step (and verify-goal / finish-goal). Implementation seats hand back with formal V pending and never write the ledger.",
+    "audited_seat": "Audited strict implementation never dispatches task-worker. Resolve the seat through seat_selection.audited_implementation: controller or step-executor only.",
+    "guarded_seat": "Guarded substantive implementation dispatches the worker subagent; unavailability follows the Failure Branches disclosure rules.",
+    "normal_seat": "Normal implementation defaults to the controller in-session; dispatch a worker/reviewer when independent judgement, a verification blind spot or the owner asks for it.",
+    "reviewer_pua": "When routing assigns a PUA stage card to a reviewer seat, the reviewer executes that card and returns its result; the controller never repeats the same card."
+  },
   "stages": [
     {
       "stage_id": "brief-final",
@@ -15,6 +23,12 @@
         "dispatch": "capability-available-mandatory-for-guarded-audited-risk-triggered-for-normal",
         "condition": {"rigors": ["guarded", "audited"], "optional_rigors": ["normal"], "dispatch": true, "mandatory": true, "blocking": false, "normal_trigger": "risk-triggered"},
         "scope": "the finalizing brief version only; individual interview rounds are not reviewed"
+      },
+      "responsibilities": {
+        "semantic_checks": [
+          {"check": "brief-completeness", "owner_seat": "reviewer-subagent", "mode": "review", "kind": "review"},
+          {"check": "brief-structure", "owner_seat": "controller", "kind": "controller-integrity", "note": "check.py brief structure validation only"}
+        ]
       },
       "domain_skills": "select when the brief's acceptance items involve a technology or real boundary with a matching available skill"
     },
@@ -34,6 +48,12 @@
         "condition": {"rigors": ["guarded"], "optional_rigors": ["normal"], "dispatch": true, "mandatory": true, "blocking": false, "normal_trigger": "risk-triggered"},
         "scope": "goal card semantics, coverage and verification design; never demands contract/PLAN/manifest artifacts"
       },
+      "responsibilities": {
+        "semantic_checks": [
+          {"check": "goal-card-semantics", "owner_seat": "reviewer-subagent", "mode": "review", "kind": "review"},
+          {"check": "goal-validation", "owner_seat": "controller", "card": "goal-validation", "kind": "pua"}
+        ]
+      },
       "ui_acceptance": "design only: decide applicability from affected outcomes, author scenarios and prerequisites in the ui-acceptance sidecar; never operate UI in /plan",
       "domain_skills": "none expected; select only if the goal's verification itself depends on a specialized capability"
     },
@@ -49,6 +69,12 @@
         "dispatch": "none-for-this-stage",
         "condition": {"rigors": [], "dispatch": false, "mandatory": false, "blocking": false}
       },
+      "responsibilities": {
+        "semantic_checks": [
+          {"check": "goal-verification", "owner_seat": "controller", "card": "goal-verification", "kind": "pua"}
+        ],
+        "formal_verification": {"owner_seat": "controller", "gate": "check.py verify-goal", "producer": "check.py"}
+      },
       "domain_skills": "select when an outcome's verification depends on a specialized capability"
     },
     {
@@ -56,12 +82,21 @@
       "entry": "Guarded/Audited implementation work packages in /build or /fix (Normal may stay in-session or dispatch a worker)",
       "rigors": ["normal", "guarded", "audited"],
       "required_skills": [
-        {"name": "task-worker", "seat": "worker-subagent", "roles": ["worker"], "applies_when": "guarded-or-audited"},
+        {"name": "task-worker", "seat": "worker-subagent", "roles": ["worker"], "applies_when": "guarded"},
+        {"name": "step-executor", "seat": "step-executor-subagent", "roles": ["step-executor"], "applies_when": "audited"},
         {"name": "i-have-adhd", "seat": "controller", "roles": ["controller"]}
       ],
       "reviewer": {
         "dispatch": "none-for-this-stage",
         "condition": {"rigors": [], "dispatch": false, "mandatory": false, "blocking": false}
+      },
+      "responsibilities": {
+        "implementation_seat": {
+          "normal": "controller",
+          "guarded": "worker-subagent",
+          "audited": "resolve:audited_implementation"
+        },
+        "semantic_checks": []
       },
       "domain_skills": "select per work package when the touched technology has a matching available skill; the worker seat loads it without gaining permissions beyond its agent definition"
     },
@@ -79,6 +114,11 @@
         "dispatch": "capability-available-mandatory-for-guarded-audited-risk-triggered-for-normal",
         "condition": {"rigors": ["guarded", "audited"], "optional_rigors": ["normal"], "dispatch": true, "mandatory": true, "blocking": false, "normal_trigger": "risk-triggered"},
         "scope": "current slice and affected scope; no reconcile/manifest/SI artifacts"
+      },
+      "responsibilities": {
+        "semantic_checks": [
+          {"check": "review-verdict", "owner_seat": "reviewer-subagent", "card": "review-verdict", "mode": "review", "kind": "review+pua"}
+        ]
       },
       "ui_acceptance": "execute before the handoff: every required scenario covering this slice's affected interface outcomes must be passed (or reasoned not-applicable); controller operates the UI (webapp-testing for web-only journeys, computer-use for native boundaries), reviewer checks the recorded sidecar evidence",
       "domain_skills": "select when verifying the slice needs a specialized read-only capability; read-only reviewers request executions via CONTROLLER_ACTION"
@@ -98,6 +138,13 @@
         "dispatch": "blocking",
         "condition": {"rigors": ["audited"], "dispatch": true, "mandatory": true, "blocking": true}
       },
+      "responsibilities": {
+        "semantic_checks": [
+          {"check": "final-audit", "owner_seat": "reviewer-subagent", "mode": "final-audit", "kind": "review"},
+          {"check": "contract-release", "owner_seat": "controller", "card": "contract-release", "kind": "pua"}
+        ],
+        "formal_verification": {"owner_seat": "controller", "gate": "check.py release", "producer": "check.py"}
+      },
       "domain_skills": "select per contract boundary (migration, privacy, GUI, ...)"
     },
     {
@@ -115,6 +162,13 @@
         "dispatch": "capability-available-mandatory",
         "condition": {"rigors": ["audited"], "dispatch": true, "mandatory": true, "blocking": false}
       },
+      "responsibilities": {
+        "semantic_checks": [
+          {"check": "plan-transformation", "owner_seat": "reviewer-subagent", "mode": "review", "kind": "review"},
+          {"check": "plan-confirmation", "owner_seat": "controller", "card": "plan-confirmation", "kind": "pua"}
+        ],
+        "formal_verification": {"owner_seat": "controller", "gate": "check.py confirm-plan + plan --require-building", "producer": "check.py"}
+      },
       "domain_skills": "rare; only when the PLAN's own verification depends on one"
     },
     {
@@ -129,6 +183,12 @@
         "dispatch": "none-for-this-stage",
         "condition": {"rigors": [], "dispatch": false, "mandatory": false, "blocking": false}
       },
+      "responsibilities": {
+        "semantic_checks": [
+          {"check": "test-freeze-semantics", "owner_seat": "test-author-subagent", "card": "test-freeze", "kind": "pua"},
+          {"check": "test-freeze-integrity", "owner_seat": "controller", "kind": "controller-integrity", "note": "validate returned manifest fields, author identity binding and hashes; never re-run the semantic card"}
+        ]
+      },
       "domain_skills": "select when writing the frozen tests requires a specialized capability; test-author's edit boundary unchanged"
     },
     {
@@ -142,8 +202,19 @@
       "reviewer": {
         "mode": "review",
         "contract": true,
-        "dispatch": "per Audited gate (step review / converge-audit as applicable)",
-        "condition": {"rigors": ["audited"], "dispatch": true, "mandatory": false, "blocking": false, "gate": "audited-step-or-converge"}
+        "dispatch": "per Audited step: the reviewer audits the step diff; a hard issue blocks complete. Unavailability is disclosed and covered by the blocking converge audit.",
+        "condition": {"rigors": ["audited"], "dispatch": true, "mandatory": true, "blocking": false, "gate": "audited-step-or-converge"}
+      },
+      "responsibilities": {
+        "implementation_seat": {
+          "audited": "resolve:audited_implementation"
+        },
+        "semantic_checks": [
+          {"check": "step-handoff", "owner_seat": "step-executor-subagent", "card": "step-verification", "kind": "pua", "phase": "pre-handoff"},
+          {"check": "step-formal-evidence", "owner_seat": "controller", "kind": "controller-integrity", "phase": "post-gate", "note": "run verify-step and validate engine evidence; never a second semantic pass"},
+          {"check": "step-review", "owner_seat": "reviewer-subagent", "mode": "review", "kind": "review", "gate": "audited-step-or-converge"}
+        ],
+        "formal_verification": {"owner_seat": "controller", "gate": "check.py verify-step", "producer": "check.py/verify-step-v1", "human_gate": "check.py record-human-step"}
       },
       "domain_skills": "select per step technology; official V stays controller-owned"
     },
@@ -164,6 +235,13 @@
         "condition": {"rigors": ["audited"], "dispatch": true, "mandatory": true, "blocking": true},
         "scope": "reconcile-bound converge audit of the finished slice; the reviewer executes the review-verdict card; the controller separately executes the slice-acceptance card before the owner decision"
       },
+      "responsibilities": {
+        "semantic_checks": [
+          {"check": "converge-audit", "owner_seat": "reviewer-subagent", "card": "review-verdict", "mode": "converge-audit", "kind": "review+pua"},
+          {"check": "slice-acceptance", "owner_seat": "controller", "card": "slice-acceptance", "kind": "pua"}
+        ],
+        "formal_verification": {"owner_seat": "controller", "gate": "check.py reconcile + finish-plan", "producer": "check.py"}
+      },
       "ui_acceptance": "Audited slices with interface boundaries bind scenario execution to the slice's V/acceptance evidence; owner acceptance of the observed UI journey is never delegated",
       "domain_skills": "select per slice boundary; owner acceptance never delegated"
     },
@@ -183,12 +261,19 @@
         "condition": {"rigors": ["guarded", "audited"], "optional_rigors": ["normal"], "dispatch": true, "mandatory": true, "blocking": false, "normal_trigger": "risk-triggered"},
         "scope": "original request/every brief BS, whole goal, deferred work, real user-entry journeys; a clean slice audit never substitutes"
       },
+      "responsibilities": {
+        "semantic_checks": [
+          {"check": "whole-goal-review", "owner_seat": "reviewer-subagent", "mode": "review", "kind": "review"},
+          {"check": "goal-finish", "owner_seat": "controller", "card": "goal-finish", "kind": "pua"}
+        ],
+        "formal_verification": {"owner_seat": "controller", "gate": "check.py finish-goal", "producer": "check.py"}
+      },
       "ui_acceptance": "final recheck: the delivered artifact identity must match the sidecar binding; re-execute scenarios invalidated by late changes; ui-gate must pass before finish-goal under runtime-policy/1",
       "domain_skills": "select for the final integrated verification boundary (GUI, browser, data, security, ...)"
     }
   ],
   "seat_selection": {
-    "note": "Authoritative Audited implementation-seat table. profile direct -> controller; full -> step-executor; light + autonomous -> controller; light + checkpoints/stepwise -> step-executor. The table in subagent-orchestration.md is the human-readable copy and must agree with this block.",
+    "note": "Authoritative Audited implementation-seat table. profile direct -> controller; full -> step-executor; light + autonomous -> controller; light + checkpoints/stepwise -> step-executor. The table in subagent-orchestration.md is the human-readable copy and must agree with this block. Audited strict work never dispatches task-worker.",
     "audited_implementation": [
       {"profile": "direct", "interaction": "any", "seat": "controller"},
       {"profile": "full", "interaction": "any", "seat": "step-executor"},
@@ -199,6 +284,7 @@
   },
   "pua_conditions": {
     "guarded-or-audited": ["guarded", "audited"],
+    "guarded": ["guarded"],
     "audited": ["audited"],
     "unknown-rigor": "fail-closed: a missing rigor cannot exempt a guarded-or-audited card"
   },
@@ -207,6 +293,35 @@
     "sidecar": ".opencode/mvp/<goal-slug>.ui-acceptance.json (schema ui-acceptance/1, see computer-use/references/ui-acceptance-protocol.md)",
     "applicability": "required whenever an affected outcome includes an interface journey; absence of backend blocks (never not-applicable); no interface in scope requires a recorded applicability: none with reason",
     "gate": "check.py ui-gate <goal-card> --trace <trace.json> [--bind] enforces scenario statuses, controller computer-use/webapp-testing load, native call references and artifact binding before finish-goal"
+  },
+  "domain_capabilities": {
+    "note": "Conditional domain skills registered for Skill Applicability Selection. Load only when the trigger matches the actual slice boundary; they are additional capabilities, never a blanket call-everything rule. `insertion` names stage ids or workflow entry points (fix-entry, build-entry) where the capability is evaluated.",
+    "capabilities": [
+      {
+        "name": "security-assurance",
+        "trigger": "authentication, authorization, privacy, secrets, cryptography, untrusted input, multi-tenancy, externally reachable attack surface, regulated data",
+        "insertion": ["plan-confirmation", "goal-finish"],
+        "outputs": ["threat/abuse model mapped to existing acceptance items", "control-to-verification mapping", "residual risks for owner decision", "SECURITY_HANDOFF bound to artifact identity"]
+      },
+      {
+        "name": "production-readiness",
+        "trigger": "production deployment, long-running service, remote persistent state, data migration, availability objectives, externally operated infrastructure",
+        "insertion": ["goal-validation", "goal-finish"],
+        "outputs": ["release and progressive rollout plan with stop conditions", "observability and alert acceptance criteria", "rollback/migration rehearsal evidence", "post-deploy verification bound to artifact identity"]
+      },
+      {
+        "name": "incident-response",
+        "trigger": "active production impact, outage, data corruption or exposure, security compromise, alert requiring immediate restoration",
+        "insertion": ["fix-entry"],
+        "outputs": ["severity and incident state", "containment and recovery record with timeline", "service restoration verification", "handoff to /fix with failure signature"]
+      },
+      {
+        "name": "outcome-learning",
+        "trigger": "unvalidated user, adoption, workflow-efficiency or business hypothesis; success observable only after real use",
+        "insertion": ["goal-validation", "goal-finish"],
+        "outputs": ["falsifiable outcome hypothesis with baseline", "metric and guardrail definitions", "smallest ethical experiment design", "support/insufficient/refuted conclusion"]
+      }
+    ]
   },
   "dispatch_levels": {
     "capability-available-mandatory": "dispatch whenever the seat exists at runtime; cost is never an exemption. Fallback tiers per subagent-orchestration.md Failure Branches.",
@@ -220,7 +335,7 @@
   },
   "seat_requirements": {
     "reviewer-subagent": "fresh dispatch, read-only, loads reviewer skill; loads pua when pua_stage_id supplied; pua_acceptance required with matching stage_id",
-    "worker-subagent": "loads task-worker skill; one writer at a time",
+    "worker-subagent": "loads task-worker skill; one writer at a time; Guarded substantive work only",
     "test-author-subagent": "fresh dispatch, loads test-author skill, edit limited to tests/manifest",
     "step-executor-subagent": "fresh dispatch per Audited seat-selection table; loads step-executor skill"
   }

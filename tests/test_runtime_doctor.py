@@ -194,7 +194,14 @@ class CommandsOnlyTests(unittest.TestCase):
             ".opencode/commands/build.md": "command\n",
             ".opencode/agents/mvp-worker.md": "agent\n",
             "scripts/check.py": "# check\n",
+            "scripts/assurance_policy.py": "# assurance\n",
+            "scripts/evidence_registry.py": "# registry\n",
+            "scripts/package_seal.py": "# seal\n",
+            "scripts/verification_runner.py": "# runner\n",
             "scripts/runtime_trace.py": "# trace\n",
+            "scripts/workflow_metrics.py": "# metrics\n",
+            "scripts/workflow_packets.py": "# packets\n",
+            "scripts/workflow_runtime.py": "# runtime\n",
             "scripts/workflow_protocol.py": "# protocol\n",
             "scripts/worktree_tasks.py": "# worktrees\n",
             "scripts/check_runtime.py": "# doctor\n",
@@ -237,7 +244,12 @@ class CommandsOnlyTests(unittest.TestCase):
         self.assertIn("scripts/check.py", manifest["files"])
         self.assertIn("agents/mvp-worker.md", manifest["files"])
         self.assertIn("demo", manifest["skills"])
-        for relative in ("scripts/check.py", "scripts/runtime_trace.py", "scripts/workflow_protocol.py",
+        for relative in ("scripts/check.py", "scripts/assurance_policy.py",
+                         "scripts/evidence_registry.py", "scripts/package_seal.py",
+                         "scripts/verification_runner.py",
+                         "scripts/runtime_trace.py", "scripts/workflow_metrics.py",
+                         "scripts/workflow_packets.py", "scripts/workflow_runtime.py",
+                         "scripts/workflow_protocol.py",
                          "scripts/worktree_tasks.py", "scripts/check_runtime.py"):
             self.assertTrue((self.target / ".opencode" / "workflow" / relative).is_file(), relative)
         self.assertTrue((self.target / ".opencode" / "workflow" / "stage-routing.json").is_file())

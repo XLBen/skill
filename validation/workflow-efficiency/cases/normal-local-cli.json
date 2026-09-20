@@ -1,0 +1,34 @@
+{
+  "schema": "workflow-benchmark-case/1",
+  "id": "normal-local-cli",
+  "purpose": "Baseline for the smallest continuous /build delivery in the Normal lane.",
+  "rigor_expected": "normal",
+  "entry": "/build",
+  "goal": "Create a local CLI greeting tool: `python greeter.py --name <name>` prints `Hello, <name>!` to stdout and exits 0. A README states the exact command. Empty input falls back to `Hello, world!`.",
+  "setup": [
+    "fresh empty target directory, git init",
+    "python scripts/install.py <target>",
+    "restart OpenCode so skills, commands and agents load"
+  ],
+  "record": [
+    "provider and exact model id used",
+    "wall-clock start and end (from metrics sessions, not memory)",
+    "owner wait time if any (not part of active time)",
+    "whether a worker/reviewer seat was dispatched"
+  ],
+  "metrics_command": "python .opencode/workflow/scripts/workflow_metrics.py export <target> --out docs/metrics/normal-local-cli.json",
+  "expectations": {
+    "sessions_max": 4,
+    "child_dispatches_max": 2,
+    "notes": "Normal may run in-session; any extra dispatch must be explainable by a declared reviewer or verification need."
+  },
+  "fields_of_interest": [
+    "totals.span_seconds",
+    "totals.active_seconds",
+    "totals.assistant_turns",
+    "totals.tool_calls",
+    "totals.task_dispatches",
+    "totals.cache_read",
+    "models"
+  ]
+}

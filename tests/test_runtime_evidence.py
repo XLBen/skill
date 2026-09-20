@@ -494,7 +494,7 @@ class StageRoutingContractTests(unittest.TestCase):
         )
 
     def test_schema_and_stage_ids(self):
-        self.assertEqual(self.routing["schema_version"], 2)
+        self.assertEqual(self.routing["schema_version"], 3)
         ids = [s["stage_id"] for s in self.routing["stages"]]
         self.assertEqual(len(ids), len(set(ids)), "stage ids must be unique")
         for expected in (

@@ -102,6 +102,117 @@ class SeatSelectionTests(unittest.TestCase):
                 self.assertIn(expected, cell, row)
 
 
+class ResponsibilityRoutingTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.routing = protocol.load_routing()
+
+    def test_implementation_seat_resolves_per_rigor(self):
+        self.assertEqual(protocol.implementation_seat(self.routing, "normal"), "controller")
+        self.assertEqual(protocol.implementation_seat(self.routing, "guarded"), "worker-subagent")
+        self.assertEqual(
+            protocol.implementation_seat(self.routing, "audited", "direct", "autonomous"),
+            "controller",
+        )
+        self.assertEqual(
+            protocol.implementation_seat(self.routing, "audited", "full", "autonomous"),
+            "step-executor",
+        )
+        self.assertEqual(
+            protocol.implementation_seat(self.routing, "audited", "light", "autonomous"),
+            "controller",
+        )
+
+    def test_audited_never_resolves_to_worker(self):
+        for profile in ("direct", "full", "light"):
+            for interaction in ("autonomous", "checkpoints", "stepwise"):
+                seat = protocol.implementation_seat(
+                    self.routing, "audited", profile, interaction
+                )
+                self.assertNotEqual(seat, "worker-subagent", (profile, interaction))
+
+    def test_unknown_rigor_and_missing_audited_inputs_fail_closed(self):
+        with self.assertRaises(protocol.ProtocolError):
+            protocol.implementation_seat(self.routing, "BOGUS")
+        with self.assertRaises(protocol.ProtocolError):
+            protocol.implementation_seat(self.routing, "audited")
+
+    def test_every_semantic_check_has_one_known_owner(self):
+        for stage in self.routing["stages"]:
+            stage_id = stage["stage_id"]
+            checks = protocol.semantic_checks(self.routing, stage_id)
+            names = [entry["check"] for entry in checks]
+            self.assertEqual(len(names), len(set(names)), stage_id)
+            for entry in checks:
+                self.assertIn(entry["owner_seat"], protocol.KNOWN_SEATS, stage_id)
+
+    def test_test_freeze_and_step_verification_owners(self):
+        self.assertEqual(
+            protocol.semantic_check_owner(self.routing, "test-freeze", "test-freeze-semantics"),
+            "test-author-subagent",
+        )
+        self.assertEqual(
+            protocol.semantic_check_owner(self.routing, "test-freeze", "test-freeze-integrity"),
+            "controller",
+        )
+        self.assertEqual(
+            protocol.semantic_check_owner(self.routing, "step-verification", "step-handoff"),
+            "step-executor-subagent",
+        )
+        self.assertEqual(
+            protocol.semantic_check_owner(self.routing, "step-verification", "step-formal-evidence"),
+            "controller",
+        )
+        self.assertEqual(
+            protocol.semantic_check_owner(self.routing, "step-verification", "step-review"),
+            "reviewer-subagent",
+        )
+
+    def test_formal_verification_is_controller_owned(self):
+        formal = protocol.formal_verification(self.routing, "step-verification")
+        self.assertEqual(formal["owner_seat"], "controller")
+        self.assertIn("verify-step", formal["gate"])
+        self.assertIsNone(protocol.formal_verification(self.routing, "test-freeze"))
+
+    def test_step_review_is_explicitly_mandatory_for_audited(self):
+        condition = protocol.reviewer_condition(self.routing, "step-verification", "audited")
+        self.assertTrue(condition["dispatch"])
+        self.assertTrue(condition["mandatory"])
+        self.assertFalse(condition["blocking"])
+
+    def test_guarded_worker_skill_does_not_apply_to_audited(self):
+        entries = protocol.required_skills_for_stage(
+            self.routing, "slice-implementation", "audited"
+        )
+        worker = next(entry for entry in entries if entry["name"] == "task-worker")
+        self.assertFalse(protocol.pua_applies(worker, "audited"))
+        self.assertTrue(protocol.pua_applies(worker, "guarded"))
+
+    def test_validation_rejects_duplicate_checks_and_unknown_owners(self):
+        broken = copy.deepcopy(self.routing)
+        stage = protocol.stage_definition(broken, "test-freeze")
+        stage["responsibilities"]["semantic_checks"].append(
+            {"check": "test-freeze-semantics", "owner_seat": "controller", "kind": "pua"}
+        )
+        problems = protocol.validate_routing(broken)
+        self.assertTrue(any("duplicate semantic check" in p for p in problems), problems)
+
+        broken = copy.deepcopy(self.routing)
+        stage = protocol.stage_definition(broken, "test-freeze")
+        stage["responsibilities"]["semantic_checks"][0]["owner_seat"] = "intern"
+        problems = protocol.validate_routing(broken)
+        self.assertTrue(any("unknown owner seat" in p for p in problems), problems)
+
+    def test_validation_rejects_non_controller_formal_verification(self):
+        broken = copy.deepcopy(self.routing)
+        stage = protocol.stage_definition(broken, "step-verification")
+        stage["responsibilities"]["formal_verification"]["owner_seat"] = "step-executor-subagent"
+        problems = protocol.validate_routing(broken)
+        self.assertTrue(
+            any("formal_verification owner must be controller" in p for p in problems), problems
+        )
+
+
 class PuaNarrowingTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

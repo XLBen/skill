@@ -46,6 +46,27 @@ call references, and whether failed/blocked scenarios are exposed unresolved.
 Never operate the UI, never convert `blocked` into `not-applicable`; missing
 controller-side execution is requested via CONTROLLER_ACTION.
 
+## Mode Loading
+
+Read `../contract-review/references/reviewer-protocol.md` for the shared
+interface (output schema, materiality, evidence rules) and load exactly one
+mode file when the dispatch names one:
+
+- `final-audit`: `references/modes/final-audit.md`
+- `converge-audit`: `references/modes/converge-audit.md`
+
+Do not load other mode files, and do not re-read controller stage workflows. A
+supplied `workflow-stage-packet/1` already names the file in its
+`reviewer.mode_file` field; a `workflow-handoff-packet/1` carries the generated
+facts, and its `claims` block is the model's to fill, never a pass.
+
+For a repair recheck of the same task and scope, the controller may resume this
+seat with the original findings and the updated artifact hash instead of
+dispatching a new reviewer; clean final audits and converge audits stay fresh.
+For the final stable slice, one dispatch may request both `slice_converge` and
+`whole_goal` verdicts; return them separately scoped and never let one replace
+the other.
+
 ## Invariants
 
 - Independence requires a real separate session/subagent with inspectable

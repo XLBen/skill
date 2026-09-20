@@ -39,7 +39,10 @@ delegated to contract-review inside `/plan`; construction never compiles it itse
 `references/seat-dispatch.md`（权威表为 `../mvp-delivery/references/subagent-orchestration.md` 的 Audited Execution Seat Selection table）；
 加载 skill 只增加说明，不创造独立身份，必须使用真实 task/subagent 能力并保留实际 provenance。PLAN 缺失或过期时加载 **contract-review** 走 `/plan`（gate + compile + confirm），construction 永不自行编译 PLAN；契约缺陷交回 `/fix`。
 
-要点：step-executor 每步一个 fresh 席位并执行 `verify-step`；test-author 在行为实现前冻结验收测试（`stage_id: test-freeze`）；reviewer 用于逐步 review 与 Finish 的 converge-audit（`stage_id: review-verdict`）；优先安装的
+要点：step-executor 每步一个 fresh 席位并交接实现（正式 `verify-step` 由
+主控执行）；test-author 在行为实现前冻结验收测试（`stage_id: test-freeze`）；
+reviewer 用于逐步 review 与 Finish 的 converge-audit（`stage_id:
+review-verdict`）；优先安装的
 `mvp-step-executor` / `mvp-test-author` / `mvp-reviewer` 项目 agent。
 
 ## Gate
@@ -101,8 +104,13 @@ through CR. Setup must not implement the acceptance behavior or count a broken
 runner as behavior-red. Give test-author the ready harness and binding evidence.
 
 For each new first-slice/SI acceptance path, invoke test-author before behavior
-implementation by step-executor. Persist the existing test manifest with
-`spec_source`, `spec_hash`, `test_author_id`, protected acceptance paths/hashes,
+implementation by step-executor. The seat authors tests, runs the classified
+pre-change command and freezes the manifest in one dispatch with
+`Test author ID`/`Provenance status` = `pending-binding`; the controller records
+the runtime provenance (`workflow_runtime.py dispatch-result`) and binds it
+(`workflow_runtime.py bind-test-author`) before implementation starts. A
+manifest that is still `pending-binding` must not authorize implementation.
+Persist `spec_source`, `spec_hash`, protected acceptance paths/hashes,
 expected critical scenario IDs, boundary/mock policy, classified pre-change
 output/hash, and a frozen-at timestamp, as specified by test-author. Every hash
 in the manifest comes from engine output (`check.py hash`), never hand
@@ -111,12 +119,15 @@ execution; these are prompt-layer safeguards, not additional machine enforcement
 
 ### PUA Acceptance: `test-freeze`
 
-Before implementation begins, load `../pua/SKILL.md` and execute the
-`test-freeze` card. Ask “永远绿的测试也是交付？” Confirm behavior-red,
-baseline classification, real assertions, actual scenario execution and frozen
-hashes. An unexpected green, baseline failure, skipped scenario or acceptance
-semantics change is a blocker; PUA cannot invent red or silently weaken the
-manifest.
+The test-author seat loads `../pua/SKILL.md` and executes the `test-freeze`
+card before returning; its return carries the card result. The controller does
+not re-run the card: it mechanically validates the returned manifest fields,
+author identity binding and frozen hashes (routing check
+`test-freeze-integrity`). Ask “永远绿的测试也是交付？” is answered by the
+test-author against behavior-red, baseline classification, real assertions,
+actual scenario execution and frozen hashes. An unexpected green, baseline
+failure, skipped scenario or acceptance semantics change is a blocker; PUA
+cannot invent red or silently weaken the manifest.
 
 Record attempt ID, expected revision, environment binding, side-effect state,
 idempotency key, `implementation_author_id`, and the normalized failure
@@ -134,11 +145,15 @@ record and may not weaken V.
 
 ### PUA Acceptance: `step-verification`
 
-Before accepting a step, load `../pua/SKILL.md` and execute the
-`step-verification` card. Ask “这一步是真的跑了，还是你手写了一个 passing
-event？” Check the engine-generated evidence, all manifest scenarios, raw V
-output, content/state assertions, cleanup and failure signature. The executor
-returns raw results; only the controller records the ledger and step state.
+The step-executor runs the pre-handoff portion of the `step-verification`
+card against the evidence it holds and returns the result; the controller
+then runs the formal `verify-step` and performs the deterministic post-gate
+check (engine-generated evidence, all manifest scenarios, raw V output,
+content/state assertions, cleanup and failure signature). Ask “这一步是真的
+跑了，还是你手写了一个 passing event？” exactly once, with a single semantic
+owner per routing (`step-handoff` / `step-formal-evidence`); never repeat the
+card as a second semantic pass. The executor returns raw results; only the
+controller records the ledger and step state.
 
 ### Direct Fast Path
 
@@ -202,7 +217,39 @@ All selected steps and V must be complete, no blocking CR may remain, and the
 engine-generated P -> F -> I -> S -> V coverage must close. For v0.1, also
 complete `docs/mvp-observation.md` using
 `references/mvp-observation-template.md`; missing traceability defaults to an
-undetermined MVP result rather than success. Before the `done` event, run:
+undetermined MVP result rather than success.
+
+For a new Audited slice package, write `assurance-policy.json`
+(`{"schema": "assurance-policy/1", "strict": true}`) into the package.
+`finish-plan` then enforces the mechanical assurance floor: a phase 0
+disposition (passed or not-needed), a test manifest with bound provenance,
+different test/implementation authors and verified protected-test hashes, and a
+dispatch record with no unresolved actions, failed tasks or circuit breaks.
+Inspect the same report before Finish:
+
+```powershell
+python .opencode/workflow/scripts/assurance_policy.py check <slice>
+```
+
+The floor is mechanical only; semantic adequacy of the probe, tests and review
+verdicts remains the independent reviewer's judgment. Legacy packages without
+the policy file keep their existing behavior.
+
+After `finish-plan` returns `done`, seal the completed package so later
+tampering is detectable against the baseline; SI/FIX packages pass the base
+package seal to record lineage:
+
+```powershell
+python .opencode/workflow/scripts/package_seal.py seal <slice> [--parent <base-package>/package-seal.json]
+python .opencode/workflow/scripts/package_seal.py verify-package <slice>
+```
+
+A local seal is not tamper-proof (a writer can re-seal); anchor `root_hash`
+externally when adversarial tampering matters. Verification commands that
+claim isolation must run through `verification_runner.py run --mode container`;
+host mode must be disclosed as non-isolated (`isolated: false`).
+
+Before the `done` event, run:
 
 ```powershell
 python .opencode/workflow/scripts/check.py reconcile <slice>/PLAN.md --contract <slice>/contract.md --change-orders <slice>/change-orders.md --ledger <slice>/workflow-events.jsonl

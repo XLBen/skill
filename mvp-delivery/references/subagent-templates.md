@@ -10,6 +10,27 @@
 所有派发与返回使用固定格式，方便 GLM 稳定执行与主控机械校验。字段缺失
 的派发是缺陷；返回不合式的结果按 needs_context 处理，不猜测填充。
 
+## Stage And Handoff Packets
+
+派发前先用确定性工具渲染事实，避免每次在模型文本里重新组装：
+
+```powershell
+python .opencode/workflow/scripts/workflow_packets.py stage <stage_id> --rigor <rigor> --role <role> --out .opencode/mvp/packets/<stage>.json
+python .opencode/workflow/scripts/workflow_packets.py handoff <goal.md> --dispatch <goal.dispatch.json> --evidence-dir .opencode/mvp/evidence --out .opencode/mvp/packets/<goal>-handoff.json
+```
+
+- `workflow-stage-packet/1` 给执行/评审席位：resolved stage、rigor、seat、
+  唯一 semantic check owner、formal V owner、reviewer mode 与 `mode_file`、
+  适用 skill、输入/证据身份。派发正文用 `packet: <path>` 引用它，席位读包
+  而不再通读 routing 文档；包只描述规则，不是通过凭证。
+- `workflow-handoff-packet/1` 给验收评审：机器生成的 goal/scope/dispatch/
+  evidence/gaps 事实，加一个空的 `claims` 段由模型填写判断。生成器从不
+  宣判通过；缺失或过期的事实进入 `gaps`，不得略过。
+- 包随 routing/goal/证据 hash 失效：`workflow_packets.py validate <packet>`
+  在 hash 变化时报告 stale，必须重新生成。
+- `ACCEPTANCE_HANDOFF` 仍按 i-have-adhd 的字段全集交付给 reviewer；包是
+  其中机器可核部分的确定性渲染，不替代交接本身。
+
 ## Dispatch Template
 
 ```text
@@ -105,7 +126,7 @@ RESULT 当作所有角色的隐式父接口：
 |---|---|---|
 | research / worker | `TASK_RESULT` + `RESULT` payload | 外壳公共字段；completed 时 evidence 非空（纯调研报告 source 证据） |
 | reviewer | reviewer-protocol JSON | mode、issues、checked_scope、not_checked；review 模式每个 issue 带 classification；派发带 `pua_stage_id` 时 `pua_acceptance` 必填且 `stage_id` 必须与传入一致，未传时省略（见 reviewer-protocol.md Output） |
-| test-author | `TASK_RESULT` + `TEST_AUTHOR_HANDOFF` payload | `phase: bootstrap` 只交回席位就绪证据；`phase: work` 要求 slice、spec_hash、test_author_id、manifest、protected_acceptance、pre_change_result |
+| test-author | `TASK_RESULT` + `TEST_AUTHOR_HANDOFF` payload | 单轮 `phase: work` 即写测试、跑 pre-change、冻结 manifest；`test_author_id` 先写 `pending-binding`，主控返回后 `bind-test-author` 绑定真实 provenance；payload 要求 slice、spec_hash、manifest、protected_acceptance、expected_scenarios、pre_change_result |
 | step-executor | `TASK_RESULT` + `STEP_HANDBACK` payload | step、implementation_files、protected_unchanged、pending_v、deviations/blockers |
 
 合法的角色专用返回不得因不含旧 RESULT 字段而被退回。格式返工不是产品返工：

@@ -236,6 +236,224 @@ def task_status(worktree: Path) -> dict[str, Any]:
     return {"worktree": str(worktree), "exists": True, "changed": entries}
 
 
+def _load_plan_steps(plan_path: Path) -> tuple[dict[str, dict[str, Any]], list[tuple[str, str]]]:
+    """Read step definitions from a compiled PLAN (markdown fence or raw JSON)."""
+
+    try:
+        text = plan_path.read_text(encoding="utf-8-sig")
+    except OSError as exc:
+        raise WorktreeError(f"PLAN unreadable: {exc}") from exc
+    if plan_path.suffix.lower() == ".json":
+        try:
+            plan = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise WorktreeError(f"PLAN JSON is invalid: {exc}") from exc
+    else:
+        marker = "```json plan"
+        if marker not in text:
+            raise WorktreeError(f"PLAN has no json plan fence: {plan_path}")
+        try:
+            plan = json.loads(text.split(marker, 1)[1].split("```", 1)[0])
+        except json.JSONDecodeError as exc:
+            raise WorktreeError(f"PLAN fence JSON is invalid: {exc}") from exc
+    if not isinstance(plan, dict) or not isinstance(plan.get("steps"), list):
+        raise WorktreeError("PLAN has no steps list")
+    steps: dict[str, dict[str, Any]] = {}
+    for step in plan["steps"]:
+        if isinstance(step, dict) and isinstance(step.get("id"), str):
+            steps[step["id"]] = step
+    unit_edges = [
+        (edge[0], edge[1])
+        for edge in (plan.get("unit_dag") or [])
+        if isinstance(edge, (list, tuple)) and len(edge) == 2
+    ]
+    return steps, unit_edges
+
+
+def _scope_overlap(left: str, right: str) -> bool:
+    """Conservative overlap test for write-scope globs.
+
+    Anything uncertain counts as overlapping (dependencies, shared prefixes,
+    wildcards), so an unsafe batch falls back to serial instead of guessing."""
+
+    def literal_prefix(pattern: str) -> str:
+        cut = len(pattern)
+        for index, character in enumerate(pattern):
+            if character in "*?[":
+                cut = index
+                break
+        prefix = pattern[:cut].replace("\\", "/").rstrip("/")
+        return prefix
+
+    left_norm = left.replace("\\", "/")
+    right_norm = right.replace("\\", "/")
+    if left_norm == right_norm:
+        return True
+    left_prefix = literal_prefix(left_norm)
+    right_prefix = literal_prefix(right_norm)
+    if left_prefix and right_prefix:
+        if left_prefix == right_prefix:
+            return True
+        if left_prefix.startswith(right_prefix + "/") or right_prefix.startswith(left_prefix + "/"):
+            return True
+    # A wildcard in the middle of either pattern makes the comparison uncertain.
+    if ("*" in left_norm or "?" in left_norm or "[" in left_norm) and (
+        right_prefix.startswith(left_prefix) or left_prefix.startswith(right_prefix)
+    ):
+        return True
+    if ("*" in right_norm or "?" in right_norm or "[" in right_norm) and (
+        left_prefix.startswith(right_prefix) or right_prefix.startswith(left_prefix)
+    ):
+        return True
+    return False
+
+
+def _reaches(start: str, target: str, adjacency: dict[str, set[str]]) -> bool:
+    seen = {start}
+    stack = [start]
+    while stack:
+        node = stack.pop()
+        if node == target:
+            return True
+        for nxt in adjacency.get(node, set()):
+            if nxt not in seen:
+                seen.add(nxt)
+                stack.append(nxt)
+    return False
+
+
+def parallel_plan_problems(
+    plan_path: Path,
+    tasks: list[dict[str, Any]],
+    protected: list[str] | None = None,
+    max_writers: int = 2,
+) -> list[str]:
+    """Admission check for running strict PLAN steps in isolated worktrees.
+
+    The batch is admissible only when every referenced step exists, no two
+    tasks share or depend on each other's steps/units, declared write scopes
+    are provably disjoint, no protected acceptance path is inside a scope, and
+    the writer count stays within the declared limit. Any uncertainty means
+    serial fallback, never a guess."""
+
+    problems: list[str] = []
+    if not 1 <= max_writers <= 3:
+        raise WorktreeError("max_writers must be between 1 and 3")
+    steps, unit_edges = _load_plan_steps(Path(plan_path))
+    if not isinstance(tasks, list) or not tasks:
+        return ["tasks must be a nonempty list"]
+    if len(tasks) > max_writers:
+        problems.append(
+            f"{len(tasks)} tasks exceed the writer limit of {max_writers}; run in serial waves"
+        )
+    assigned: dict[str, str] = {}
+    for task in tasks:
+        task_id = task.get("task_id")
+        if not isinstance(task_id, str) or not task_id:
+            problems.append("every task needs a nonempty task_id")
+            continue
+        step_ids = task.get("step_ids")
+        if not isinstance(step_ids, list) or not step_ids:
+            problems.append(f"task {task_id}: step_ids must be a nonempty list")
+            continue
+        for step_id in step_ids:
+            if step_id not in steps:
+                problems.append(f"task {task_id}: unknown PLAN step {step_id!r}")
+            if step_id in assigned:
+                problems.append(
+                    f"step {step_id} is assigned to both {assigned[step_id]} and {task_id}"
+                )
+            assigned[step_id] = task_id
+        scope = task.get("write_scope")
+        if not isinstance(scope, list) or not scope or any(
+            not isinstance(item, str) or not item for item in scope
+        ):
+            problems.append(f"task {task_id}: write_scope must be a nonempty string list")
+    if problems:
+        return problems
+
+    unit_of = {step_id: steps[step_id].get("unit") for step_id in assigned}
+    step_adjacency: dict[str, set[str]] = {}
+    for step_id, step in steps.items():
+        step_adjacency[step_id] = {
+            dep for dep in (step.get("depends_on_segments") or []) if isinstance(dep, str)
+        }
+    unit_adjacency: dict[str, set[str]] = {}
+    for source, target in unit_edges:
+        unit_adjacency.setdefault(source, set()).add(target)
+
+    for index, left in enumerate(tasks):
+        left_steps = left["step_ids"]
+        for right in tasks[index + 1:]:
+            right_steps = right["step_ids"]
+            dependency_found = False
+            for left_step in left_steps:
+                for right_step in right_steps:
+                    if _reaches(left_step, right_step, step_adjacency) or _reaches(
+                        right_step, left_step, step_adjacency
+                    ):
+                        dependency_found = True
+                    left_unit, right_unit = unit_of[left_step], unit_of[right_step]
+                    if left_unit and right_unit and (
+                        _reaches(left_unit, right_unit, unit_adjacency)
+                        or _reaches(right_unit, left_unit, unit_adjacency)
+                    ):
+                        dependency_found = True
+            if dependency_found:
+                problems.append(
+                    f"tasks {left['task_id']} and {right['task_id']} have a step/unit dependency; "
+                    "run the dependent task in a later wave"
+                )
+            for left_scope in left["write_scope"]:
+                for right_scope in right["write_scope"]:
+                    if _scope_overlap(left_scope, right_scope):
+                        problems.append(
+                            f"tasks {left['task_id']} and {right['task_id']} have overlapping "
+                            f"write scopes ({left_scope!r}, {right_scope!r}); serial fallback"
+                        )
+    for task in tasks:
+        for scope in task["write_scope"]:
+            for pattern in protected or []:
+                if _scope_overlap(scope, pattern):
+                    problems.append(
+                        f"task {task['task_id']}: write scope {scope!r} touches protected "
+                        f"acceptance path {pattern!r}"
+                    )
+    return problems
+
+
+def parallel_plan(
+    plan_path: Path,
+    tasks: list[dict[str, Any]],
+    protected: list[str] | None = None,
+    max_writers: int = 2,
+) -> dict[str, Any]:
+    problems = parallel_plan_problems(plan_path, tasks, protected, max_writers)
+    return {
+        "schema": "workflow-parallel-plan/1",
+        "plan": str(Path(plan_path).resolve()).replace("\\", "/"),
+        "max_writers": max_writers,
+        "admissible": not problems,
+        "problems": problems,
+        "tasks": [
+            {
+                "task_id": task.get("task_id"),
+                "step_ids": task.get("step_ids"),
+                "write_scope": task.get("write_scope"),
+                "work_root": task.get("work_root"),
+            }
+            for task in tasks
+        ],
+        "rules": {
+            "integration": "controller applies collected patches serially",
+            "formal_v": "after integration, on the canonical version, controller-owned",
+            "review": "fresh reviewer sees the integrated version only",
+            "protected_tests": "write scopes must not touch frozen acceptance paths",
+            "fallback": "any failed condition means serial execution",
+        },
+    }
+
+
 def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -267,6 +485,13 @@ def _main(argv: list[str] | None = None) -> int:
                    help="explicitly drop un-integrated work")
     p = sub.add_parser("status")
     p.add_argument("--worktree", required=True)
+    p = sub.add_parser("parallel-plan",
+                       help="admission check for a strict parallel implementation batch")
+    p.add_argument("--plan", required=True, help="compiled PLAN markdown or JSON")
+    p.add_argument("--tasks", required=True, help="task batch JSON file")
+    p.add_argument("--protected", action="append", default=[],
+                   help="protected acceptance path glob (repeatable)")
+    p.add_argument("--max-writers", type=int, default=2)
     args = parser.parse_args(argv)
 
     try:
@@ -304,6 +529,19 @@ def _main(argv: list[str] | None = None) -> int:
         if args.cmd == "status":
             print(json.dumps(task_status(Path(args.worktree)), ensure_ascii=False, indent=2))
             return 0
+        if args.cmd == "parallel-plan":
+            try:
+                batch = json.loads(Path(args.tasks).read_text(encoding="utf-8-sig"))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise WorktreeError(f"task batch unreadable: {exc}") from exc
+            tasks = batch.get("tasks") if isinstance(batch, dict) else None
+            if not isinstance(tasks, list):
+                raise WorktreeError("task batch must be an object with a tasks list")
+            report = parallel_plan(
+                Path(args.plan), tasks, protected=args.protected, max_writers=args.max_writers
+            )
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+            return 0 if report["admissible"] else 1
     except WorktreeError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

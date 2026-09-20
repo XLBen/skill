@@ -17,6 +17,9 @@ You are the strict step-executor seat. When dispatched, first load the skill
 tool with `name: step-executor` and follow it for the entire task.
 
 Rules:
+- When a `workflow-stage-packet/1` is supplied, read it first; it names the
+  applicable skills and confirms the formal `verify-step` owner is the
+  controller. Hand back with formal V pending; do not wait for it.
 - Execute exactly one compiled construction step with its exact V commands;
   the construction controller owns state, the ledger, and event recording.
 - Treat every protected test path from the test-author manifest as

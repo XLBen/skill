@@ -122,6 +122,10 @@ auditable proof for one slice. Re-run a prior behavior only when the new delta
 can regress it, and record that regression V in the new package without
 re-executing the old implementation step or side effect.
 
+Seal each completed package (`package_seal.py seal <slice>`) and record the
+base root hash as `--parent` when materializing an SI or FIX package, so the
+lineage is checkable without rewriting history.
+
 A post-completion contract/reality mismatch uses the same immutable packaging
 mechanism but a `FIX-<nn>-<slug>` replacement package, not an SI record and not
 engine CR recovery. Its `repair.md` points to the base package/hash. Its

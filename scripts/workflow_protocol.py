@@ -21,7 +21,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-ROUTING_SCHEMA_VERSION = 2
+ROUTING_SCHEMA_VERSION = 3
 RIGORS = ("normal", "guarded", "audited")
 INTERACTIONS = ("autonomous", "checkpoints", "stepwise")
 ROLE_BY_SEAT = {
@@ -31,7 +31,11 @@ ROLE_BY_SEAT = {
     "test-author-subagent": "test-author",
     "step-executor-subagent": "step-executor",
 }
+KNOWN_SEATS = tuple(ROLE_BY_SEAT)
+AUDITED_SEAT_TOKEN = "resolve:audited_implementation"
+ENTRY_POINTS = ("fix-entry", "build-entry")
 _APPLIES_WHEN_RIGORS = {
+    "guarded": ("guarded",),
     "guarded-or-audited": ("guarded", "audited"),
     "audited": ("audited",),
 }
@@ -89,6 +93,9 @@ def validate_routing(routing: dict[str, Any]) -> list[str]:
     if not isinstance(stages, list) or not stages:
         problems.append("stages must be a nonempty list")
         return problems
+    rules = routing.get("responsibility_rules")
+    if not isinstance(rules, dict) or not rules:
+        problems.append("responsibility_rules must be a nonempty object")
     seen: set[str] = set()
     for stage in stages:
         if not isinstance(stage, dict):
@@ -142,6 +149,11 @@ def validate_routing(routing: dict[str, Any]) -> list[str]:
                 problems.append(
                     f"stage {stage_id}: optional rigor {rigor} not in the stage's rigors"
                 )
+        responsibilities = stage.get("responsibilities")
+        if not isinstance(responsibilities, dict):
+            problems.append(f"stage {stage_id}: responsibilities must be an object")
+        else:
+            _validate_responsibilities(stage_id, responsibilities, problems)
     seat_selection = routing.get("seat_selection")
     if not isinstance(seat_selection, dict) or not isinstance(
         seat_selection.get("audited_implementation"), list
@@ -163,7 +175,91 @@ def validate_routing(routing: dict[str, Any]) -> list[str]:
             if pair in seen_pairs:
                 problems.append(f"seat_selection duplicate row {pair}")
             seen_pairs.add(pair)
+    capabilities = routing.get("domain_capabilities")
+    if not isinstance(capabilities, dict) or not isinstance(capabilities.get("capabilities"), list):
+        problems.append("domain_capabilities.capabilities must be a list")
+    else:
+        capability_names: set[str] = set()
+        for entry in capabilities["capabilities"]:
+            if not isinstance(entry, dict) or not entry.get("name"):
+                problems.append("domain capability entry needs a name")
+                continue
+            name = entry["name"]
+            if name in capability_names:
+                problems.append(f"duplicate domain capability {name}")
+            capability_names.add(name)
+            if not isinstance(entry.get("trigger"), str) or not entry["trigger"].strip():
+                problems.append(f"domain capability {name}: trigger must be a nonempty string")
+            insertion = entry.get("insertion")
+            if not isinstance(insertion, list) or not insertion or any(
+                not isinstance(token, str) for token in insertion
+            ):
+                problems.append(f"domain capability {name}: insertion must be a nonempty string list")
+            else:
+                for token in insertion:
+                    if token not in seen and token not in ENTRY_POINTS:
+                        problems.append(
+                            f"domain capability {name}: unknown insertion token {token!r}"
+                        )
+            outputs = entry.get("outputs")
+            if not isinstance(outputs, list) or not outputs or any(
+                not isinstance(item, str) for item in outputs
+            ):
+                problems.append(f"domain capability {name}: outputs must be a nonempty string list")
     return problems
+
+
+def _validate_responsibilities(
+    stage_id: str, responsibilities: dict[str, Any], problems: list[str]
+) -> None:
+    implementation = responsibilities.get("implementation_seat")
+    if implementation is not None:
+        if not isinstance(implementation, dict) or not implementation:
+            problems.append(f"stage {stage_id}: implementation_seat must be a nonempty object")
+        else:
+            for rigor, seat in implementation.items():
+                if rigor not in RIGORS:
+                    problems.append(
+                        f"stage {stage_id}: implementation_seat unknown rigor {rigor!r}"
+                    )
+                    continue
+                if seat != AUDITED_SEAT_TOKEN and seat not in KNOWN_SEATS:
+                    problems.append(
+                        f"stage {stage_id}: implementation_seat unknown seat {seat!r}"
+                    )
+    checks = responsibilities.get("semantic_checks")
+    if not isinstance(checks, list):
+        problems.append(f"stage {stage_id}: semantic_checks must be a list")
+    else:
+        seen_checks: set[str] = set()
+        for entry in checks:
+            if not isinstance(entry, dict):
+                problems.append(f"stage {stage_id}: semantic check entry is not an object")
+                continue
+            name = entry.get("check")
+            if not isinstance(name, str) or not name.strip():
+                problems.append(f"stage {stage_id}: semantic check missing a string check name")
+                continue
+            if name in seen_checks:
+                problems.append(f"stage {stage_id}: duplicate semantic check {name!r}")
+            seen_checks.add(name)
+            owner = entry.get("owner_seat")
+            if owner not in ROLE_BY_SEAT:
+                problems.append(
+                    f"stage {stage_id}: check {name!r} has unknown owner seat {owner!r}"
+                )
+            if "kind" in entry and not isinstance(entry.get("kind"), str):
+                problems.append(f"stage {stage_id}: check {name!r} kind must be a string")
+    formal = responsibilities.get("formal_verification")
+    if formal is not None:
+        if not isinstance(formal, dict) or not formal.get("owner_seat") or not formal.get("gate"):
+            problems.append(
+                f"stage {stage_id}: formal_verification needs owner_seat and gate"
+            )
+        elif formal.get("owner_seat") != "controller":
+            problems.append(
+                f"stage {stage_id}: formal_verification owner must be controller"
+            )
 
 
 def _entry_roles(entry: dict[str, Any], problems: list[str], stage_id: str) -> list[str]:
@@ -335,3 +431,75 @@ def execution_seat(
         if row["profile"] == profile and row["interaction"] in ("any", interaction):
             return row["seat"]
     raise ProtocolError(f"no seat for profile {profile!r} interaction {interaction!r}")
+
+
+def _implementation_seat_rules(routing: dict[str, Any]) -> dict[str, str]:
+    rules: dict[str, str] = {}
+    for stage_id in ("slice-implementation", "step-verification"):
+        stage = stage_definition(routing, stage_id)
+        stage_rules = (stage.get("responsibilities") or {}).get("implementation_seat") or {}
+        rules.update(stage_rules)
+    return rules
+
+
+def implementation_seat(
+    routing: dict[str, Any],
+    rigor: str,
+    profile: str | None = None,
+    interaction: str | None = None,
+) -> str:
+    """Resolve the implementation seat for a rigor.
+
+    Normal -> controller, Guarded -> worker-subagent, Audited -> the seat
+    table (controller or step-executor; never worker). Unknown rigor fails
+    closed instead of guessing a lazier seat."""
+
+    if rigor not in RIGORS:
+        raise ProtocolError(f"unknown rigor {rigor!r} for implementation seat resolution")
+    seat = _implementation_seat_rules(routing).get(rigor)
+    if seat is None:
+        raise ProtocolError(f"no implementation seat rule for rigor {rigor!r}")
+    if seat == AUDITED_SEAT_TOKEN:
+        if profile is None or interaction is None:
+            raise ProtocolError("audited implementation seat needs profile and interaction")
+        return execution_seat(profile, interaction, routing)
+    return seat
+
+
+def semantic_checks(routing: dict[str, Any], stage_id: str) -> list[dict[str, Any]]:
+    """Named semantic checks for a stage, each with exactly one owner seat."""
+
+    stage = stage_definition(routing, stage_id)
+    checks = (stage.get("responsibilities") or {}).get("semantic_checks") or []
+    return [dict(entry) for entry in checks]
+
+
+def semantic_check_owner(
+    routing: dict[str, Any], stage_id: str, check_id: str
+) -> str | None:
+    for entry in semantic_checks(routing, stage_id):
+        if entry.get("check") == check_id:
+            return entry.get("owner_seat")
+    return None
+
+
+def formal_verification(
+    routing: dict[str, Any], stage_id: str
+) -> dict[str, Any] | None:
+    """The controller-owned engine gate for a stage, when one exists."""
+
+    stage = stage_definition(routing, stage_id)
+    formal = (stage.get("responsibilities") or {}).get("formal_verification")
+    return dict(formal) if isinstance(formal, dict) else None
+
+
+def domain_capabilities(
+    routing: dict[str, Any], insertion: str | None = None
+) -> list[dict[str, Any]]:
+    """Registered conditional domain skills, optionally filtered by insertion."""
+
+    block = routing.get("domain_capabilities") or {}
+    entries = [dict(entry) for entry in (block.get("capabilities") or [])]
+    if insertion is None:
+        return entries
+    return [entry for entry in entries if insertion in (entry.get("insertion") or [])]

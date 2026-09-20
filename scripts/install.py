@@ -215,7 +215,28 @@ def main():
     if not args.commands_only:
         copy_jobs.append((repo / "scripts" / "check.py", engine_root / "scripts" / "check.py", "scripts/check.py"))
         copy_jobs.append(
+            (repo / "scripts" / "assurance_policy.py", engine_root / "scripts" / "assurance_policy.py", "scripts/assurance_policy.py")
+        )
+        copy_jobs.append(
+            (repo / "scripts" / "evidence_registry.py", engine_root / "scripts" / "evidence_registry.py", "scripts/evidence_registry.py")
+        )
+        copy_jobs.append(
+            (repo / "scripts" / "package_seal.py", engine_root / "scripts" / "package_seal.py", "scripts/package_seal.py")
+        )
+        copy_jobs.append(
+            (repo / "scripts" / "verification_runner.py", engine_root / "scripts" / "verification_runner.py", "scripts/verification_runner.py")
+        )
+        copy_jobs.append(
             (repo / "scripts" / "runtime_trace.py", engine_root / "scripts" / "runtime_trace.py", "scripts/runtime_trace.py")
+        )
+        copy_jobs.append(
+            (repo / "scripts" / "workflow_metrics.py", engine_root / "scripts" / "workflow_metrics.py", "scripts/workflow_metrics.py")
+        )
+        copy_jobs.append(
+            (repo / "scripts" / "workflow_packets.py", engine_root / "scripts" / "workflow_packets.py", "scripts/workflow_packets.py")
+        )
+        copy_jobs.append(
+            (repo / "scripts" / "workflow_runtime.py", engine_root / "scripts" / "workflow_runtime.py", "scripts/workflow_runtime.py")
         )
         copy_jobs.append(
             (repo / "scripts" / "workflow_protocol.py", engine_root / "scripts" / "workflow_protocol.py", "scripts/workflow_protocol.py")
@@ -303,9 +324,44 @@ def main():
             engine_fixtures = engine_root / "tests" / "fixtures"
             safe_copy(repo / "scripts" / "check.py", engine_scripts / "check.py", "scripts/check.py")
             safe_copy(
+                repo / "scripts" / "assurance_policy.py",
+                engine_scripts / "assurance_policy.py",
+                "scripts/assurance_policy.py",
+            )
+            safe_copy(
+                repo / "scripts" / "evidence_registry.py",
+                engine_scripts / "evidence_registry.py",
+                "scripts/evidence_registry.py",
+            )
+            safe_copy(
+                repo / "scripts" / "package_seal.py",
+                engine_scripts / "package_seal.py",
+                "scripts/package_seal.py",
+            )
+            safe_copy(
+                repo / "scripts" / "verification_runner.py",
+                engine_scripts / "verification_runner.py",
+                "scripts/verification_runner.py",
+            )
+            safe_copy(
                 repo / "scripts" / "runtime_trace.py",
                 engine_scripts / "runtime_trace.py",
                 "scripts/runtime_trace.py",
+            )
+            safe_copy(
+                repo / "scripts" / "workflow_metrics.py",
+                engine_scripts / "workflow_metrics.py",
+                "scripts/workflow_metrics.py",
+            )
+            safe_copy(
+                repo / "scripts" / "workflow_packets.py",
+                engine_scripts / "workflow_packets.py",
+                "scripts/workflow_packets.py",
+            )
+            safe_copy(
+                repo / "scripts" / "workflow_runtime.py",
+                engine_scripts / "workflow_runtime.py",
+                "scripts/workflow_runtime.py",
             )
             safe_copy(
                 repo / "scripts" / "workflow_protocol.py",

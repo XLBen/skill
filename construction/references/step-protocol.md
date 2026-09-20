@@ -193,6 +193,18 @@ acceptance gates still apply whenever a product V exists. Only the separate
 test-author dispatch can be skipped for an explicitly owner-approved no-test
 direct change.
 
+Independent local steps may run in isolated worktrees only after
+`worktree_tasks.py parallel-plan` admits the batch (no step/unit dependency,
+provably disjoint write scopes, frozen tests, no protected acceptance paths,
+default two writers). Integration is serial; the formal `verify-step` and the
+review gate run only on the integrated canonical version, and any failed
+condition falls back to serial execution.
+
+When a verification claims isolation, run it through
+`verification_runner.py run --mode container` with a named image; a host run is
+reported as `isolated: false` and must never be described as sandboxed. The
+runner report is evidence input, not an engine pass.
+
 ## Failure Signature And Circuit Break
 
 For every failed V, calculate a stable signature:

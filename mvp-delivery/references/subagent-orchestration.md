@@ -4,9 +4,12 @@
 > choosing an execution seat for a task, and before recording dispatch state.
 
 本协议是所有模式共用的唯一委派规则。主控制器（本 skill）持有目标、依赖、
-集成、最终验证和持久状态；Guarded/Audited 的实质工作默认交给子代理，Normal
-允许主控直接实现但独立正确性判断与验证盲区仍应派发。
-阶段→能力→席位的权威映射见 `stage-routing.json`；本文件规定决策程序。
+集成、最终验证和持久状态；Guarded 的实质工作默认交给 worker，Normal
+允许主控直接实现但独立正确性判断与验证盲区仍应派发，Audited 严格步骤按
+seat table 交给 controller/step-executor（从不使用 task-worker）。
+阶段→能力→席位的权威映射见 `stage-routing.json`（`responsibilities` 块
+定义 implementation seat、semantic check owner 与 formal verification
+owner）；本文件规定决策程序。
 
 ## Dispatch Trigger Matrix
 
@@ -31,14 +34,17 @@ step-executor。正常路由到主控（Normal 直接实现、Audited `direct`�
    - 否（Normal）：主控是该档的默认实现席位，可直接实现；涉及独立正确性
      判断、验证盲区或用户要求时派 worker/reviewer。只有确实跳过了应派发的
      席位时才写 `skip_reason`。
-   - 是 → 按 Audited Execution Seat Selection 决策表执行。
+   - Guarded：实质实现派 worker；能力不可用按 Failure Branches 披露降级。
+   - Audited：按 Audited Execution Seat Selection 决策表执行（controller 或
+     step-executor），**从不派 task-worker**；正式 `verify-step` 只由主控执行。
 3. 能力不可用分支按 Failure Branches 降级或阻塞，并记录证据。
 
 | 场景 | 默认执行方式 | 强制级别 |
 |---|---|---|
 | 单点拼写/格式/明确机械小改 | 主控直接处理；多个同类小改合并为一个工作包 | 禁止拆分派发 |
 | 需要定位模块、依赖资料、根因分析 | 派 research 子代理；两个以上独立问题域并行 | 默认派发 |
-| Guarded/Audited 实质实现任务 | 派 worker 子代理（轻量实现席位） | 默认派发 |
+| Guarded 实质实现任务 | 派 worker 子代理（轻量实现席位） | 默认派发 |
+| Audited 实质实现任务 | 按 Audited Execution Seat Selection 决策表（controller 或 step-executor，禁止 worker） | 按决策表 |
 | Normal 实质实现任务 | 主控可直接实现；独立正确性判断或验证盲区时派发 | 按风险选择 |
 | `/fix` 根因不明 | 先派 research 诊断，凭证据再派实现 | 默认派发 |
 | 多个可独立复现的故障 | 按问题域并行派 research/worker | 默认派发 |
@@ -47,6 +53,7 @@ step-executor。正常路由到主控（Normal 直接实现、Audited `direct`�
 | 全目标 finish 检查 | 派 reviewer 复用 review 能力做 whole-goal 检查 | Guarded/Audited 能力可用即必须 |
 | Audited 测试冻结/评审 | test-author / reviewer 独立席位 | 必须且阻塞 |
 | Audited 步骤实现席位 | 按 Audited Execution Seat Selection 决策表 | 按决策表 |
+| Audited 正式 V（verify-step） | 主控执行并记录 ledger；执行席位交接时不等待正式 V | 固定 |
 
 同一版本产物已被终审覆盖且未再变化时，可复用该终审结果，不重复派发。
 `skip_reason` 使用封闭白名单：`mechanical-batch`、`capability-unavailable`
@@ -70,6 +77,10 @@ step-executor。正常路由到主控（Normal 直接实现、Audited `direct`�
 判定次序：先看 profile 是否 `direct`；再检查 `full` 或
 `checkpoints`/`stepwise`；仅 `light + autonomous` 留在主控同会话。存在
 产品 acceptance V 时，独立 test-author 席位与 review gate 仍然必须。
+正式 `verify-step` 属于主控；step-executor 只实现并在交接中声明 pending V。
+`stage-routing.json` 的 `responsibilities.semantic_checks` 为每个阶段指定
+唯一语义 owner；controller 只做确定性字段/hash 核对，不重复同一语义检查，
+也不把 `test-freeze`/`step-verification` 卡再跑一遍。
 
 ## Role To Agent Mapping
 
@@ -97,7 +108,13 @@ step-executor。正常路由到主控（Normal 直接实现、Audited `direct`�
 
 1. 列出本次验收项与真实边界（不超过当前阶段声明的范围）。
 2. 从运行时**实际可见**的 skill 清单（skill 工具实际提供的列表，不凭
-   记忆或文件存在假设）中筛选与验收项匹配的候选。
+   记忆或文件存在假设）中筛选与验收项匹配的候选。条件型领域能力注册在
+   `stage-routing.json` 的 `domain_capabilities`：
+   `security-assurance`（信任边界/认证/隐私/密钥/不可信输入）、
+   `production-readiness`（生产部署/长期服务/迁移/可用性目标）、
+   `incident-response`（正在发生的线上影响，经 `fix-entry`）、
+   `outcome-learning`（未验证的用户/业务假设）。只有触发条件与真实边界
+   匹配才加载，不默认全选。
 3. 读取候选 skill 的 description/正文确认适用条件；不适用的淘汰并记录
    一句理由。
 4. 适用的分配执行席位（controller 或对应子代理），写进派发正文
@@ -188,7 +205,12 @@ preflight 失败按 Failure Branches 降级或阻塞，并在 dispatch record �
   任务，先确认原任务状态。
 - 默认最多两个并发 writer（总席位上限不变）；主控是集成工作区唯一写入者。
 - reviewer 绑定不可变快照，不与同范围的写入并发。
-- Audited 严格步骤继续沿既有执行语义，不使用该分支。
+- Audited 严格步骤默认串行；仅当
+  `scripts/worktree_tasks.py parallel-plan` 准入通过时，无步骤/单元依赖、写集
+  可证不重叠、已冻结测试、无共享数据库/GUI/远程可变状态、且写集不触碰受保护
+  验收路径的本地实现步骤才可以进入该分支（默认最多两个 writer）。集成仍由
+  主控串行执行，正式 `verify-step` 与 review 只针对集成后的规范版本；任一
+  条件不满足或无法证明即回退串行，不猜。
 
 ## Fresh Session Semantics
 
@@ -202,6 +224,13 @@ preflight 失败按 Failure Branches 降级或阻塞，并在 dispatch record �
   （见 mvp-delivery Build Continuously 与 `../pua/references/recovery-protocol.md`）。
 - reviewer 与被评实现的作者必须是不同 session；worker 不能评审自己的
   产出，主控不能在采纳前改写 reviewer 的 findings。
+- 同一评审任务的返修复核（同一任务、同一范围，作者更新制品后）可以 resume
+  原独立 reviewer 席位并携带原 findings 与新的制品 hash；resume 不重置
+  独立性，但 clean final audit、converge-audit 与 whole-goal 检查仍必须
+  fresh 或由未参与该实现的独立席位执行。
+- 最后一个稳定版本切片：一次 fresh reviewer dispatch 可以返回两个分别绑定
+  范围的 verdict（slice converge 与 whole-goal），两者互不替代；只有 slice
+  verdict 时 whole-goal gate 仍然失败。
 - 真实 session/task 标识由主控从 dispatch 工具结果记录；子代理自报的
   ID 只是声明，不作为独立性证据。
 
@@ -293,6 +322,29 @@ preflight 失败按 Failure Branches 降级或阻塞，并在 dispatch record �
   可作恢复线索，但缺少 `result_ref`/`acceptance`/`baseline` 时不得据此
   跳过重派或复用评审；主控首次续写时升级为 schema_version 2，只回填可
   核实的字段，不伪造历史裁决。已完成 goal 的旧记录保持原样。
+
+### Runtime Commands
+
+记录的机械维护用确定性命令完成，不在模型文本里手抄；命令只记录，不批准
+任何结论，也不调用宿主的 task 工具：
+
+```powershell
+# 派发前：登记意图，可同时归档派发正文
+python .opencode/workflow/scripts/workflow_runtime.py dispatch-begin <dispatch.json> --task task.json [--body dispatch.md] [--expect-revision N]
+# 返回后：归档原始返回并按 task-result/1 映射状态
+python .opencode/workflow/scripts/workflow_runtime.py dispatch-result <dispatch.json> --result result.json [--body raw-return.json] [--expect-revision N]
+# CONTROLLER_ACTION 状态去重更新；completed 必须带 evidence_ref
+python .opencode/workflow/scripts/workflow_runtime.py action-result <dispatch.json> --update action.json [--expect-revision N]
+# 只读：列出下一项机械义务（未决 action / 等待任务 / 熔断 / owner gate / 状态修复）
+python .opencode/workflow/scripts/workflow_runtime.py next-action <dispatch.json>
+```
+
+- 写入是 temp+atomic replace；校验失败不改动原文件；`--expect-revision` 在
+  并发写冲突时拒绝覆盖。
+- `provenance` 必须是运行时回执里的真实 session/agent；本工具只记录，真伪
+  校验仍归 `runtime_trace.py` / `check.py runtime-gate`。
+- `next-action` 只列机械义务与候选，不派发、不批准、不替代 owner gate。
+- 工具不可用时按旧流程手工维护并在交付报告中披露，不得伪造 revision。
 
 resume 时先核对 dispatch record 与实际产物：done 且产物未失效、且（对
 评审类任务）裁决仍满足的任务不重复派发；timeout 不等于未执行，重新派发

@@ -219,6 +219,10 @@ vague → `/grill` → `/plan` → `/build`; bug → `/fix`; interrupted →
 | `computer-use` | desktop journeys: hard-budgeted GUI operation and verification |
 | `pua` | acceptance interrogation: closure / fact-driven / exhaustive-not-blind |
 | `i-have-adhd` | user communication: short view, full facts preserved |
+| `security-assurance` | conditional: trust boundaries, auth, privacy, secrets; threat model and control mapping |
+| `production-readiness` | conditional: release, progressive rollout, rollback, operations handoff |
+| `incident-response` | conditional: active production impact - severity, containment, recovery |
+| `outcome-learning` | conditional: user/business hypotheses, baselines, smallest experiment |
 
 The installer additionally deploys five project subagents —
 `mvp-researcher`, `mvp-worker`, `mvp-reviewer`, `mvp-test-author`,

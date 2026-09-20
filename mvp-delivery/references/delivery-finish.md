@@ -13,7 +13,12 @@ integration check, affected regressions and applicable lint/build on the same
 delivery version. Every promised user-visible result needs a real entry path;
 when impact is uncertain re-run all goal outcomes on the final stable version
 instead of stitching evidence from different versions. Use fresh evidence paths
-for `verify-goal`. Completed cards and historical packages are not reopened;
+for `verify-goal`. Strict-equivalence reuse (`verify-goal --reuse`) may cover an
+unchanged outcome only when command, assertion, environment and artifact
+bindings are identical and the recorded workspace snapshot still matches the
+current workspace; affected or uncertain outcomes re-run, and isolated replay
+and user-entry journeys are never replaced by a reused run from a different
+environment. Completed cards and historical packages are not reopened;
 follow the existing repair rules. Record the tested version, uncommitted
 changes/artifact identity and environment in the existing delivery record; do
 not auto-commit and do not write sensitive diffs into logs. This is the
@@ -40,8 +45,11 @@ journeys against the final deliverable. A clean slice reconcile/converge audit
 is not whole-goal acceptance and cannot exempt future slices. Reuse the
 `reviewer` capability for this scope check when independent review applies,
 passing the original source, whole card and final evidence; no new public
-command, role or audit-event schema. Run `finish-goal` only after this check,
-all applicable Audited gates and actual owner acceptance.
+command, role or audit-event schema. When the final stable slice is also the
+whole goal, one fresh reviewer dispatch may return the slice converge verdict
+and the whole-goal verdict as two separately scoped results; neither substitutes
+for the other and each feeds its own gate. Run `finish-goal` only after this
+check, all applicable Audited gates and actual owner acceptance.
 
 When the project enables the runtime policy sidecar
 (`.opencode/mvp/runtime-policy.json`, schema `runtime-policy/1`), first export

@@ -16,9 +16,14 @@ fence, using schema 1 from `tests/fixtures/goal-valid.md` and `check.py`:
   `risk`, `first_slice`, `demo`, `constraints`, `deferred`, and nonempty `outcomes`.
 - `constraints` and `deferred` are string arrays. `risk` contains `factors` and
   a nonempty `rationale`. Factors: `none` alone, or `external-boundary`,
-  `cross-module`, `authentication`, `privacy`, `money`, `migration`,
-  `irreversible`, `security`. The first two require at least Guarded; the latter
-  six require Audited. Retain the strongest risk still covered by the goal.
+  `cross-module`, `production-change` (Guarded minimum) plus
+  `authentication`, `privacy`, `money`, `migration`, `irreversible`,
+  `security`, `availability`, `data-loss`, `compliance`, `supply-chain`
+  (Audited minimum). Classify by real impact and reversibility, not topic
+  keywords: a small code change that rolls out to production with outage
+  blast radius carries a production/availability risk, and a one-line change
+  that can lose production data carries a data-loss risk. Retain the
+  strongest risk still covered by the goal.
 - Direct `source` is `{"type":"direct","raw_request":"<original request>"}`.
   Brief source is `{"type":"brief","path":"docs/brief.md","brief_hash":"<hash>",
   "coverage":[{"brief_id":"BS-01","disposition":"outcome","outcome_ids":["O-01"]}]}`.
@@ -94,8 +99,23 @@ Run from the project root (installed engine path shown):
 python .opencode/workflow/scripts/check.py brief docs/brief.md
 python .opencode/workflow/scripts/check.py goal .opencode/mvp/<goal>.md
 python .opencode/workflow/scripts/check.py verify-goal .opencode/mvp/<goal>.md O-01 --evidence .opencode/mvp/evidence/<goal>-O-01-01.json
+python .opencode/workflow/scripts/check.py verify-goal .opencode/mvp/<goal>.md O-02 --evidence .opencode/mvp/evidence/<goal>-O-02-01.json --reuse .opencode/mvp/evidence/<goal>-O-01-01.json
 python .opencode/workflow/scripts/check.py finish-goal .opencode/mvp/<goal>.md
 ```
+
+Strict-equivalence reuse: when an outcome's verification is exactly the same
+command, cwd, timeout, expected text, assertion kind/policy/assertion and goal
+definition as an existing passed evidence whose recorded workspace snapshot
+still equals the current workspace, `--reuse <source>` writes a **new** evidence
+record that references the source run (`reused_from` + `reused_at`) instead of
+executing the same command again. It never forges a new run time; the reused
+record carries the source's original timing and output. Any difference in
+binding, a missing workspace binding, a failed source, or a changed workspace
+refuses reuse and requires a real re-run. External mutable state, time-sensitive
+checks and unknown side effects are never reuse candidates. Use
+`scripts/evidence_registry.py find --dir <evidence-dir> --bindings <request.json>`
+(read-only) to see which existing evidence is strictly equivalent; a listed
+entry can still be refused by the engine at reuse time.
 
 Validate `goal` before edits/resume and after definition changes. Run
 `verify-goal` for every outcome with a fresh evidence path on each attempt; it

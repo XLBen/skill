@@ -5,7 +5,7 @@ Commands:
   check.py brief <docs/brief.md>
   check.py hash <file> [<file> ...]
   check.py goal <.opencode/mvp/goal.md>
-  check.py verify-goal <.opencode/mvp/goal.md> <O-NN> --evidence <path> [--recover-interrupted]
+  check.py verify-goal <.opencode/mvp/goal.md> <O-NN> --evidence <path> [--recover-interrupted] [--reuse <equivalent-evidence>]
   check.py finish-goal <.opencode/mvp/goal.md>
   check.py check-current <.opencode/mvp/goal.md>
   check.py runtime-gate <.opencode/mvp/goal.md> --trace <trace.json> [--dispatch <dispatch.json>] [--policy <policy.json>]
@@ -61,6 +61,22 @@ except ImportError as _exc:  # pragma: no cover - engine copied without runtime_
 else:
     _RUNTIME_TRACE_IMPORT_ERROR = None
 
+try:
+    import evidence_registry as _evidence_registry
+except ImportError as _exc:  # pragma: no cover - engine copied without evidence_registry
+    _evidence_registry = None
+    _EVIDENCE_REGISTRY_IMPORT_ERROR = str(_exc)
+else:
+    _EVIDENCE_REGISTRY_IMPORT_ERROR = None
+
+try:
+    import assurance_policy as _assurance_policy
+except ImportError as _exc:  # pragma: no cover - engine copied without assurance_policy
+    _assurance_policy = None
+    _ASSURANCE_POLICY_IMPORT_ERROR = str(_exc)
+else:
+    _ASSURANCE_POLICY_IMPORT_ERROR = None
+
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "tests" / "fixtures"
 NODE_TYPES = ("P", "T", "W", "F", "I", "D", "E", "A", "R", "V", "B")
@@ -76,9 +92,13 @@ GOAL_OUTCOME_STATUS = {"pending", "verified", "blocked"}
 GOAL_RISK_FACTORS = {
     "none", "external-boundary", "authentication", "privacy", "money",
     "migration", "irreversible", "cross-module", "security",
+    "availability", "data-loss", "compliance", "supply-chain", "production-change",
 }
-GOAL_HIGH_RISK = {"authentication", "privacy", "money", "migration", "irreversible", "security"}
-GOAL_GUARDED_RISK = {"external-boundary", "cross-module"}
+GOAL_HIGH_RISK = {
+    "authentication", "privacy", "money", "migration", "irreversible", "security",
+    "availability", "data-loss", "compliance", "supply-chain",
+}
+GOAL_GUARDED_RISK = {"external-boundary", "cross-module", "production-change"}
 GOAL_ID_RE = re.compile(r"^G-[A-Z0-9][A-Z0-9-]*$")
 OUTCOME_ID_RE = re.compile(r"^O-\d{2,}$")
 HASH_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -459,7 +479,7 @@ def validate_goal(goal):
     if GOAL_HIGH_RISK.intersection(factors) and rigor != "audited":
         problems.append("high-risk factors require audited rigor")
     elif GOAL_GUARDED_RISK.intersection(factors) and rigor == "normal":
-        problems.append("external-boundary or cross-module risk requires guarded or audited rigor")
+        problems.append("guarded-risk factors (external boundary, cross-module, production change) require guarded or audited rigor")
 
     source = goal.get("source")
     if not isinstance(source, dict):
@@ -1296,7 +1316,98 @@ def run_command_evidence(command, cwd, evidence_path, metadata, timeout_seconds,
     return payload, hashlib.sha256(evidence_path.read_bytes()).hexdigest()
 
 
-def verify_goal_outcome(goal_path, outcome_id, evidence_path, recover_interrupted=False):
+def reuse_goal_evidence(project_root, expectation, resolved_evidence, source_path, snapshot_include=()):
+    """Write a new goal evidence record that references an equivalent run.
+
+    The caller builds `expectation` from the authoritative request; this
+    function re-checks strict equivalence against the source payload, requires
+    the source to have passed with no workspace change, and requires the
+    current workspace snapshot to equal the one the source run recorded. It
+    never re-executes the command and never claims a new execution time."""
+
+    if _evidence_registry is None:
+        raise ValidationError(
+            "evidence_registry.py is not available next to check.py; cannot reuse evidence: "
+            + str(_EVIDENCE_REGISTRY_IMPORT_ERROR)
+        )
+    source_path = Path(source_path)
+    if not source_path.is_absolute():
+        source_path = Path.cwd() / source_path
+    try:
+        source_bytes = source_path.read_bytes()
+        source = json.loads(source_bytes.decode("utf-8-sig"))
+    except (OSError, ValueError, TypeError) as exc:
+        raise ValidationError(f"reuse source evidence unreadable: {exc}") from exc
+    if not isinstance(source, dict):
+        raise ValidationError("reuse source evidence is not a JSON object")
+    problems = _evidence_registry.reuse_rejection_reasons(source, expectation)
+    if problems:
+        raise ValidationError(
+            "reuse source is not strictly equivalent: " + "; ".join(problems)
+        )
+    current, _ = workspace_snapshot(project_root, include_patterns=snapshot_include)
+    if source.get("workspace_after") != current:
+        raise ValidationError(
+            "workspace changed after the source run; reuse refused, re-run the verification"
+        )
+    resolved_evidence = Path(resolved_evidence)
+    if resolved_evidence.exists():
+        raise ValidationError(f"evidence file already exists: {resolved_evidence}")
+    project_resolved = Path(project_root).resolve()
+    source_resolved = source_path.resolve()
+    try:
+        recorded_source = source_resolved.relative_to(project_resolved).as_posix()
+    except ValueError:
+        recorded_source = source_path.as_posix()
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    payload = {
+        "schema_version": 1,
+        "kind": "goal-verification",
+        "goal_id": expectation["goal_id"],
+        "outcome_id": expectation["outcome_id"],
+        "goal_definition_hash": expectation["goal_definition_hash"],
+        "command": source.get("command"),
+        "cwd": source.get("cwd"),
+        "timeout_seconds": source.get("timeout_seconds"),
+        "expected": source.get("expected"),
+        "assertion_kind": source.get("assertion_kind"),
+        "empty_result_policy": source.get("empty_result_policy"),
+        "started_at": source.get("started_at"),
+        "finished_at": source.get("finished_at"),
+        "elapsed_seconds": source.get("elapsed_seconds"),
+        "timed_out": source.get("timed_out"),
+        "exit_code": source.get("exit_code"),
+        "stdout": source.get("stdout"),
+        "stderr": source.get("stderr"),
+        "workspace_before": current,
+        "workspace_after": current,
+        "workspace_changed": False,
+        "result": "passed",
+        "reuse_policy": _evidence_registry.REUSE_POLICY,
+        "reused_from": {
+            "path": recorded_source,
+            "sha256": hashlib.sha256(source_bytes).hexdigest(),
+        },
+        "reused_at": now,
+    }
+    if "assertion" in expectation:
+        payload["assertion"] = expectation["assertion"]
+        payload["assertion_passed"] = True
+    resolved_evidence.parent.mkdir(parents=True, exist_ok=True)
+    temp = resolved_evidence.with_suffix(resolved_evidence.suffix + ".tmp")
+    with temp.open("w", encoding="utf-8", newline="\n") as stream:
+        stream.write(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    if resolved_evidence.exists():
+        temp.unlink()
+        raise ValidationError(f"evidence file appeared concurrently: {resolved_evidence}")
+    os.replace(temp, resolved_evidence)
+    return payload, hashlib.sha256(resolved_evidence.read_bytes()).hexdigest()
+
+
+def verify_goal_outcome(goal_path, outcome_id, evidence_path, recover_interrupted=False,
+                        reuse_from=None):
     with file_lock(str(goal_path) + ".runtime"):
         meta, goal, problems = validate_goal_artifact(goal_path)
         if problems:
@@ -1318,22 +1429,43 @@ def verify_goal_outcome(goal_path, outcome_id, evidence_path, recover_interrupte
             raise ValidationError("goal evidence must live under .opencode/mvp/evidence/") from exc
         verification = outcome["verification"]
         snapshot_include = goal.get("snapshot_include") or []
-        payload, evidence_hash = run_command_evidence(
-            verification["command"], project_root, resolved_evidence,
-            {
-                "kind": "goal-verification",
-                "goal_id": goal["id"],
-                "outcome_id": outcome_id,
-                "goal_definition_hash": goal_definition_hash(goal),
-                "assertion_kind": verification["assertion_kind"],
-                "empty_result_policy": verification["empty_result_policy"],
-                "expected": verification["expected"],
-                "assertion": verification["assertion"],
-            },
-            verification.get("timeout_seconds", 120),
-            recover_interrupted=recover_interrupted,
-            snapshot_include=snapshot_include,
-        )
+        metadata = {
+            "kind": "goal-verification",
+            "goal_id": goal["id"],
+            "outcome_id": outcome_id,
+            "goal_definition_hash": goal_definition_hash(goal),
+            "assertion_kind": verification["assertion_kind"],
+            "empty_result_policy": verification["empty_result_policy"],
+            "expected": verification["expected"],
+            "assertion": verification["assertion"],
+        }
+        if reuse_from is not None:
+            expectation = dict(metadata)
+            expectation.update(
+                {
+                    "command": verification["command"],
+                    "cwd": str(Path(project_root).resolve()),
+                    "timeout_seconds": verification.get("timeout_seconds", 120),
+                }
+            )
+            source_path = Path(reuse_from)
+            if not source_path.is_absolute():
+                source_path = project_root / source_path
+            payload, evidence_hash = reuse_goal_evidence(
+                project_root,
+                expectation,
+                resolved_evidence,
+                source_path,
+                snapshot_include,
+            )
+        else:
+            payload, evidence_hash = run_command_evidence(
+                verification["command"], project_root, resolved_evidence,
+                metadata,
+                verification.get("timeout_seconds", 120),
+                recover_interrupted=recover_interrupted,
+                snapshot_include=snapshot_include,
+            )
         updated = json.loads(json.dumps(goal))
         updated_outcome = next(item for item in updated["outcomes"] if item["id"] == outcome_id)
         if payload["result"] == "passed":
@@ -3773,6 +3905,36 @@ def done_reconcile_problems(plan, contract, events, orders):
     return problems
 
 
+def enforce_assurance_policy(plan_path, contract):
+    """Run the package assurance floor when the slice opts in.
+
+    `assurance-policy.json` (`assurance-policy/1`, `"strict": true`) in the
+    slice package turns the mechanical Audited facts (phase 0 disposition,
+    bound test manifest, resolved dispatch state) into a finish-plan gate.
+    Legacy packages without the file keep their existing behavior."""
+
+    package_dir = Path(plan_path).resolve().parent
+    if _assurance_policy is None:
+        if (package_dir / "assurance-policy.json").exists():
+            raise ValidationError(
+                "assurance_policy.py is not available next to check.py; cannot enforce the "
+                "package assurance policy: " + str(_ASSURANCE_POLICY_IMPORT_ERROR)
+            )
+        return
+    try:
+        policy = _assurance_policy.load_policy(package_dir)
+    except _assurance_policy.AssuranceError as exc:
+        raise ValidationError(str(exc)) from exc
+    if policy is None or not policy.get("strict"):
+        return
+    require = policy.get("require") or ["phase0", "test-manifest", "dispatch"]
+    if not isinstance(require, list) or any(not isinstance(item, str) for item in require):
+        raise ValidationError("assurance-policy.json require must be a string list")
+    problems = _assurance_policy.package_problems(package_dir, require=tuple(require))
+    if problems:
+        raise ValidationError("assurance policy failed:\n- " + "\n- ".join(problems))
+
+
 def finish_plan(plan_path, event_path, contract_path, change_path, ledger_path):
     with file_lock(str(plan_path) + ".runtime"):
         submitted = json.loads(Path(event_path).read_text(encoding="utf-8"))
@@ -3811,6 +3973,7 @@ def finish_plan(plan_path, event_path, contract_path, change_path, ledger_path):
         problems += validate_cr_provenance(orders, events)
         if problems:
             raise ValidationError("Finish gate is invalid:\n- " + "\n- ".join(problems))
+        enforce_assurance_policy(plan_path, contract)
         matrix = reconcile_closure(contract, plan, events, orders)
         if matrix.get("status") != "clean":
             raise ValidationError("Finish requires reconcile status=clean")
@@ -4906,9 +5069,11 @@ def main(argv):
         if command == "verify-goal" and len(argv) >= 4:
             if "--evidence" not in argv:
                 raise ValidationError("verify-goal requires --evidence")
+            reuse_arg = argv[argv.index("--reuse") + 1] if "--reuse" in argv else None
             goal, payload = verify_goal_outcome(
                 argv[2], argv[3], argv[argv.index("--evidence") + 1],
                 recover_interrupted="--recover-interrupted" in argv,
+                reuse_from=reuse_arg,
             )
             print(f"goal outcome {argv[3]}: {payload['result']}")
             return 0 if payload["result"] == "passed" else 1

@@ -54,9 +54,10 @@ reviewer 席位做通用只读验收评审。
   也不传 `pua_stage_id`**。卡内容描述的“无契约 handoff”分支只适用于被派发
   `review-verdict` 卡的席位。
 - brief 定稿交接（`brief-final`）与轻量计划/目标定义交接（`goal-validation`）
-  同样是实质验收交接：能力可用即派 fresh reviewer；brief-final 的 reviewer
-  执行通用只读验收评审（不加载检查卡、不传 `pua_stage_id`），`goal-validation`
-  的 reviewer 执行对应卡；`/grill` 尚无
+  同样是实质验收交接：能力可用即派 fresh reviewer；两处的 reviewer 都执行
+  通用只读验收评审（不加载检查卡、不传 `pua_stage_id`），
+  `goal-validation` 的 PUA 卡由主控执行（routing 的 semantic check owner
+  为 controller）；`/grill` 尚无
   goal 时该派发记录保存在 dispatch archive 或等价的 handoff 记录中，不为一次
   评审伪造 goal 卡。
 - Phase 0 检查属于 `contract-release`，不要另造一个 release 状态。

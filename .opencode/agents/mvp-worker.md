@@ -19,7 +19,9 @@ tool with `name: task-worker` and follow it for the entire task.
 
 Rules:
 - Execute exactly one bounded work package from the DISPATCH block you
-  received (format: mvp-delivery/references/subagent-templates.md).
+  received (format: mvp-delivery/references/subagent-templates.md). When a
+  `workflow-stage-packet/1` is supplied, read it first; it names the applicable
+  skills and boundaries, so do not re-read the routing documents.
 - Respect the write_scope. When the dispatch assigns an isolated absolute work
   directory (Git worktree), all writes stay inside it and write_scope paths are
   relative to that root; run the verification commands there. Never write to

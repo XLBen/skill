@@ -43,7 +43,14 @@ class InstallTests(unittest.TestCase):
             ".opencode/agents/mvp-worker.md": "agent\n",
             ".opencode/agents/mvp-reviewer.md": "agent\n",
             "scripts/check.py": "# check\n",
+            "scripts/assurance_policy.py": "# assurance\n",
+            "scripts/evidence_registry.py": "# registry\n",
+            "scripts/package_seal.py": "# seal\n",
+            "scripts/verification_runner.py": "# runner\n",
             "scripts/runtime_trace.py": "# trace\n",
+            "scripts/workflow_metrics.py": "# metrics\n",
+            "scripts/workflow_packets.py": "# packets\n",
+            "scripts/workflow_runtime.py": "# runtime\n",
             "scripts/workflow_protocol.py": "# protocol\n",
             "scripts/worktree_tasks.py": "# worktrees\n",
             "scripts/check_runtime.py": "# doctor\n",
@@ -85,7 +92,7 @@ class InstallTests(unittest.TestCase):
         with mock.patch.object(install.shutil, "copy2", wraps=install.shutil.copy2) as copy:
             self.run_install()
             self.run_install()
-        self.assertEqual(copy.call_count, 16)
+        self.assertEqual(copy.call_count, 30)
         for call in copy.call_args_list:
             self.assertFalse(call.args[0].samefile(call.args[1]))
         engine = self.repo / ".opencode/workflow"
@@ -143,7 +150,14 @@ class InstallTests(unittest.TestCase):
                 ".opencode/workflow/install-manifest.json",
                 ".opencode/workflow/stage-routing.json",
                 ".opencode/workflow/scripts/check.py",
+                ".opencode/workflow/scripts/assurance_policy.py",
+                ".opencode/workflow/scripts/evidence_registry.py",
+                ".opencode/workflow/scripts/package_seal.py",
+                ".opencode/workflow/scripts/verification_runner.py",
                 ".opencode/workflow/scripts/runtime_trace.py",
+                ".opencode/workflow/scripts/workflow_metrics.py",
+                ".opencode/workflow/scripts/workflow_packets.py",
+                ".opencode/workflow/scripts/workflow_runtime.py",
                 ".opencode/workflow/scripts/workflow_protocol.py",
                 ".opencode/workflow/scripts/worktree_tasks.py",
                 ".opencode/workflow/scripts/check_runtime.py",

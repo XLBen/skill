@@ -191,9 +191,13 @@ review hash、证据核验、capability gap、矛盾 review）+ owner-decision/k
 
 ## 7. 证据索引（`docs/po-repair/baseline/s21/`）
 
-- 运行：`test_all.txt`、`check_selftest.txt`、`node-test-glob.txt`、14 份 `test_*.py.txt`、`env.txt`
-- 语料：`corpus-validity.txt`、`corpus-replay/INDEX.json`、`corpus-replay/`（复制件）
-- 工具：`replay_corpus.py`（只读重定向运行器）、`evidence_index.py`、`evidence-index.txt`（实现行号与用例目录）
+> 2026-09-21 清理：本节原始运行输出（`test_all.txt`、`check_selftest.txt`、
+> `node-test-glob.txt`、14 份 `test_*.py.txt`、`env.txt`、`corpus-validity.txt`、
+> `evidence-index.txt`）已删除，见 git 历史；`replay_corpus.py`、
+> `evidence_index.py` 与 `corpus-replay/` 保留。
+
+- 语料：`corpus-replay/INDEX.json`、`corpus-replay/`（复制件）
+- 工具：`replay_corpus.py`（只读重定向运行器）、`evidence_index.py`
 
 ## 8. S21 实机校准补录（2026-09-21，真实模型运行）
 

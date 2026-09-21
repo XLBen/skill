@@ -1,5 +1,15 @@
 # S00 基线（BASELINE）
 
+> **2026-09-21 清理说明**：本目录的历史测试运行输出快照已删除
+> （各阶段 `s03`–`s22` 的 `test_all.txt`/`check_selftest.txt` 等原始输出、
+> 根目录 `*.txt` 快照、`s21` 的测试输出与 `evidence-index.txt`）。保留：
+> `s01/`（主机兼容证据，`test_visibility_config.py` 的目录快照出处）、
+> `s03-corpus-regression.json` 与 `s09-corpus-repair.json`（测试回写终态）、
+> `s21/replay_corpus.py`、`s21/evidence_index.py`、`s21/corpus-replay/`
+> （校准重放工具与证据）、`../corpus/`（21 份语料输入）。历史原始输出
+> 可在本仓库 git 历史中查阅。PROGRESS.md / FINAL-REPORT.md 中指向已删
+> 快照的路径同样以 git 历史为准。
+
 - 步骤：S00 — 基线建立与失败语料索引
 - 日期：2026-09-21
 - 仓库：`E:\MISC\代码项目\skill`（分支 `main`，HEAD `f62c2f0c93658b11bfc392e1d59ae67e508af82b`）

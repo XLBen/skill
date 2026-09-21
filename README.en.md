@@ -17,7 +17,10 @@ idea
  ↓  What is the thinnest real slice? How risky? → /plan
  ↓  first slice: assumption list → implement → verify for real
  ↓  compare against the original outcome list: gaps left? — yes → next slice (loop)
- ↓                                                     — no  → acceptance: where is the evidence? → delivery
+ ↓                                                     — no  → acceptance: where is the evidence?
+ ↓  accepted → before delivery, use the whole product black-box (product-observer; model chosen by /visibility)
+ ↓  observation gate: v2 report + native trace — blocking finding → /fix → full re-observation on a new candidate
+ ↓                                              — no blocking finding → delivery
  ↘  bug → /fix: reproduce → isolate → hypothesize → verify
  ↘  session broke → /resume: delivery-log → goal card → code
 ```
@@ -136,6 +139,63 @@ expectation unobservable after two consecutive attempts is failed and
 returned to the repair loop — no spinning in place). A screenshot is not
 an acceptance pass.
 
+## The product-observation chain — "Was the whole product actually used?"
+
+Implementation and engine verification only prove "the command runs". Before
+delivery, someone must use the complete product the way a first-time user
+would. `/build` freezes the candidate and dispatches the independent
+`mvp-product-observer` seat, which receives a public brief and the real entry
+point — never diffs, tests or implementation notes.
+
+1. **Two phases**: `discover` explores blind (purpose, public usage docs,
+   candidate entry, test data, budget, backend); `compare` reconciles against
+   the original goal, historical product maps and baselines, hunting for
+   capabilities that disappeared, degraded, or only survive in some modes.
+2. **Choosing the observation model (vision instruction)**: `/visibility
+   [model name]`. The default is `gpt 5.6 luna`; names resolve against the
+   live OpenCode model catalog; a family name (e.g. `/visibility deepseek`)
+   lists the real candidates for you to choose — no invented ids, no silent
+   fallback, no fake capability. The choice is stored in the project's
+   `.opencode/mvp/visibility.json` and affects only this project's observation
+   dispatch; your main chat model and global config are untouched. Cancel or
+   failure keeps the previous value. Dispatch uses the plugin tool
+   `visibility_dispatch` (the target `.opencode` must resolve
+   `@opencode-ai/plugin`; see Installation) and the plugin takes effect after
+   an OpenCode restart. When the model accepts images, screenshots go straight
+   to it (`image_read`); otherwise the gap is recorded — never pretended.
+3. **Observe, never repair**: the observer writes no product code, goal, gate
+   or other phase's evidence; two permission layers enforce it (`edit: deny`
+   plus bash patterns that deny redirection and file-writing commands).
+   Normal state writes by a stateful product are not tampering: the candidate
+   declares `runtime_state` and a
+   `.opencode/mvp/<goal>.runtime-state.json` policy keeps verification and
+   finish on the same exclusion list.
+4. **Output and adoption**: the final reply contains exactly ONE ```json
+   fenced block (schema `product-observation/2`) and no result files; the
+   controller validates it, binds the real session/model/packet hash, and
+   writes an immutable `result.json` (idempotent on repeats, conflicts
+   rejected). At most two format repairs, which fix formatting only and never
+   re-run the product.
+5. **Evidence**: CLI/Web command output is captured with
+   `observation_capture.py` (meta + sha256), screenshots/snapshots land in the
+   round evidence directory, and every reference must really exist. Sampled
+   frames are not continuous coverage; a video file with no verified audio
+   track is not "sound present" (audio runs a control probe first).
+6. **The gate**: `check.py product-audit-gate <goal> --trace <trace>`.
+   `coverage-completed` may carry blocking findings; unresolved
+   critical/high findings, unexplained capability gaps and missing native
+   traces all block `finish-goal`. The independent reviewer judges
+   `findings_validity` and `coverage_adequacy` separately: weak evidence or
+   coverage → `needs-observation`; a credible report with severe defects →
+   `needs-repair`; `sufficient` is refused while a blocking finding is open.
+7. **Repair loop**: blocking findings route to `/fix`; a repaired build is a
+   NEW candidate and must re-run the full discover+compare sweep — old
+   evidence is invalidated by candidate id, never overwritten or rewritten.
+
+Real-model calibration results (clean control with zero false positives, 5/6
+seeded CLI defects detected, one Web case detected, and the still-unrun items)
+live in [docs/po-repair/CALIBRATION.md](docs/po-repair/CALIBRATION.md).
+
 ## The fix chain — four-phase root cause
 
 `/fix <problem>` follows systematic-debugging:
@@ -194,10 +254,12 @@ evidence on disk.
 | `/build [goal]` | start delivery | runnable, really-verified, continuously completed results |
 | `/fix <problem>` | errors, misbehavior, contract conflicts | root-cause repair + regression verification |
 | `/resume` | previous run interrupted | continue from persistent state to the original goal |
+| `/visibility [model name]` | choose/view this project's observation model (default `gpt 5.6 luna`) | writes `.opencode/mvp/visibility.json`; observation dispatch uses it |
 
 Recommended paths: clear → `/build`; plan first → `/plan` → `/build`;
 vague → `/grill` → `/plan` → `/build`; bug → `/fix`; interrupted →
-`/resume`.
+`/resume`; observation model → `/visibility` (your main chat model is not
+changed).
 
 ## Internal skills quick reference
 
@@ -217,7 +279,7 @@ vague → `/grill` → `/plan` → `/build`; bug → `/fix`; interrupted →
 | `step-executor` | isolated execution of one strict PLAN step |
 | `webapp-testing` | web journeys: assertion-first browser automation |
 | `computer-use` | desktop journeys: hard-budgeted GUI operation and verification |
-| `product-observer` | whole-product black-box observation: blind discover + goal/history compare, mandatory pre-finish gate |
+| `product-observer` | whole-product black-box observation: blind discover + goal/history compare, mandatory pre-finish gate; its model is chosen by `/visibility` |
 | `pua` | acceptance interrogation: closure / fact-driven / exhaustive-not-blind |
 | `i-have-adhd` | user communication: short view, full facts preserved |
 | `security-assurance` | conditional: trust boundaries, auth, privacy, secrets; threat model and control mapping |
@@ -250,6 +312,14 @@ skills. Desktop verification is optional: no MCP is auto-installed and no
 global permissions change; see
 [computer-use/README.md](computer-use/README.md) for wiring.
 
+For `/visibility` dynamic observation-model dispatch, the target
+`.opencode` must resolve `@opencode-ai/plugin` (the installer prints a hint
+when it is missing — run `npm install` in that directory), and the plugin
+provides `visibility_dispatch` / `visibility_status` after an OpenCode
+restart. The installer never overwrites an existing
+`.opencode/mvp/visibility.json` and never installs model dependencies for
+you.
+
 ## Verification
 
 ```powershell
@@ -258,6 +328,9 @@ python -B -m unittest discover -s tests -p "test_*.py"
 python scripts/check.py hash <file> [<file> ...]   # record digests; never hand-compute
 python scripts/check_runtime.py doctor <target-project> [--strict [--strict-freshness]]
 python scripts/runtime_trace.py export <target-project> --out trace.json
+python scripts/workflow_packets.py observer .opencode/mvp/<goal>.md --phase discover --model <provider/model> --out <cand>/discover.packet.json
+python scripts/observation_capture.py --evidence-root <cand>/evidence --out <cand>/evidence/<name>.txt -- <entry command>
+python .opencode/workflow/scripts/check.py product-audit-gate .opencode/mvp/<goal>.md --trace trace.json
 python .opencode/workflow/scripts/check.py check-current .opencode/mvp/<goal>.md
 ```
 
@@ -271,6 +344,12 @@ gate: `check.py ui-gate ... --bind` verifies scenario statuses, a real
 computer-use/webapp-testing load, native calls and artifact-identity
 binding; changed artifacts must re-run and re-bind — `--bind` never
 relabels old results onto a new build.
+Observation gate: schema-2 goals must pass
+`check.py product-audit-gate <goal> --trace <trace>` before `finish-goal` —
+only strict v2 reports, evidence files that really exist, and native traces
+count; `runtime_state` writes declared by a stateful product are excluded by
+the `.opencode/mvp/<slug>.runtime-state.json` policy, so normal state writes
+are not product tampering.
 
 The engine checks structure, bindings, exit/timeout and assertions;
 snapshots exclude VCS/`.opencode/**`/caches/generated directories; hashes

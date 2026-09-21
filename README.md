@@ -15,7 +15,10 @@
  ↓  最薄的真切片是什么？风险多高？→ /plan
  ↓  首片：假设清单 → 实现 → 真实验证
  ↓  对照原始结果清单：还有差距吗？——有 → 下一片（循环）
- ↓                                ——无 → 验收：证据呢？→ delivery
+ ↓                                ——无 → 验收：证据呢？
+ ↓  验收通过 → 交付前完整产品黑盒观察（product-observer，观察模型由 /visibility 选择）
+ ↓  观察 gate：v2 报告 + 原生 trace —— 有阻断缺陷 → /fix → 新候选全量重观察
+ ↓                                        —— 无阻断缺陷 → delivery
  ↘  出 bug → /fix：复现→隔离→假设→验证
  ↘  会话断了 → /resume：delivery-log → goal 卡 → 代码
 ```
@@ -103,6 +106,49 @@ delivery-log），不依赖聊天记录。下面逐段展开这条链。
 观察、10 分钟；期望连续 2 次不可观测 = failed 交回修复循环，不原地打转）。
 截图不是验收通过。
 
+## 产品观察的思维链 —— “完整产品真用过了吗？”
+
+实现和引擎验证只证明“命令能跑”；交付前还要有人第一次接触产品那样把
+完整产品真用一遍。`/build` 在固定候选版本后派发 `mvp-product-observer`
+独立席位，它拿到的不是 diff/测试/实现说明，而是公开简报与真实入口。
+
+1. **两个阶段**：`discover` 盲态独立探索（产品用途、公开使用说明、候选
+   入口、测试数据、预算、后端）；`compare` 才对照原始目标、历史产品地图
+   与基线行为，专门找“消失了、退化了、只在某些模式里活着”的能力。
+2. **观察模型怎么选（视觉模型指令）**：`/visibility [模型名]`。
+   默认 `gpt 5.6 luna`；名称从当前 OpenCode 的真实模型目录解析；输入的是
+   家族名（如 `/visibility deepseek`）时列出真实候选由你选，不虚构型号、
+   不静默回落；找不到就展示可用清单。选择写入项目内
+   `.opencode/mvp/visibility.json`——只作用于本项目的观察派发，不改你的
+   主聊天模型与全局配置；取消/失败保留旧值。派发由插件工具
+   `visibility_dispatch` 完成（目标项目 `.opencode` 需能解析
+   `@opencode-ai/plugin`，见“安装”），插件生效需重启 OpenCode。
+   模型本身支持图片时，截图直接交给它读（`image_read`）；不支持时按
+   capability gap 记录，绝不假装看过。
+3. **只观察，不修复**：observer 不写产品代码、goal、gate 或其他阶段证据；
+   宿主权限两层兜底（`edit: deny` + bash 拒绝重定向/写文件命令）。
+   有状态产品正常写盘不算篡改：候选声明 `runtime_state`，另配
+   `.opencode/mvp/<goal>.runtime-state.json` 策略，验证与 finish 用同一
+   排除表。
+4. **输出与采纳**：observer 最终回复只含**一个** ```json 围栏块
+   （schema `product-observation/2`），不写结果文件；controller 校验后绑定
+   真实 session/模型/packet hash，写不可变 `result.json`（重复只幂等、冲突
+   必拒绝）。格式不合格最多纠偏两次，纠偏只修格式、不重跑产品。
+5. **证据**：CLI/Web 命令输出用 `observation_capture.py` 落盘（含 meta 与
+   sha256），截图/快照写进本轮证据目录；引用必须真实存在。抽帧不等于连续
+   覆盖，录屏文件存在不等于有声音（音频先跑控制探针）。
+6. **门禁**：`check.py product-audit-gate <goal> --trace <trace>`。
+   `coverage-completed` 允许同时带阻断发现；critical/high 未解决、未解释的
+   capability gap、无原生 trace 都阻断 `finish-goal`。独立 reviewer 分别
+   判断 `findings_validity` 与 `coverage_adequacy`：证据/覆盖不足 →
+   `needs-observation`，报告可信但有严重缺陷 → `needs-repair`，存在开放
+   阻断缺陷时不得判 `sufficient`。
+7. **修复循环**：阻断发现路由 `/fix`；修复产生新候选后必须全量重跑
+   discover+compare（旧证据按候选 id 失效，不覆盖、不改写）。
+
+真实模型校准结果（干净对照 0 误报、CLI 种子 5/6 检出、Web 案例检出与
+未运行项）见 [docs/po-repair/CALIBRATION.md](docs/po-repair/CALIBRATION.md)。
+
 ## fix 的思维链 —— 四阶段根因
 
 `/fix <problem>` 按 systematic-debugging 执行：
@@ -153,9 +199,11 @@ hash（brief 冻结、证据、artifact identity），被引用的文件不删�
 | `/build [goal]` | 开始交付 | 可运行、真实验证、持续补齐的结果 |
 | `/fix <problem>` | 报错、行为错误、契约冲突 | 根因修复 + 回归验证 |
 | `/resume` | 上次中断 | 从持久状态继续到原始目标完成 |
+| `/visibility [模型名]` | 选/看本项目的观察模型（默认 gpt 5.6 luna） | 写入 `.opencode/mvp/visibility.json`；观察派发按它选模型 |
 
 推荐路径：明确 → `/build`；先看计划 → `/plan` → `/build`；模糊 →
-`/grill` → `/plan` → `/build`；bug → `/fix`；中断 → `/resume`。
+`/grill` → `/plan` → `/build`；bug → `/fix`；中断 → `/resume`；
+观察模型 → `/visibility`（不改主聊天模型）。
 
 ## 内部 skills 速查
 
@@ -175,7 +223,7 @@ hash（brief 冻结、证据、artifact identity），被引用的文件不删�
 | `step-executor` | 隔离执行单个严格 PLAN 步骤 |
 | `webapp-testing` | Web 旅程：断言式浏览器自动化 |
 | `computer-use` | 桌面旅程：硬预算 GUI 操作与验证 |
-| `product-observer` | 全产品黑盒观察：独立探索 + 目标/历史查漏，交付前强制 gate |
+| `product-observer` | 全产品黑盒观察：独立探索 + 目标/历史查漏，交付前强制 gate；观察模型由 `/visibility` 选择 |
 | `pua` | 验收质询：闭环/事实驱动/穷尽不盲目 |
 | `i-have-adhd` | 用户沟通：短视图，不删完整事实 |
 | `security-assurance` | 条件型：信任边界/认证/隐私/密钥的安全保证与威胁建模 |
@@ -204,6 +252,12 @@ skill 目录。安装或修改 skill 后必须重启 OpenCode。桌面验证为�
 安装 MCP、不改全局权限，接入见
 [computer-use/README.md](computer-use/README.md)。
 
+如需 `/visibility` 的动态观察模型派发：目标项目 `.opencode` 需能解析
+`@opencode-ai/plugin`（安装器检测缺失时会提示，在该目录执行
+`npm install`），重启 OpenCode 后由插件提供 `visibility_dispatch` /
+`visibility_status`。安装器不会覆盖项目已有的
+`.opencode/mvp/visibility.json`，也不会替你自动安装模型依赖。
+
 ## 验证
 
 ```powershell
@@ -214,6 +268,9 @@ python scripts/check_runtime.py doctor <target-project> [--strict [--strict-fres
 python scripts/runtime_trace.py export <target-project> --out trace.json
 python scripts/workflow_metrics.py export <target-project> --out metrics.json
 python scripts/workflow_packets.py stage <stage> --role <role> --out packet.json
+python scripts/workflow_packets.py observer .opencode/mvp/<goal>.md --phase discover --model <provider/model> --out <cand>/discover.packet.json
+python scripts/observation_capture.py --evidence-root <cand>/evidence --out <cand>/evidence/<name>.txt -- <entry command>
+python .opencode/workflow/scripts/check.py product-audit-gate .opencode/mvp/<goal>.md --trace trace.json
 python scripts/assurance_policy.py check <slice-package>
 python scripts/package_seal.py seal <slice-package> [--parent <base-seal.json>]
 python scripts/verification_runner.py run --command "<cmd>" --mode host|container
@@ -227,6 +284,10 @@ python .opencode/workflow/scripts/check.py check-current .opencode/mvp/<goal>.md
 UI 门禁：`check.py ui-gate ... --bind` 核验场景状态、真实
 computer-use/webapp-testing 加载、原生调用与产物身份绑定；产物变化必须
 重跑重绑，`--bind` 不给旧结果贴新构建。
+观察门禁：schema-2 目标在 `finish-goal` 前必须过
+`check.py product-audit-gate <goal> --trace <trace>`——只认严格 v2 报告、
+真实存在的证据文件与原生 trace；有状态产品声明的 `runtime_state` 写盘由
+`.opencode/mvp/<slug>.runtime-state.json` 策略排除，不算产品被改动。
 
 引擎检查结构、绑定、退出/超时与断言；快照排除 VCS/`.opencode/**`/缓存/
 生成目录；hash 检测“验证后被改动”，不证明语义正确，更不是沙箱。完整规则

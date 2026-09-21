@@ -1,0 +1,10 @@
+{
+  "schema": "product-observation-review/2",
+  "findings_validity": "insufficient",
+  "coverage_adequacy": "insufficient",
+  "verdict": "needs-observation",
+  "notes": "F-001 has a valid goal basis and repeated show evidence, but save evidence files are empty and do not substantiate command execution or exit status. The required --smoke entry (O-01) was not observed, leaving a material coverage gap.",
+  "related_finding_ids": [
+    "F-001"
+  ]
+}

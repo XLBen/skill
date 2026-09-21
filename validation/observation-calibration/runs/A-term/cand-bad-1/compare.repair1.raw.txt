@@ -1,0 +1,73 @@
+```json
+{
+  "schema": "product-observation/2",
+  "phase": "compare",
+  "surfaces": [
+    {
+      "id": "S-CLI",
+      "name": "CLI entry",
+      "importance": "material",
+      "modes": [
+        "default",
+        "a",
+        "b"
+      ]
+    }
+  ],
+  "journeys": [
+    {
+      "id": "J-01",
+      "outcome": "covered",
+      "surface_ids": [
+        "S-CLI"
+      ],
+      "evidence_refs": [
+        "evidence/compare-mode-a.txt"
+      ]
+    },
+    {
+      "id": "J-02",
+      "outcome": "covered",
+      "surface_ids": [
+        "S-CLI"
+      ],
+      "evidence_refs": [
+        "evidence/compare-mode-b.txt"
+      ]
+    },
+    {
+      "id": "J-03",
+      "outcome": "covered",
+      "surface_ids": [
+        "S-CLI"
+      ],
+      "evidence_refs": [
+        "evidence/compare-default.txt"
+      ]
+    }
+  ],
+  "findings": [],
+  "unobserved": [],
+  "capability_gaps": [
+    {
+      "channel": "historical-baseline",
+      "reason": "No historical baseline was supplied, so regression differences could not be independently compared."
+    }
+  ],
+  "continuation": null,
+  "stop_reason": "coverage-completed",
+  "evidence_refs": [
+    "evidence/compare-mode-a.txt",
+    "evidence/compare-mode-b.txt",
+    "evidence/compare-default.txt"
+  ],
+  "notes": "All supplied CLI entry modes completed successfully with exit code 0 and reached game over."
+}
+```
+
+--stderr--
+[0m
+> po-observer · gpt-5.6-luna
+[0m
+[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/format-repair.md
+[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/result-contract.md

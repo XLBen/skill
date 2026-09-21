@@ -1,0 +1,29 @@
+﻿{"parent": "ses_f41dc3881ffeCFq0a2yyKTBDU6", "subagent_type": "mvp-reviewer", "input_keys": ["description", "prompt", "subagent_type"], "model_field": null}
+{"parent": "ses_f41dc3881ffeCFq0a2yyKTBDU6", "subagent_type": "mvp-reviewer", "input_keys": ["description", "prompt", "subagent_type"], "model_field": null}
+{"parent": "ses_f41dc3881ffeCFq0a2yyKTBDU6", "subagent_type": "mvp-researcher", "input_keys": ["description", "prompt", "subagent_type"], "model_field": null}
+{"parent": "ses_f41dc3881ffeCFq0a2yyKTBDU6", "subagent_type": "mvp-reviewer", "input_keys": ["description", "prompt", "subagent_type"], "model_field": null}
+{"parent": "ses_f41dc3881ffeCFq0a2yyKTBDU6", "subagent_type": "mvp-researcher", "input_keys": ["description", "prompt", "subagent_type"], "model_field": null}
+{"parent": "ses_f46730e4dffeGX0owIrv6SFPE2", "subagent_type": "mvp-reviewer", "input_keys": ["command", "description", "prompt", "subagent_type"], "model_field": null}
+{"parent": "ses_f475b1e4bffe0AazrdgQEomKGF", "subagent_type": "mvp-reviewer", "input_keys": ["description", "prompt", "subagent_type"], "model_field": null}
+{"parent": "ses_f475b1e4bffe0AazrdgQEomKGF", "subagent_type": "mvp-worker", "input_keys": ["description", "prompt", "subagent_type"], "model_field": null}
+{"parent": "ses_f475b1e4bffe0AazrdgQEomKGF", "subagent_type": "mvp-reviewer", "input_keys": ["description", "prompt", "subagent_type"], "model_field": null}
+{"parent": "ses_f475b1e4bffe0AazrdgQEomKGF", "subagent_type": "mvp-worker", "input_keys": ["description", "prompt", "subagent_type"], "model_field": null}
+{"parent": "ses_f475b1e4bffe0AazrdgQEomKGF", "subagent_type": "mvp-reviewer", "input_keys": ["description", "prompt", "subagent_type"], "model_field": null}
+{"parent": "ses_f475b1e4bffe0AazrdgQEomKGF", "subagent_type": "mvp-worker", "input_keys": ["description", "prompt", "subagent_type"], "model_field": null}
+{"parent": "ses_f49f77aacffeajbL06RSC37nD5", "subagent_type": "mvp-reviewer", "input_keys": ["description", "prompt", "subagent_type"], "model_field": null}
+{"parent": "ses_f49f77aacffeajbL06RSC37nD5", "subagent_type": "mvp-worker", "input_keys": ["description", "prompt", "subagent_type"], "model_field": null}
+{"parent": "ses_f49f77aacffeajbL06RSC37nD5", "subagent_type": "mvp-reviewer", "input_keys": ["description", "prompt", "subagent_type", "task_id"], "model_field": null}
+{"parent": "ses_f49f77aacffeajbL06RSC37nD5", "subagent_type": "mvp-worker", "input_keys": ["description", "prompt", "subagent_type", "task_id"], "model_field": null}
+{"parent": "ses_f49f77aacffeajbL06RSC37nD5", "subagent_type": "mvp-reviewer", "input_keys": ["description", "prompt", "subagent_type"], "model_field": null}
+{"parent": "ses_f49f77aacffeajbL06RSC37nD5", "subagent_type": "mvp-worker", "input_keys": ["description", "prompt", "subagent_type"], "model_field": null}
+{"parent": "ses_f49f77aacffeajbL06RSC37nD5", "subagent_type": "mvp-reviewer", "input_keys": ["description", "prompt", "subagent_type", "task_id"], "model_field": null}
+{"parent": "ses_f49f77aacffeajbL06RSC37nD5", "subagent_type": "mvp-worker", "input_keys": ["description", "prompt", "subagent_type", "task_id"], "model_field": null}
+{"parent": "ses_f49f77aacffeajbL06RSC37nD5", "subagent_type": "mvp-worker", "input_keys": ["description", "prompt", "subagent_type", "task_id"], "model_field": null}
+{"parent": "ses_f49f77aacffeajbL06RSC37nD5", "subagent_type": "mvp-reviewer", "input_keys": ["description", "prompt", "subagent_type"], "model_field": null}
+{"parent": "ses_f49f77aacffeajbL06RSC37nD5", "subagent_type": "mvp-worker", "input_keys": ["description", "prompt", "subagent_type", "task_id"], "model_field": null}
+{"parent": "ses_f49f77aacffeajbL06RSC37nD5", "subagent_type": "mvp-worker", "input_keys": ["description", "prompt", "subagent_type"], "model_field": null}
+{"parent": "ses_f49f77aacffeajbL06RSC37nD5", "subagent_type": "mvp-reviewer", "input_keys": ["description", "prompt", "subagent_type", "task_id"], "model_field": null}
+{"parent": "ses_f49f77aacffeajbL06RSC37nD5", "subagent_type": "mvp-reviewer", "input_keys": ["description", "prompt", "subagent_type", "task_id"], "model_field": null}
+{"parent": "ses_f49f77aacffeajbL06RSC37nD5", "subagent_type": "mvp-worker", "input_keys": ["description", "prompt", "subagent_type", "task_id"], "model_field": null}
+{"parent": "ses_f49f77aacffeajbL06RSC37nD5", "subagent_type": "mvp-reviewer", "input_keys": ["description", "prompt", "subagent_type"], "model_field": null}
+{"parent": "ses_f49f77aacffeajbL06RSC37nD5", "subagent_type": "mvp-worker", "input_keys": ["description", "prompt", "subagent_type"], "model_field": null}

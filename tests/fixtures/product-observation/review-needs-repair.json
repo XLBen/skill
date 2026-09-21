@@ -1,0 +1,7 @@
+{
+  "schema": "product-observation-review/2",
+  "findings_validity": "insufficient",
+  "coverage_adequacy": "sufficient",
+  "verdict": "needs-repair",
+  "notes": "F-01 states the wrong expected basis; the approved target does not promise that entry."
+}

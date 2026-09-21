@@ -1,0 +1,70 @@
+﻿python : test_cli_never_touches_a_global_path (test_visibility_config.CliTests) ... ok
+所在位置 行:1 字符: 304
++ ... in $tests){ python -m unittest discover -s tests -p $t -v 2>&1 | Out- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_cli_never_...liTests) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+test_mark_cli_requires_evidence_and_records_it (test_visibility_config.CliTests) ... ok
+test_select_invalid_returns_2 (test_visibility_config.CliTests) ... ok
+test_select_then_show (test_visibility_config.CliTests) ... ok
+test_set_ambiguous_returns_3 (test_visibility_config.CliTests) ... ok
+test_set_catalog_error_returns_2 (test_visibility_config.CliTests) ... ok
+test_set_default_request_selects_luna (test_visibility_config.CliTests) ... ok
+test_set_ignores_junk_catalog_lines (test_visibility_config.CliTests) ... ok
+test_set_not_found_returns_4 (test_visibility_config.CliTests) ... ok
+test_set_with_explicit_request (test_visibility_config.CliTests) ... ok
+test_show_invalid_returns_2 (test_visibility_config.CliTests) ... ok
+test_show_unconfigured_returns_0 (test_visibility_config.CliTests) ... ok
+test_bom_and_capability_evidence_load (test_visibility_config.LoadSaveTests) ... ok
+test_duplicate_keys_are_rejected (test_visibility_config.LoadSaveTests) ... ok
+test_invalid_json_is_rejected (test_visibility_config.LoadSaveTests) ... ok
+test_invalid_save_keeps_existing_bytes (test_visibility_config.LoadSaveTests) ... ok
+test_missing_file_is_none_and_empty (test_visibility_config.LoadSaveTests) ... ok
+test_missing_parent_directory_is_not_created (test_visibility_config.LoadSaveTests) ... ok
+test_replace_failure_is_atomic (test_visibility_config.LoadSaveTests) ... ok
+test_roundtrip (test_visibility_config.LoadSaveTests) ... ok
+test_structural_problems_are_rejected (test_visibility_config.LoadSaveTests) ... ok
+test_invalid_capability_or_status_is_rejected (test_visibility_config.MarkCapabilityTests) ... ok
+test_missing_file_fails_closed (test_visibility_config.MarkCapabilityTests) ... ok
+test_unavailable_needs_no_evidence (test_visibility_config.MarkCapabilityTests) ... ok
+test_verified_with_evidence_updates_only_that_capability (test_visibility_config.MarkCapabilityTests) ... ok
+test_verified_without_evidence_is_refused_and_file_unchanged (test_visibility_config.MarkCapabilityTests) ... ok
+test_bare_model_id_is_unique (test_visibility_config.MatchModelsTests) ... ok
+test_case_and_space_variant_of_full_is_exact (test_visibility_config.MatchModelsTests) ... ok
+test_default_request_resolves_to_the_real_luna (test_visibility_config.MatchModelsTests) ... ok
+test_empty_query_is_none (test_visibility_config.MatchModelsTests) ... ok
+test_full_id_is_exact (test_visibility_config.MatchModelsTests) ... ok
+test_malformed_catalog_entries_are_ignored (test_visibility_config.MatchModelsTests) ... ok
+test_provider_only_is_ambiguous_with_four_deepseek_models (test_visibility_config.MatchModelsTests) ... ok
+test_token_subset_can_be_unique (test_visibility_config.MatchModelsTests) ... ok
+test_token_subset_with_several_hits_is_ambiguous (test_visibility_config.MatchModelsTests) ... ok
+test_unknown_request_is_none_and_never_fabricated (test_visibility_config.MatchModelsTests) ... ok
+test_lowercases_and_collapses_separators (test_visibility_config.NormalizeKeyTests) ... ok
+test_non_string_is_empty (test_visibility_config.NormalizeKeyTests) ... ok
+test_strips_outer_hyphens (test_visibility_config.NormalizeKeyTests) ... ok
+test_deduplicates_repeated_lines (test_visibility_config.ParseCatalogTests) ... ok
+test_handles_crlf_and_bom (test_visibility_config.ParseCatalogTests) ... ok
+test_ignores_blank_and_junk_lines (test_visibility_config.ParseCatalogTests) ... ok
+test_non_string_is_empty (test_visibility_config.ParseCatalogTests) ... ok
+test_parses_real_catalog_with_fields (test_visibility_config.ParseCatalogTests) ... ok
+test_ambiguous_request_does_not_write (test_visibility_config.ResolveRequestTests) ... ok
+test_default_capabilities_are_not_mutated (test_visibility_config.ResolveRequestTests) ... ok
+test_default_request_persists_luna (test_visibility_config.ResolveRequestTests) ... ok
+test_exact_full_request_persists (test_visibility_config.ResolveRequestTests) ... ok
+test_not_found_request_does_not_write (test_visibility_config.ResolveRequestTests) ... ok
+test_repeat_resolution_preserves_capabilities (test_visibility_config.ResolveRequestTests) ... ok
+test_save_failure_is_reported_without_crashing (test_visibility_config.ResolveRequestTests) ... ok
+test_unique_request_persists_selection (test_visibility_config.ResolveRequestTests) ... ok
+test_invalid_forms_are_rejected (test_visibility_config.SelectModelTests) ... ok
+test_invalid_full_id_keeps_existing_file (test_visibility_config.SelectModelTests) ... ok
+test_valid_full_id_is_persisted (test_visibility_config.SelectModelTests) ... ok
+test_invalid_file (test_visibility_config.ShowTests) ... ok
+test_selected (test_visibility_config.ShowTests) ... ok
+test_unconfigured (test_visibility_config.ShowTests) ... ok
+test_frozen_project_layout (test_visibility_config.VisibilityPathTests) ... ok
+
+----------------------------------------------------------------------
+Ran 59 tests in 0.251s
+
+OK

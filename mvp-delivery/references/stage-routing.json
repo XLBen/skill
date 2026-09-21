@@ -124,6 +124,30 @@
       "domain_skills": "select when verifying the slice needs a specialized read-only capability; read-only reviewers request executions via CONTROLLER_ACTION"
     },
     {
+      "stage_id": "product-observation",
+      "entry": "stable candidate build after implementation, engine verification and planned UI acceptance; before review-verdict acceptance or goal-finish (schema-2 goals with product_observation.required)",
+      "rigors": ["normal", "guarded", "audited"],
+      "required_skills": [
+        {"name": "product-observer", "seat": "product-observer-subagent", "roles": ["product-observer"]}
+      ],
+      "reviewer": {
+        "mode": "review",
+        "contract": false,
+        "dispatch": "none-for-this-stage",
+        "condition": {"rigors": [], "dispatch": false, "mandatory": false, "blocking": false},
+        "scope": "observer returns findings; the existing reviewer judges findings_validity and coverage_adequacy at review-verdict/goal-finish"
+      },
+      "responsibilities": {
+        "semantic_checks": [
+          {"check": "product-observation-discover", "owner_seat": "product-observer-subagent", "kind": "observation", "phase": "discover"},
+          {"check": "product-observation-compare", "owner_seat": "product-observer-subagent", "kind": "observation", "phase": "compare"}
+        ],
+        "formal_verification": {"owner_seat": "controller", "gate": "check.py product-audit-gate", "producer": "check.py"}
+      },
+      "ui_acceptance": "observer holds the exclusive UI lease over the delivered candidate during discover/compare; planned ui-acceptance scenarios stay controller-executed before this stage; packets are generated via workflow_packets.py observer",
+      "domain_skills": "backend routing per product-observer/references/backend-routing.md; adapters (direct-multimodal/playwright-cli/midscene/ui-tars; media via ffmpeg) only after live probes pass on the host"
+    },
+    {
       "stage_id": "contract-release",
       "entry": "Audited contract release final audit",
       "rigors": ["audited"],

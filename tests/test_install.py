@@ -38,26 +38,43 @@ class InstallTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.repo = Path(temporary.name).resolve()
+        self.engine_scripts = (
+            "check.py",
+            "assurance_policy.py",
+            "evidence_registry.py",
+            "package_seal.py",
+            "verification_runner.py",
+            "runtime_trace.py",
+            "product_observation.py",
+            "workflow_metrics.py",
+            "workflow_packets.py",
+            "workflow_runtime.py",
+            "workflow_protocol.py",
+            "worktree_tasks.py",
+            "check_runtime.py",
+            "observation_contract.py",
+            "observation_candidate.py",
+            "observation_results.py",
+            "observation_resume.py",
+            "observation_vision.py",
+            "observation_media.py",
+            "observation_process.py",
+            "observation_capture.py",
+            "observation_backend.py",
+            "visibility_config.py",
+            "runtime_state_policy.py",
+        )
         self.sources = {
             ".opencode/commands/build.md": "command\n",
             ".opencode/agents/mvp-worker.md": "agent\n",
             ".opencode/agents/mvp-reviewer.md": "agent\n",
-            "scripts/check.py": "# check\n",
-            "scripts/assurance_policy.py": "# assurance\n",
-            "scripts/evidence_registry.py": "# registry\n",
-            "scripts/package_seal.py": "# seal\n",
-            "scripts/verification_runner.py": "# runner\n",
-            "scripts/runtime_trace.py": "# trace\n",
-            "scripts/workflow_metrics.py": "# metrics\n",
-            "scripts/workflow_packets.py": "# packets\n",
-            "scripts/workflow_runtime.py": "# runtime\n",
-            "scripts/workflow_protocol.py": "# protocol\n",
-            "scripts/worktree_tasks.py": "# worktrees\n",
-            "scripts/check_runtime.py": "# doctor\n",
+            ".opencode/plugins/workflow-visibility.js": "// visibility plugin\n",
             "mvp-delivery/references/stage-routing.json": '{"schema_version": 2, "stages": [], "seat_selection": {}}\n',
             "tests/final_review.py": "# review\n",
             "tests/fixtures/example.md": "fixture\n",
         }
+        for script_name in self.engine_scripts:
+            self.sources[f"scripts/{script_name}"] = f"# {script_name}\n"
         for relative, content in self.sources.items():
             path = self.repo / relative
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -89,10 +106,13 @@ class InstallTests(unittest.TestCase):
             os.chdir(previous_cwd)
 
     def test_default_root_skips_same_file_and_records_manifest(self):
+        engine_sources = [
+            relative for relative in self.sources if not relative.startswith(".opencode/")
+        ]
         with mock.patch.object(install.shutil, "copy2", wraps=install.shutil.copy2) as copy:
             self.run_install()
             self.run_install()
-        self.assertEqual(copy.call_count, 30)
+        self.assertEqual(copy.call_count, 2 * len(engine_sources))
         for call in copy.call_args_list:
             self.assertFalse(call.args[0].samefile(call.args[1]))
         engine = self.repo / ".opencode/workflow"
@@ -104,7 +124,7 @@ class InstallTests(unittest.TestCase):
             if relative == "mvp-delivery/references/stage-routing.json":
                 key = "stage-routing.json"
             expected[key] = hashlib.sha256(source.read_bytes()).hexdigest()
-            destination = source if key.startswith(("commands/", "agents/")) else engine / key
+            destination = source if key.startswith(("commands/", "agents/", "plugins/")) else engine / key
             self.assertEqual(destination.read_bytes(), source.read_bytes())
         expected_skills = {}
         for name in ("computer-use", "planning"):
@@ -142,28 +162,77 @@ class InstallTests(unittest.TestCase):
             for path in Path(root).rglob("SKILL.md")
         ]
         self.assertEqual(sorted(discovered), ["computer-use", "planning"])
+        expected_files = [
+            "opencode.json", ".opencode/commands/build.md",
+            ".opencode/agents/mvp-reviewer.md", ".opencode/agents/mvp-worker.md",
+            ".opencode/plugins/workflow-visibility.js",
+            ".opencode/workflow/install-manifest.json",
+            ".opencode/workflow/stage-routing.json",
+            *[f".opencode/workflow/scripts/{name}" for name in self.engine_scripts],
+            ".opencode/workflow/tests/final_review.py",
+            ".opencode/workflow/tests/fixtures/example.md",
+        ]
         self.assertEqual(
             sorted(path.relative_to(target).as_posix() for path in target.rglob("*") if path.is_file()),
-            sorted([
-                "opencode.json", ".opencode/commands/build.md",
-                ".opencode/agents/mvp-reviewer.md", ".opencode/agents/mvp-worker.md",
-                ".opencode/workflow/install-manifest.json",
-                ".opencode/workflow/stage-routing.json",
-                ".opencode/workflow/scripts/check.py",
-                ".opencode/workflow/scripts/assurance_policy.py",
-                ".opencode/workflow/scripts/evidence_registry.py",
-                ".opencode/workflow/scripts/package_seal.py",
-                ".opencode/workflow/scripts/verification_runner.py",
-                ".opencode/workflow/scripts/runtime_trace.py",
-                ".opencode/workflow/scripts/workflow_metrics.py",
-                ".opencode/workflow/scripts/workflow_packets.py",
-                ".opencode/workflow/scripts/workflow_runtime.py",
-                ".opencode/workflow/scripts/workflow_protocol.py",
-                ".opencode/workflow/scripts/worktree_tasks.py",
-                ".opencode/workflow/scripts/check_runtime.py",
-                ".opencode/workflow/tests/final_review.py",
-                ".opencode/workflow/tests/fixtures/example.md",
-            ]),
+            sorted(expected_files),
+        )
+        manifest = json.loads(
+            (target / ".opencode/workflow/install-manifest.json").read_text(encoding="utf-8")
+        )
+        self.assertIn("plugins/workflow-visibility.js", manifest["files"])
+        for name in self.engine_scripts:
+            self.assertIn(f"scripts/{name}", manifest["files"])
+            self.assertEqual(
+                (target / ".opencode/workflow/scripts" / name).read_bytes(),
+                (self.repo / "scripts" / name).read_bytes(),
+            )
+        self.assertEqual(
+            (target / ".opencode/plugins/workflow-visibility.js").read_bytes(),
+            (self.repo / ".opencode/plugins/workflow-visibility.js").read_bytes(),
+        )
+
+    def test_plugin_dependency_hint_when_node_modules_missing(self):
+        target = self.repo / "pluginhint"
+        target.mkdir()
+        output = self.run_install(str(target))
+        self.assertIn(
+            "plugin dependency missing: "
+            f'run "npm install" in {(target / ".opencode").as_posix()} '
+            "(package.json must include @opencode-ai/plugin)",
+            output,
+        )
+
+    def test_plugin_dependency_hint_omitted_when_node_modules_present(self):
+        target = self.repo / "pluginpresent"
+        (target / ".opencode/node_modules/@opencode-ai/plugin").mkdir(parents=True)
+        output = self.run_install(str(target))
+        self.assertNotIn("plugin dependency missing", output)
+
+    def test_commands_only_skips_plugins_and_engine_scripts(self):
+        target = self.repo / "commandsonly"
+        target.mkdir()
+        output = self.run_install(str(target), "--commands-only")
+        self.assertTrue((target / ".opencode/commands/build.md").is_file())
+        self.assertFalse((target / ".opencode/plugins").exists())
+        self.assertFalse((target / ".opencode/workflow/scripts").exists())
+        manifest = json.loads(
+            (target / ".opencode/workflow/install-manifest.json").read_text(encoding="utf-8")
+        )
+        self.assertFalse(any(key.startswith(("scripts/", "plugins/")) for key in manifest["files"]))
+        self.assertNotIn("plugin dependency missing", output)
+
+    def test_refuses_unowned_plugin_overwrite_and_force_replaces(self):
+        target = self.repo / "pluginowned"
+        (target / ".opencode/plugins").mkdir(parents=True)
+        existing = target / ".opencode/plugins/workflow-visibility.js"
+        existing.write_text("local plugin\n", encoding="utf-8")
+        with self.assertRaisesRegex(SystemExit, "refusing to overwrite unowned file"):
+            self.run_install(str(target))
+        self.assertEqual(existing.read_text(encoding="utf-8"), "local plugin\n")
+        self.run_install(str(target), "--force")
+        self.assertEqual(
+            existing.read_bytes(),
+            (self.repo / ".opencode/plugins/workflow-visibility.js").read_bytes(),
         )
 
     def test_installed_engine_resolves_its_own_routing_copy(self):

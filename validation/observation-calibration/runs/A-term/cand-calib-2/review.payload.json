@@ -1,0 +1,8 @@
+{
+  "schema": "product-observation-review/2",
+  "findings_validity": "sufficient",
+  "coverage_adequacy": "sufficient",
+  "verdict": "sufficient",
+  "notes": "Candidate cand-calib-2: evidence is readable and supports the reported clean runs; both documented modes reach game over with exit code 0. No material findings or missing goal surfaces identified.",
+  "related_finding_ids": []
+}

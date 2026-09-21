@@ -8,6 +8,7 @@ Commands:
   check.py verify-goal <.opencode/mvp/goal.md> <O-NN> --evidence <path> [--recover-interrupted] [--reuse <equivalent-evidence>]
   check.py finish-goal <.opencode/mvp/goal.md>
   check.py check-current <.opencode/mvp/goal.md>
+  check.py product-audit-gate <.opencode/mvp/goal.md> --trace <trace.json>
   check.py runtime-gate <.opencode/mvp/goal.md> --trace <trace.json> [--dispatch <dispatch.json>] [--policy <policy.json>]
   check.py ui-gate <.opencode/mvp/goal.md> --trace <trace.json> [--bind]
   check.py contract <docs/contract.md>
@@ -76,6 +77,22 @@ except ImportError as _exc:  # pragma: no cover - engine copied without assuranc
     _ASSURANCE_POLICY_IMPORT_ERROR = str(_exc)
 else:
     _ASSURANCE_POLICY_IMPORT_ERROR = None
+
+try:
+    import product_observation as _product_observation
+except ImportError as _exc:  # pragma: no cover - engine copied without product_observation
+    _product_observation = None
+    _PRODUCT_OBSERVATION_IMPORT_ERROR = str(_exc)
+else:
+    _PRODUCT_OBSERVATION_IMPORT_ERROR = None
+
+try:
+    import runtime_state_policy as _state_policy
+except ImportError as _exc:  # pragma: no cover - engine copied without runtime_state_policy
+    _state_policy = None
+    _STATE_POLICY_IMPORT_ERROR = str(_exc)
+else:
+    _STATE_POLICY_IMPORT_ERROR = None
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "tests" / "fixtures"
@@ -430,8 +447,11 @@ def validate_goal(goal):
         "schema_version", "id", "status", "source", "goal", "rigor",
         "risk", "first_slice", "demo", "constraints", "deferred", "outcomes",
     ), "goal", problems)
-    if type(goal.get("schema_version")) is not int or goal.get("schema_version") != 1:
-        problems.append("goal.schema_version must be 1")
+    if (
+        type(goal.get("schema_version")) is not int
+        or goal.get("schema_version") not in (1, 2)
+    ):
+        problems.append("goal.schema_version must be 1 or 2")
     if not isinstance(goal.get("id"), str) or not GOAL_ID_RE.fullmatch(goal.get("id", "")):
         problems.append("goal.id must match G-NAME")
     if not isinstance(goal.get("status"), str) or goal.get("status") not in GOAL_STATUS:
@@ -609,6 +629,8 @@ def validate_goal(goal):
                     for ref in ui_outcomes:
                         if ref not in outcome_ids:
                             problems.append(f"goal.ui.outcome_ids references unknown outcome {ref}")
+    if _product_observation is not None:
+        problems.extend(_product_observation.observation_spec_problems(goal))
     return problems
 
 
@@ -1158,8 +1180,39 @@ def workspace_snapshot(root, extra_excludes=(), include_patterns=()):
     return digest.hexdigest(), counted
 
 
+def _state_policy_file(goal_path):
+    goal = Path(goal_path)
+    return goal.parent / (goal.stem + ".runtime-state.json")
+
+
+def _load_state_policy(goal_path, goal_id):
+    """Return (binding_or_None, problems) for the goal's runtime-state policy.
+
+    A missing policy file is legacy behavior (no exclusions). An existing file
+    with an invalid structure, or an engine that lacks the policy module while
+    a policy file exists, is an error, never a silent pass.
+    """
+
+    if _state_policy is None:
+        path = _state_policy_file(goal_path)
+        if path.exists():
+            return None, [
+                "runtime_state_policy.py is not available next to check.py; cannot "
+                f"load {path.name} ({_STATE_POLICY_IMPORT_ERROR})"
+            ]
+        return None, []
+    return _state_policy.load_policy(goal_path, goal_id)
+
+
+def _state_policy_excludes(project_root, binding):
+    if _state_policy is None or binding is None:
+        return []
+    return _state_policy.snapshot_excludes(project_root, binding)
+
+
 def run_command_evidence(command, cwd, evidence_path, metadata, timeout_seconds,
-                         recover=False, recover_interrupted=False, snapshot_include=()):
+                         recover=False, recover_interrupted=False, snapshot_include=(),
+                         state_excludes=()):
     evidence_path = Path(evidence_path)
     expected = dict(metadata, schema_version=1, command=command,
                     cwd=str(Path(cwd).resolve()), timeout_seconds=timeout_seconds)
@@ -1197,7 +1250,7 @@ def run_command_evidence(command, cwd, evidence_path, metadata, timeout_seconds,
             "started_at", "finished_at", "elapsed_seconds", "timed_out",
             "exit_code", "stdout", "stderr", "result",
             "workspace_before", "workspace_after", "workspace_changed",
-            "reservation_recovered",
+            "reservation_recovered", "runtime_state_policy",
         }
         if not required_fields <= set(payload) or not set(payload) <= allowed:
             raise ValueError("unexpected evidence fields")
@@ -1215,7 +1268,7 @@ def run_command_evidence(command, cwd, evidence_path, metadata, timeout_seconds,
 
     evidence_path.parent.mkdir(parents=True, exist_ok=True)
     temp = evidence_path.with_suffix(evidence_path.suffix + ".tmp")
-    snapshot_excludes = (evidence_path, temp)
+    snapshot_excludes = (evidence_path, temp) + tuple(state_excludes)
     workspace_before, _ = workspace_snapshot(cwd, snapshot_excludes, snapshot_include)
     reservation_recovered = False
     if temp.exists():
@@ -1316,7 +1369,8 @@ def run_command_evidence(command, cwd, evidence_path, metadata, timeout_seconds,
     return payload, hashlib.sha256(evidence_path.read_bytes()).hexdigest()
 
 
-def reuse_goal_evidence(project_root, expectation, resolved_evidence, source_path, snapshot_include=()):
+def reuse_goal_evidence(project_root, expectation, resolved_evidence, source_path,
+                        snapshot_include=(), state_excludes=()):
     """Write a new goal evidence record that references an equivalent run.
 
     The caller builds `expectation` from the authoritative request; this
@@ -1345,7 +1399,7 @@ def reuse_goal_evidence(project_root, expectation, resolved_evidence, source_pat
         raise ValidationError(
             "reuse source is not strictly equivalent: " + "; ".join(problems)
         )
-    current, _ = workspace_snapshot(project_root, include_patterns=snapshot_include)
+    current, _ = workspace_snapshot(project_root, state_excludes, include_patterns=snapshot_include)
     if source.get("workspace_after") != current:
         raise ValidationError(
             "workspace changed after the source run; reuse refused, re-run the verification"
@@ -1390,6 +1444,9 @@ def reuse_goal_evidence(project_root, expectation, resolved_evidence, source_pat
         },
         "reused_at": now,
     }
+    policy_binding = expectation.get("runtime_state_policy")
+    if policy_binding is not None:
+        payload["runtime_state_policy"] = policy_binding
     if "assertion" in expectation:
         payload["assertion"] = expectation["assertion"]
         payload["assertion_passed"] = True
@@ -1418,6 +1475,12 @@ def verify_goal_outcome(goal_path, outcome_id, evidence_path, recover_interrupte
         if not outcome:
             raise ValidationError(f"unknown goal outcome: {outcome_id}")
         project_root = goal_project_root(goal_path)
+        policy_binding, policy_problems = _load_state_policy(goal_path, goal["id"])
+        if policy_problems:
+            raise ValidationError(
+                "runtime-state policy is invalid:\n- " + "\n- ".join(policy_problems)
+            )
+        state_excludes = _state_policy_excludes(project_root, policy_binding)
         evidence_path = Path(evidence_path)
         if ".." in evidence_path.parts:
             raise ValidationError("goal evidence path cannot contain parent traversal")
@@ -1439,8 +1502,11 @@ def verify_goal_outcome(goal_path, outcome_id, evidence_path, recover_interrupte
             "expected": verification["expected"],
             "assertion": verification["assertion"],
         }
+        if policy_binding is not None:
+            metadata["runtime_state_policy"] = policy_binding
         if reuse_from is not None:
             expectation = dict(metadata)
+            expectation.setdefault("runtime_state_policy", policy_binding)
             expectation.update(
                 {
                     "command": verification["command"],
@@ -1457,6 +1523,7 @@ def verify_goal_outcome(goal_path, outcome_id, evidence_path, recover_interrupte
                 resolved_evidence,
                 source_path,
                 snapshot_include,
+                state_excludes,
             )
         else:
             payload, evidence_hash = run_command_evidence(
@@ -1465,6 +1532,7 @@ def verify_goal_outcome(goal_path, outcome_id, evidence_path, recover_interrupte
                 verification.get("timeout_seconds", 120),
                 recover_interrupted=recover_interrupted,
                 snapshot_include=snapshot_include,
+                state_excludes=state_excludes,
             )
         updated = json.loads(json.dumps(goal))
         updated_outcome = next(item for item in updated["outcomes"] if item["id"] == outcome_id)
@@ -2151,11 +2219,24 @@ def enforce_workspace_binding(goal_path, goal):
     (`workspace_after` in the evidence payload). Any later change to a
     non-excluded file invalidates those results until the affected outcomes
     are re-verified with fresh evidence. Workflow state, evidence files,
-    caches and generated outputs are excluded from the snapshot by design.
+    caches and generated outputs are excluded from the snapshot by design, and
+    a valid runtime-state policy excludes the product-managed files it names.
+
+    The recorded policy binding must still equal the current one: adding
+    exclusions after verification is a policy change, not a repair, so old
+    evidence turns stale instead of being revived.
     """
 
     project_root = goal_project_root(goal_path)
-    current, _ = workspace_snapshot(project_root, include_patterns=goal.get("snapshot_include") or [])
+    binding, policy_problems = _load_state_policy(goal_path, goal.get("id"))
+    if policy_problems:
+        raise ValidationError(
+            "runtime-state policy is invalid:\n- " + "\n- ".join(policy_problems)
+        )
+    state_excludes = _state_policy_excludes(project_root, binding)
+    current, _ = workspace_snapshot(
+        project_root, state_excludes, include_patterns=goal.get("snapshot_include") or []
+    )
     problems = []
     for outcome in goal.get("outcomes", []):
         if outcome.get("status") != "verified":
@@ -2171,6 +2252,13 @@ def enforce_workspace_binding(goal_path, goal):
         except (OSError, json.JSONDecodeError):
             problems.append(f"{outcome.get('id')}: evidence unreadable: {rel_path}")
             continue
+        recorded_policy = payload.get("runtime_state_policy") if isinstance(payload, dict) else None
+        if canonical_bytes(recorded_policy) != canonical_bytes(binding):
+            problems.append(
+                f"{outcome.get('id')}: runtime-state policy changed after verification; "
+                "re-verify"
+            )
+            continue
         recorded = payload.get("workspace_after") if isinstance(payload, dict) else None
         if not isinstance(recorded, str) or not recorded:
             problems.append(
@@ -2185,6 +2273,171 @@ def enforce_workspace_binding(goal_path, goal):
         raise ValidationError("workspace binding failed:\n- " + "\n- ".join(problems))
 
 
+def enforce_product_observation(goal_path, goal):
+    """Mechanical whole-product observation gate for schema-2 goals.
+
+    Enforced by `finish-goal` and `check-current` when
+    `goal.product_observation.required` is true. Fail-closed: the gate record
+    written by `product-audit-gate` must bind the current goal definition and a
+    native runtime trace, and the gate problems are recomputed from that trace
+    instead of trusting the cached verdict.
+    """
+
+    spec = goal.get("product_observation") if isinstance(goal, dict) else None
+    if goal.get("schema_version") != 2:
+        return
+    if not isinstance(spec, dict) or spec.get("required") is not True:
+        return
+    if _product_observation is None:
+        raise ValidationError(
+            "product_observation engine module unavailable; cannot enforce the observation gate"
+        )
+    goal_path = Path(goal_path)
+    restart = (
+        "run 'check.py product-audit-gate <goal> --trace <native trace>' first"
+    )
+    goal_id = goal.get("id")
+    if not isinstance(goal_id, str) or not goal_id.strip():
+        raise ValidationError(
+            "product observation gate cannot be located: the goal card has no id; " + restart
+        )
+    sidecar, _sidecar_error = _product_observation._load_json(
+        _product_observation.audit_sidecar_path(goal_path)
+    )
+    candidate_id = sidecar.get("current_candidate") if isinstance(sidecar, dict) else None
+    if not isinstance(candidate_id, str) or not candidate_id.strip():
+        raise ValidationError(
+            "product observation gate record is missing or unlocatable (the product-audit "
+            "sidecar has no current candidate); " + restart
+        )
+    gate_file = (
+        _product_observation.candidate_dir(goal_path, goal_id, candidate_id) / "gate.json"
+    )
+    gate, gate_error = _product_observation._load_json(gate_file)
+    if gate_error or not isinstance(gate, dict):
+        raise ValidationError(
+            f"product observation gate record missing or unreadable ({gate_file}); " + restart
+        )
+    if gate.get("schema") != _product_observation.GATE_SCHEMA:
+        raise ValidationError(
+            f"product observation gate record schema must be "
+            f"{_product_observation.GATE_SCHEMA}; " + restart
+        )
+    if gate.get("goal_id") != goal_id or gate.get("candidate_id") != candidate_id:
+        raise ValidationError(
+            "product observation gate record was issued for a different goal or candidate; "
+            + restart
+        )
+    if gate.get("verdict") != "passed":
+        raise ValidationError(
+            "product observation gate verdict is not passed: "
+            + "; ".join(gate.get("failures") or ["unknown failures"])
+        )
+    if gate.get("goal_definition_hash") != goal_definition_hash(goal):
+        raise ValidationError(
+            "product observation gate is stale: the goal definition changed after the gate "
+            "ran; " + restart
+        )
+    trace_record = gate.get("trace")
+    if (
+        not isinstance(trace_record, dict)
+        or not isinstance(trace_record.get("path"), str)
+        or not trace_record["path"].strip()
+        or not isinstance(trace_record.get("sha256"), str)
+        or not trace_record["sha256"].strip()
+    ):
+        raise ValidationError(
+            "product observation gate record has no trace binding; " + restart
+        )
+    trace_path = Path(trace_record["path"])
+    if not trace_path.is_file():
+        raise ValidationError(
+            f"product observation gate is stale: trace file no longer exists ({trace_path}); "
+            + restart
+        )
+    if _sha256_file(trace_path) != trace_record["sha256"]:
+        raise ValidationError(
+            "product observation gate is stale: the trace file changed after the gate ran; "
+            + restart
+        )
+    if trace_record.get("provenance") != "native":
+        raise ValidationError(
+            "product observation gate was not produced from native session evidence; " + restart
+        )
+    if _runtime_trace is None:
+        raise ValidationError(
+            "runtime_trace.py is not available next to check.py; cannot reload the gated "
+            "observation trace"
+        )
+    try:
+        loaded_trace = _runtime_trace.load_trace(trace_path)
+    except Exception as exc:
+        raise ValidationError(f"product observation trace is unreadable: {exc}") from exc
+    problems = _product_observation.collect_observation_problems(
+        goal, goal_path, trace=loaded_trace
+    )
+    problems = list(problems) + observation_state_policy_problems(goal_path, goal)
+    if problems:
+        raise ValidationError(
+            "product observation gate failed:\n- " + "\n- ".join(problems)
+        )
+
+
+def observation_state_policy_problems(goal_path, goal):
+    """Align the adopted candidate's runtime state with the policy sidecar (S07).
+
+    The candidate manifest declares which product-managed files may change
+    (S06); the policy declares which of those the verification snapshot may
+    exclude. A candidate that declares runtime state without a policy, or with
+    paths the policy does not cover, cannot have its writes excluded, so it is
+    refused up front. A missing sidecar or manifest is left to
+    `collect_observation_problems` (one diagnosis, not two).
+    """
+
+    if not isinstance(goal, dict):
+        return []
+    binding, policy_problems = _load_state_policy(goal_path, goal.get("id"))
+    if policy_problems:
+        return policy_problems
+    if goal.get("schema_version") != 2:
+        return []
+    spec = goal.get("product_observation")
+    if not isinstance(spec, dict) or spec.get("required") is not True:
+        return []
+    if _product_observation is None:
+        return []
+    goal_id = goal.get("id")
+    if not isinstance(goal_id, str) or not goal_id.strip():
+        return []
+    goal_path = Path(goal_path)
+    sidecar, _error = _product_observation._load_json(
+        _product_observation.audit_sidecar_path(goal_path)
+    )
+    if not isinstance(sidecar, dict):
+        return []
+    candidate_id = sidecar.get("current_candidate")
+    if not isinstance(candidate_id, str) or not candidate_id.strip():
+        return []
+    manifest, _manifest_error = _product_observation._load_json(
+        _product_observation.candidate_dir(goal_path, goal_id, candidate_id)
+        / "candidate.json"
+    )
+    if not isinstance(manifest, dict):
+        return []
+    candidate_module = getattr(_product_observation, "_candidate", None)
+    if candidate_module is None:
+        return []
+    candidate_paths = candidate_module.runtime_state_paths(manifest)
+    if _state_policy is None:
+        if candidate_paths:
+            return [
+                "candidate declares runtime_state but runtime_state_policy.py is not "
+                "available next to check.py; cannot check policy coverage"
+            ]
+        return []
+    return _state_policy.candidate_policy_alignment_problems(candidate_paths, binding)
+
+
 def finish_goal(goal_path):
     with file_lock(str(goal_path) + ".runtime"):
         meta, goal, problems = validate_goal_artifact(goal_path)
@@ -2196,6 +2449,7 @@ def finish_goal(goal_path):
             raise ValidationError("finish-goal requires every outcome to have engine-verified evidence")
         enforce_runtime_gate(goal_path, goal)
         enforce_ui_gate(goal_path, goal)
+        enforce_product_observation(goal_path, goal)
         enforce_workspace_binding(goal_path, goal)
         updated = json.loads(json.dumps(goal))
         updated["status"] = "complete"
@@ -2221,6 +2475,7 @@ def check_current(goal_path):
     if problems:
         raise ValidationError("goal is invalid:\n- " + "\n- ".join(problems))
     enforce_workspace_binding(goal_path, goal)
+    enforce_product_observation(goal_path, goal)
     return goal
 
 
@@ -5097,6 +5352,65 @@ def main(argv):
             goal = check_current(argv[2])
             print(f"current goal {goal['id']}: recorded evidence still matches the workspace")
             return 0
+        if command == "product-audit-gate" and len(argv) >= 3:
+            if _product_observation is None:
+                raise ValidationError(
+                    "product_observation engine module unavailable: "
+                    + (_PRODUCT_OBSERVATION_IMPORT_ERROR or "import failed")
+                )
+            _, goal, goal_problems = validate_goal_artifact(argv[2])
+            if goal_problems:
+                return report("goal", goal_problems)
+            spec = goal.get("product_observation") or {}
+            if goal.get("schema_version") != 2 or spec.get("required") is not True:
+                print("product observation: not required for this goal (schema 1 or required=false)")
+                return 0
+            if "--trace" not in argv:
+                raise ValidationError(
+                    "product-audit-gate requires --trace <native trace> for goals with "
+                    "product_observation.required=true"
+                )
+            trace_path = Path(argv[argv.index("--trace") + 1])
+            if not trace_path.is_file():
+                raise ValidationError(f"runtime trace not found: {trace_path}")
+            if _runtime_trace is not None:
+                try:
+                    trace = _runtime_trace.load_trace(trace_path)
+                except Exception as exc:
+                    raise ValidationError(f"runtime trace is unreadable: {exc}") from exc
+                provenance = _runtime_trace.trace_provenance(trace)
+            else:
+                try:
+                    trace = json.loads(trace_path.read_text(encoding="utf-8-sig"))
+                except (OSError, json.JSONDecodeError) as exc:
+                    raise ValidationError(f"runtime trace is unreadable: {exc}") from exc
+                provenance = "unverified"
+            if not isinstance(trace, dict):
+                raise ValidationError("runtime trace must be a JSON object")
+            problems = _product_observation.collect_observation_problems(
+                goal, argv[2], trace=trace
+            )
+            problems = list(problems) + observation_state_policy_problems(argv[2], goal)
+            if provenance != "native":
+                problems = list(problems) + ["trace provenance is not native"]
+            trace_binding = {
+                "path": str(trace_path),
+                "sha256": _sha256_file(trace_path),
+                "provenance": provenance,
+            }
+            gate_path = _product_observation.write_gate_record(
+                goal,
+                argv[2],
+                problems,
+                trace_binding=trace_binding,
+                goal_definition_hash=goal_definition_hash(goal),
+            )
+            print(f"product audit gate: {'pass' if not problems else 'fail'}")
+            for failure in problems:
+                print(f"  - {failure}")
+            if gate_path is not None:
+                print(f"gate record: {gate_path}")
+            return 0 if not problems else 1
         if command == "runtime-gate" and len(argv) >= 4:
             if "--trace" not in argv:
                 raise ValidationError("runtime-gate requires --trace")

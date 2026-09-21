@@ -1,0 +1,207 @@
+{
+  "schema": "product-observation/1",
+  "goal_id": "G-OBS",
+  "phase": "discover",
+  "candidate_id": "cand-fix",
+  "candidate_manifest": ".opencode/mvp/observation/G-OBS/cand-fix/candidate.json",
+  "preflight": {
+    "manifest_sha256_verified": true,
+    "candidate_file_hashes_verified": true,
+    "backend": {
+      "kind": "terminal",
+      "status": "available",
+      "probe": "entry operation executed (python 3.10.7, PowerShell 5.1); stdout/stderr/exit codes captured and read; byte-level raw captures persisted to evidence dir",
+      "channels_observed": [
+        "stdout",
+        "stderr",
+        "exit_code",
+        "data_file_bytes"
+      ]
+    }
+  },
+  "lease": {
+    "resource_id": "terminal:notes-cli-local",
+    "owner": "product-observer session (discover, G-OBS/cand-fix)",
+    "status": "exclusive-during-observation"
+  },
+  "product_map": [
+    {
+      "surface_group": "SG1",
+      "id": "S1",
+      "name": "save <text>",
+      "entry": "python app/app.py save <text>",
+      "documented": "app/README.md: persists the note, prints 'Saved OK'",
+      "observed": "single-note store, overwrite semantics, writes UTF-8 file app/note.txt"
+    },
+    {
+      "surface_group": "SG1",
+      "id": "S2",
+      "name": "show",
+      "entry": "python app/app.py show",
+      "documented": "app/README.md: displays the saved note",
+      "observed": "prints note + newline; '(no note)' when data file absent"
+    },
+    {
+      "surface_group": "SG1",
+      "id": "S3",
+      "name": "--smoke flag (undocumented)",
+      "entry": "python app/app.py --smoke [cmd] [arg]",
+      "documented": "not in README; advertised by the product's own usage line",
+      "observed": "prints SMOKE-OK exit 0; short-circuits any trailing command"
+    },
+    {
+      "surface_group": "SG1",
+      "id": "S4",
+      "name": "usage/error paths",
+      "entry": "no args / unknown cmd / malformed args",
+      "documented": "n/a",
+      "observed": "usage line 'app.py [--smoke] [cmd] [arg]'; exit codes 0 or 2 depending on path"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "J1",
+      "name": "documented happy path",
+      "result": "pass",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-fix/evidence/j1-happy-path.txt"
+      ]
+    },
+    {
+      "id": "J2",
+      "name": "overwrite/continuity incl. quoted vs unquoted",
+      "result": "pass_with_finding_F-003",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-fix/evidence/j2-continuity.txt"
+      ]
+    },
+    {
+      "id": "J3",
+      "name": "cold start (no data file)",
+      "result": "pass",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-fix/evidence/j3-cold-start.txt"
+      ]
+    },
+    {
+      "id": "J4",
+      "name": "non-ASCII content round trip",
+      "result": "fail_F-002",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-fix/evidence/j4-unicode-encoding.md",
+        ".opencode/mvp/observation/G-OBS/cand-fix/evidence/j4-show-rawbytes.bin"
+      ]
+    },
+    {
+      "id": "J5",
+      "name": "edge & error invocations",
+      "result": "fail_F-001; F-004, F-005 recorded",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-fix/evidence/j5-edges.md",
+        ".opencode/mvp/observation/G-OBS/cand-fix/evidence/j5-show-long-rawbytes.bin"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-001",
+      "surface_ids": [
+        "S1"
+      ],
+      "severity": "high",
+      "category": "functional",
+      "confidence": "observed",
+      "observed": "`save` invoked with no argument prints 'Saved OK' with exit 0 and truncates app/note.txt to 0 bytes, destroying the previously stored note. Reproduced from a clean state: save 'precious note' -> Saved OK; show -> 'precious note'; bare save -> Saved OK exit 0; show -> empty output; note.txt length 0.",
+      "expected_basis": "Product's own usage/help presents text as required ('commands: save <text> | show') and README documents 'save <text>'; the same CLI rejects EXTRA arguments with exit 2 ('unrecognized arguments'), so accepting a MISSING required argument with destructive success is an internal contradiction. Silent data loss with false success feedback.",
+      "reproduction": "1) python app/app.py save 'precious note'  2) python app/app.py show  3) python app/app.py save  4) python app/app.py show  5) inspect app/note.txt length (0 bytes). Transcript: evidence/j5-edges.md",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-fix/evidence/j5-edges.md"
+      ],
+      "status": "confirmed"
+    },
+    {
+      "id": "F-002",
+      "surface_ids": [
+        "S2",
+        "S1"
+      ],
+      "severity": "medium",
+      "category": "functional",
+      "confidence": "observed",
+      "observed": "Non-ASCII notes: storage is UTF-8 (file bytes E4 BD A0 ... = correct UTF-8) but `show` stdout emits GBK/cp936 bytes (C4 E3 BA C3 ...) when piped. Under PYTHONIOENCODING=cp1252 simulation, `show` crashes with UnicodeEncodeError, exit 1. ASCII-only content is unaffected on all paths.",
+      "expected_basis": "Internal state contradiction: the product writes UTF-8 to disk but encodes its only declared channel (stdout) with the ambient locale codec; the same saved note is thus unreadable or fatal depending on consumer locale/pipe usage. README promises 'show displays the saved note' without locale caveats.",
+      "reproduction": "1) python app/app.py save '你好，世界！'  2) python app/app.py show | capture raw bytes (GBK, mojibake when UTF-8-decoded)  3) PYTHONIOENCODING=cp1252 python app/app.py show -> UnicodeEncodeError exit 1. Details: evidence/j4-unicode-encoding.md; raw stdout bytes: evidence/j4-show-rawbytes.bin",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-fix/evidence/j4-unicode-encoding.md",
+        ".opencode/mvp/observation/G-OBS/cand-fix/evidence/j4-show-rawbytes.bin"
+      ],
+      "status": "confirmed"
+    },
+    {
+      "id": "F-003",
+      "surface_ids": [
+        "S1"
+      ],
+      "severity": "low",
+      "category": "ux",
+      "confidence": "observed",
+      "observed": "Unquoted multi-word invocation `python app/app.py save second note text` fails with exit 2, 'unrecognized arguments: note text'; the stored note remains intact. Quoted invocation works.",
+      "expected_basis": "README documents 'python app.py save <text>' with no quoting guidance; the natural reading invites the failing form. Error message is clear and no data is damaged, hence low severity.",
+      "reproduction": "python app/app.py save second note text (exit 2); python app/app.py save 'second note text' (exit 0). Transcript: evidence/j2-continuity.txt",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-fix/evidence/j2-continuity.txt"
+      ],
+      "status": "confirmed"
+    },
+    {
+      "id": "F-004",
+      "surface_ids": [
+        "S3",
+        "S4"
+      ],
+      "severity": "low",
+      "category": "continuity",
+      "confidence": "observed",
+      "observed": "Undocumented flag --smoke is advertised in the product's own usage line. `--smoke` prints SMOKE-OK exit 0; `--smoke show` also prints only SMOKE-OK exit 0, silently ignoring the trailing command.",
+      "expected_basis": "README documents only save/show; the flag appears in the product's public usage output, and its short-circuit silently swallows a documented command (silent-failure pattern).",
+      "reproduction": "1) python app/app.py --smoke  2) python app/app.py --smoke show. Transcript: evidence/j5-edges.md",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-fix/evidence/j5-edges.md"
+      ],
+      "status": "confirmed"
+    },
+    {
+      "id": "F-005",
+      "surface_ids": [
+        "S1",
+        "S2",
+        "S4"
+      ],
+      "severity": "low",
+      "category": "ux",
+      "confidence": "observed",
+      "observed": "Argument validation is inconsistent: `save a b` exits 2 ('unrecognized arguments: b') but `show extra` exits 0 with the extra argument ignored; both no-args and unknown commands (e.g. `fly`) print usage with exit 0.",
+      "expected_basis": "The usage line declares a single [arg] for both commands; the product enforces it for save but not show, and signals misuse with exit 0, so scripts cannot detect failed invocations.",
+      "reproduction": "1) python app/app.py save a b (exit 2, reproduced twice)  2) python app/app.py show extra (exit 0, reproduced twice)  3) python app/app.py / python app/app.py fly (exit 0). Transcript: evidence/j5-edges.md",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-fix/evidence/j5-edges.md"
+      ],
+      "status": "confirmed"
+    }
+  ],
+  "unobserved_areas": [
+    "multi-line notes (not creatable through the public CLI surface)",
+    "round trip of a note externally edited in another tool (file opened/edited outside the CLI was not exercised)",
+    "very large notes (largest tested: 300 chars)",
+    "concurrent invocations"
+  ],
+  "capability_gaps": [],
+  "continuation": null,
+  "stop_reason": "coverage-complete: all README-documented surfaces plus the undocumented --smoke surface exercised with representative journeys, error/edge paths covered, within budget (approx. 25 semantic actions of 40, ~15 min of 30); findings recorded with repro-grade evidence",
+  "observer_notes": "Two observer-side anomalies were investigated and disproven as product defects before recording: a false '300-char truncation' (PowerShell scalar indexing artifact, disproven at byte level: show stdout = 302 bytes = content + CRLF) and an initial wrong evidence path for the raw-byte capture. Blind independence maintained: no app source, no prior-round results, no goal card read; candidate identity verified by SHA-256 against the manifest.",
+  "packet_hash": "d86a8daf7920c22bd436ede2d1690ea44ed863055c8ded55f1390b7983df83f6",
+  "surfaces": [],
+  "unobserved": [],
+  "evidence_refs": [],
+  "observer_session_id": "ses_f3dc72cfdffe47SIrC07yEs93V"
+}

@@ -1,0 +1,187 @@
+{
+  "schema": "product-observation/1",
+  "phase": "discover",
+  "goal_id": "G-OBS",
+  "candidate_id": "cand-bad",
+  "status": "completed",
+  "baseline": "none",
+  "backend": {
+    "kind": "terminal",
+    "live_probe": "pass",
+    "channels_verified": [
+      "stdout"
+    ],
+    "notes": "Python 3.10.7 on windows-local sandbox; command transcripts captured to evidence dir; PowerShell NativeCommandError wrapping of stderr in some transcripts is a capture artifact, not app output"
+  },
+  "preflight": {
+    "identity_verified": true,
+    "manifest_hash_matches": [
+      "app/app.py:036bfa595772c2adb8932053994b27c026d4b2246cff66816d4a04295bd41d58",
+      "app/README.md:2c820db5e79766ea3530dfb9937ff668d8a427a1b9dd4ffa5bb3ca174742f6dc"
+    ],
+    "source_code_read": false
+  },
+  "product_map": {
+    "entry": "python app/app.py <cmd> [arg]",
+    "surfaces": [
+      {
+        "id": "S1",
+        "name": "set-theme valid values",
+        "observed": "light saves and view applies; dark saves (theme.cfg verified 'dark') but view renders light"
+      },
+      {
+        "id": "S2",
+        "name": "set-theme invalid/missing/case input",
+        "observed": "blue/DARK/Dark/missing arg all print 'Saved OK' exit 0; raw or default values persisted"
+      },
+      {
+        "id": "S3",
+        "name": "view command",
+        "observed": "renders 'rendering notes page with theme: <x>'; light for cfg=light/corrupt/missing; light even when cfg=dark; ignores extra arg"
+      },
+      {
+        "id": "S4",
+        "name": "usage/error surface",
+        "observed": "no-args and unknown-command print 'use: set-theme <light|dark> | view' exit 0; --help and extra args are argparse errors exit 2"
+      },
+      {
+        "id": "S5",
+        "name": "--smoke flag",
+        "observed": "prints SMOKE-OK, exit 0; undocumented in README"
+      },
+      {
+        "id": "S6",
+        "name": "theme.cfg persistence",
+        "observed": "created by set-theme, not created/reset by view, survives view, human-readable single token"
+      }
+    ]
+  },
+  "journeys": [
+    "J1 documented happy path set-theme dark -> view (FAILED, F-001)",
+    "J2 set-theme light -> view (works)",
+    "J3 persistence across invocations",
+    "J4 invalid/missing input handling",
+    "J5 --smoke",
+    "J6 case-variant input",
+    "J7 corrupt theme.cfg",
+    "J8 missing theme.cfg + recreate",
+    "J9 arg-count validation contrast"
+  ],
+  "findings": [
+    {
+      "id": "F-001",
+      "surface_ids": [
+        "S1",
+        "S3",
+        "S6"
+      ],
+      "severity": "critical",
+      "category": "functional",
+      "confidence": "observed",
+      "status": "confirmed",
+      "observed": "python app/app.py set-theme dark prints 'Saved OK' and theme.cfg verifiably contains 'dark'; python app/app.py view then prints 'rendering notes page with theme: light'. Reproduced 5/5 times including after cfg delete/recreate cycle. view does not rewrite the file (cfg stays 'dark').",
+      "expected_basis": "README: 'python app.py view renders the notes page with the saved theme applied'; packet purpose: 'A user can set the theme and the view applies it'. Save side works; view side never applies the persisted dark value.",
+      "reproduction": "evidence/repro-all-findings.ps1 block F-001: set-theme dark; Get-Content app/theme.cfg (=dark); view (=light)",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/j1-step1-set-theme-dark.out",
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/j1-step2-view.out",
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/f001-retry1-set-dark.out",
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/f001-retry1-view.out",
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/f001-retry2-view.out",
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/f001-cfg-after-set-dark.txt",
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/f001-cfg-after-view.txt",
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/j8-set-dark-recreate.out",
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/j8-view-after-recreate.out"
+      ]
+    },
+    {
+      "id": "F-002",
+      "surface_ids": [
+        "S2"
+      ],
+      "severity": "medium",
+      "category": "functional",
+      "confidence": "observed",
+      "status": "confirmed",
+      "observed": "set-theme blue, set-theme DARK, set-theme Dark, and bare set-theme each print 'Saved OK' with exit 0. Persisted values verified raw in theme.cfg: 'blue', 'DARK', 'Dark'; bare set-theme persists 'light'. Contrast: set-theme dark extra is rejected by the parser ('unrecognized arguments: extra', exit 2).",
+      "expected_basis": "README documents the value domain as <light|dark>; the product's own parser rejects invalid arg counts strictly, so silent acceptance of invalid/missing values with a success message is an internal contradiction and false user feedback.",
+      "reproduction": "evidence/repro-all-findings.ps1 block F-002",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/j4-invalid-theme.out",
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/j4-missing-arg.out",
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/j6-set-dark-upper.out",
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/j6-set-dark-mixed.out",
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/j7-cfg-after-blue.txt",
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/j7-cfg-after-bare.txt",
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/j9-settheme-two-args.out"
+      ]
+    },
+    {
+      "id": "F-003",
+      "surface_ids": [
+        "S4",
+        "S5"
+      ],
+      "severity": "low",
+      "category": "ux",
+      "confidence": "observed",
+      "status": "confirmed",
+      "observed": "python app/app.py --help fails with 'app.py: error: unrecognized arguments: --help', exit 2 (reproduced twice). Help content exists only as the usage line on no-args/unknown-command, which also advertises an undocumented --smoke flag.",
+      "expected_basis": "CLI convention and the product's own usage string 'usage: app.py [--smoke] [cmd] [arg]' imply a discoverable help surface; a first-time user's standard --help attempt errors instead.",
+      "reproduction": "evidence/repro-all-findings.ps1 block F-003",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/j4-help.out",
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/f003-help-retry.out",
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/j4-no-args.out",
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/j5-smoke.out"
+      ]
+    },
+    {
+      "id": "F-004",
+      "surface_ids": [
+        "S4"
+      ],
+      "severity": "low",
+      "category": "functional",
+      "confidence": "observed",
+      "status": "confirmed",
+      "observed": "Unknown command ('bogus-command') and no-args print the usage line but exit 0, while parser-level errors (--help, extra args) exit 2.",
+      "expected_basis": "Internal inconsistency with the product's own exit-code behavior elsewhere (exit 2 on argparse errors); callers cannot reliably detect failure on error paths.",
+      "reproduction": "evidence/repro-all-findings.ps1 block F-004",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/j4-unknown-cmd.out",
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/f004-unknown-cmd-retry.out",
+        ".opencode/mvp/observation/G-OBS/cand-bad/evidence/j4-no-args.out"
+      ]
+    }
+  ],
+  "capability_gaps": [
+    "Notes-page content beyond the 'theme: <x>' status line is not verifiable: no public surface creates notes and the packet provides no test data; the render output observed is a single status line only"
+  ],
+  "unobserved_areas": [],
+  "side_effects": {
+    "created": [
+      "app/theme.cfg (runtime artifact, not in candidate manifest)"
+    ],
+    "cleanup": "app/theme.cfg deleted after observation; candidate restored to pristine manifest state; app.py/README.md untouched"
+  },
+  "lease": {
+    "resource_id": "terminal-cli:cand-bad:app-state(theme.cfg)",
+    "owner_session": "product-observer discover (this session)",
+    "candidate_id": "cand-bad",
+    "status": "released"
+  },
+  "budget": {
+    "semantic_actions_used_approx": 30,
+    "cap_per_surface_group": 40,
+    "observation_cycles_over_limit": 0,
+    "wall_clock_minutes_approx": 10
+  },
+  "continuation": null,
+  "stop_reason": "coverage-complete: all material surfaces exercised, findings recorded with repro-first evidence, no unresolved budget exhaustion",
+  "packet_hash": "ae8aeee886872e6ef780877eeef86b35e18540fcc9f661cace497c4474082d7c",
+  "surfaces": [],
+  "unobserved": [],
+  "evidence_refs": [],
+  "observer_session_id": "ses_f3e0e4bf3ffeDNs4f23uo4LOfn"
+}

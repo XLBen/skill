@@ -1,0 +1,65 @@
+{
+  "schema": "product-observation/2",
+  "phase": "discover",
+  "stop_reason": "budget-exhausted",
+  "surfaces": [
+    {
+      "id": "S-01",
+      "name": "Main entry",
+      "importance": "material"
+    },
+    {
+      "id": "S-02",
+      "name": "Settings",
+      "importance": "material"
+    },
+    {
+      "id": "S-03",
+      "name": "Reports",
+      "importance": "peripheral"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "J-01",
+      "surface_ids": ["S-01"],
+      "evidence_refs": ["evidence/j01.png"],
+      "outcome": "covered"
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-01",
+      "surface_ids": ["S-01"],
+      "severity": "medium",
+      "category": "ux",
+      "confidence": "likely",
+      "observed": "The primary action label wraps at the default window size.",
+      "expected_basis": "The approved target keeps the label on one line.",
+      "reproduction": "Open the main entry at the default window size.",
+      "evidence_refs": ["evidence/f01.png"],
+      "status": "suspected"
+    }
+  ],
+  "unobserved": [
+    {
+      "surface_id": "S-02",
+      "reason": "budget exhausted before the settings pass"
+    }
+  ],
+  "capability_gaps": [
+    {
+      "channel": "browser",
+      "reason": "screenshot channel unavailable",
+      "evidence_refs": ["evidence/gap.txt"]
+    }
+  ],
+  "continuation": {
+    "visited_surface_ids": ["S-01"],
+    "pending_surface_ids": ["S-02", "S-03"],
+    "checkpoint": "after the entry sweep",
+    "state_ref": "state/round-001.json"
+  },
+  "evidence_refs": ["evidence/round-001.md"],
+  "notes": "Budget exhausted with settings pending; a continuation cursor is attached."
+}

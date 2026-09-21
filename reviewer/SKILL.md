@@ -46,6 +46,57 @@ call references, and whether failed/blocked scenarios are exposed unresolved.
 Never operate the UI, never convert `blocked` into `not-applicable`; missing
 controller-side execution is requested via CONTROLLER_ACTION.
 
+When the handoff includes a `product-audit/2` sidecar (legacy `/1` is still
+readable; schema-2 goals with `product_observation.required`), also judge the
+observation material read-only per
+`../product-observer/references/observation-protocol.md` and
+`../product-observer/references/finding-rules.md`:
+
+- The controller supplies the accepted result paths (sidecar
+  `discover_ref` / `compare_ref` / `review_ref`); read those archived files
+  yourself. `discover_hash` / `compare_hash` are computed and bound by the
+  controller/engine from the archived results — never trust a self-claimed
+  hash. You judge content only: never re-observe the product, never operate
+  its UI.
+- `findings_validity`: does each reported finding carry a real
+  `expected_basis` and reproduction evidence, is the severity reasonable
+  rather than preference-driven, and are dismissals justified with evidence
+  instead of implementer assertions? A `critical`/`high` dismissal or
+  `intended-change` without a cited `owner_decision_ref` is not valid —
+  README or implementer prose cannot waive a blocking-severity finding.
+- `coverage_adequacy`: does the product map miss material entrances or
+  modes visible in the goal/public docs, did the observer run only happy
+  paths, and did the compare phase reconcile disappeared capabilities
+  against the original goal and baselines?
+- Perception and media limits: evidence only counts once an observing model
+  actually read it — an unread screenshot, an audio track nobody listened to
+  or a video file nobody watched is not evidence (unverified perception =
+  unread). Frame sampling is not continuous coverage; a video file is not
+  assumed to carry audio; a silence claim without a passed control probe is
+  `capture-unverified` (`../product-observer/references/backend-routing.md`).
+  Recording a `capability_gap` is honest for a channel that was never
+  captured, but it never upgrades to a pass.
+
+Return both judgments in a `product-observation-review/2` result (verdict
+`sufficient | needs-observation | needs-repair | blocked`) bound to the
+current candidate and the discover/compare report hashes. You judge
+evidence; you never re-observe the product, never operate its UI, and never
+convert `blocked` into `sufficient`.
+
+Verdict decision table (the same consistency the engine enforces):
+
+| Condition | Required verdict |
+|---|---|
+| You cannot complete the judgment (blocked access, missing artifacts, unreadable evidence) | `blocked` (never `sufficient`) |
+| `findings_validity` or `coverage_adequacy` is `insufficient` | `needs-observation` |
+| Both judgments `sufficient`, but `critical`/`high` findings remain unresolved (`suspected`/`confirmed`/`intermittent`/`owner-decision`) or a blocking-severity dismissal/intended-change lacks an owner decision | `needs-repair` |
+| Both judgments `sufficient` and no blocking findings remain | `sufficient` |
+
+A truthful report with adequate coverage that still contains severe unresolved
+defects is `needs-repair`, never `sufficient`. When several reasons apply, list
+all of them in `notes`; notes are read by humans and are not mechanically
+parsed.
+
 ## Mode Loading
 
 Read `../contract-review/references/reviewer-protocol.md` for the shared

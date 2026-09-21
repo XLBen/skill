@@ -1,0 +1,56 @@
+warning: in the working copy of '.opencode/agents/mvp-reviewer.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.opencode/commands/resume.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.en.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'computer-use/SKILL.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'computer-use/references/ui-acceptance-protocol.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'i-have-adhd/SKILL.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'mvp-delivery/SKILL.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'mvp-delivery/references/delivery-execution.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'mvp-delivery/references/delivery-finish.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'mvp-delivery/references/delivery-recovery.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'mvp-delivery/references/goal-definition.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'mvp-delivery/references/stage-routing.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'mvp-delivery/references/subagent-orchestration.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'mvp-delivery/references/subagent-templates.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/check.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/evidence_registry.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/install.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/runtime_trace.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/workflow_packets.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/workflow_protocol.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/workflow_runtime.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'systematic-debugging/SKILL.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_install.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_runtime_doctor.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_subagent_orchestration.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'webapp-testing/SKILL.md', LF will be replaced by CRLF the next time Git touches it
+ .opencode/agents/mvp-reviewer.md                  |   3 +
+ .opencode/commands/resume.md                      |  11 +
+ README.en.md                                      |   5 +-
+ README.md                                         |   3 +-
+ computer-use/SKILL.md                             |  19 +-
+ computer-use/references/ui-acceptance-protocol.md |   7 +
+ i-have-adhd/SKILL.md                              |   2 +
+ mvp-delivery/SKILL.md                             |  27 +-
+ mvp-delivery/references/delivery-execution.md     |  59 +++
+ mvp-delivery/references/delivery-finish.md        |  23 +
+ mvp-delivery/references/delivery-recovery.md      |  47 ++
+ mvp-delivery/references/goal-definition.md        |  30 ++
+ mvp-delivery/references/stage-routing.json        |  24 +
+ mvp-delivery/references/subagent-orchestration.md |  16 +
+ mvp-delivery/references/subagent-templates.md     |   5 +-
+ reviewer/SKILL.md                                 |  51 ++
+ scripts/check.py                                  | 332 ++++++++++++-
+ scripts/evidence_registry.py                      |   1 +
+ scripts/install.py                                | 154 +++---
+ scripts/runtime_trace.py                          |  73 ++-
+ scripts/workflow_packets.py                       | 545 +++++++++++++++++++++-
+ scripts/workflow_protocol.py                      |   1 +
+ scripts/workflow_runtime.py                       |   4 +-
+ systematic-debugging/SKILL.md                     |   6 +-
+ tests/test_install.py                             | 136 ++++--
+ tests/test_runtime_doctor.py                      |   1 +
+ tests/test_subagent_orchestration.py              |   7 +
+ webapp-testing/SKILL.md                           |   4 +-
+ 28 files changed, 1427 insertions(+), 169 deletions(-)

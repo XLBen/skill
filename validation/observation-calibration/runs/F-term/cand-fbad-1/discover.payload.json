@@ -1,0 +1,88 @@
+{
+  "schema": "product-observation/2",
+  "phase": "discover",
+  "stop_reason": "coverage-completed",
+  "surfaces": [
+    {
+      "id": "S-01",
+      "name": "Save note CLI",
+      "importance": "material",
+      "modes": [
+        "default"
+      ]
+    },
+    {
+      "id": "S-02",
+      "name": "Show note CLI",
+      "importance": "material",
+      "modes": [
+        "default"
+      ]
+    }
+  ],
+  "journeys": [
+    {
+      "id": "J-01",
+      "surface_ids": [
+        "S-01"
+      ],
+      "outcome": "covered",
+      "evidence_refs": [
+        "evidence/save1.txt",
+        "evidence/save2.txt",
+        "evidence/save3.txt",
+        "evidence/save-world2.txt"
+      ]
+    },
+    {
+      "id": "J-02",
+      "surface_ids": [
+        "S-02"
+      ],
+      "outcome": "covered",
+      "evidence_refs": [
+        "evidence/show1.txt",
+        "evidence/show2.txt",
+        "evidence/show3.txt",
+        "evidence/show-world2.txt"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-001",
+      "surface_ids": [
+        "S-01",
+        "S-02"
+      ],
+      "severity": "high",
+      "category": "functional",
+      "confidence": "observed",
+      "observed": "After `save hello` succeeds, `save world` exits successfully but prints no confirmation and does not update the stored note; subsequent `show` still displays `hello`. The failure reproduced twice.",
+      "expected_basis": "The stated purpose requires saving and reading a note reliably on every attempt; the README promises that `save <text>` persists the note and prints `Saved OK`.",
+      "reproduction": "1. Run `python app/app.py save hello`. 2. Run `python app/app.py show`; it prints `hello`. 3. Run `python app/app.py save world`; it exits 0 with no output. 4. Run `python app/app.py show`; it still prints `hello`. Repeat steps 3-4; same result.",
+      "evidence_refs": [
+        "evidence/save1.txt",
+        "evidence/show1.txt",
+        "evidence/save3.txt",
+        "evidence/show3.txt",
+        "evidence/save-world2.txt",
+        "evidence/show-world2.txt"
+      ],
+      "status": "confirmed",
+      "notes": "Core save/read journey fails for the input `world` despite successful process exit."
+    }
+  ],
+  "unobserved": [],
+  "capability_gaps": [],
+  "continuation": null,
+  "evidence_refs": [
+    "evidence/save1.txt",
+    "evidence/show1.txt",
+    "evidence/save3.txt",
+    "evidence/show3.txt",
+    "evidence/save-world2.txt",
+    "evidence/show-world2.txt"
+  ],
+  "notes": "The primary CLI surfaces were observed. Saving `hello` worked repeatedly, but saving `world` silently failed and left the previous note unchanged."
+}

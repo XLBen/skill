@@ -43,8 +43,8 @@ except ImportError:  # pragma: no cover - engine copied without runtime_trace
 KNOWN_TASK_STATUS = ("pending", "dispatched", "done", "failed", "skipped")
 KNOWN_TASK_RESULT_STATUS = ("completed", "needs_input", "waiting_controller", "blocked", "failed")
 KNOWN_ACTION_STATUS = ("requested", "running", "completed", "failed", "unknown")
-KNOWN_ROLES = ("research", "worker", "reviewer", "test-author", "step-executor")
-INDEPENDENCE_ROLES = ("reviewer", "test-author", "step-executor")
+KNOWN_ROLES = ("research", "worker", "reviewer", "test-author", "step-executor", "product-observer")
+INDEPENDENCE_ROLES = ("reviewer", "test-author", "step-executor", "product-observer")
 CIRCUIT_BREAK_THRESHOLD = 3
 
 

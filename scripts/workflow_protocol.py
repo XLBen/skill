@@ -30,6 +30,7 @@ ROLE_BY_SEAT = {
     "reviewer-subagent": "reviewer",
     "test-author-subagent": "test-author",
     "step-executor-subagent": "step-executor",
+    "product-observer-subagent": "product-observer",
 }
 KNOWN_SEATS = tuple(ROLE_BY_SEAT)
 AUDITED_SEAT_TOKEN = "resolve:audited_implementation"

@@ -22,6 +22,9 @@ the handoff `claims` block with your own findings; a generated fact or an empty
 
 Rules:
 - Read-only: never edit docs/ artifacts, goal cards, evidence, or ledgers.
+- Never rewrite any file you inspect or review: no read-then-rewrite through
+  editing tools, shell redirection, or file-writing commands. Any such
+  attempt is a review defect.
 - Work only from the supplied mode, contract snapshot or ACCEPTANCE_HANDOFF,
   and evidence; do not invent requirements, contract IDs, or event schemas.
 - Follow ../contract-review/references/reviewer-protocol.md output schema:

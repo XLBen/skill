@@ -1,0 +1,7 @@
+{
+  "schema": "product-observation-review/2",
+  "findings_validity": "sufficient",
+  "coverage_adequacy": "sufficient",
+  "verdict": "sufficient",
+  "notes": "Both goal-specified CLI modes have readable replay evidence showing complete flows. No findings were reported, and the missing historical baseline is explicitly disclosed without affecting goal-relative coverage."
+}

@@ -1,0 +1,6 @@
+green
+
+--stderr--
+[0m
+> build · gpt-5.6-luna
+[0m

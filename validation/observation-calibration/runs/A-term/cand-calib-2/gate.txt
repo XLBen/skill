@@ -1,0 +1,3 @@
+product audit gate: fail
+  - review: review has unknown field 'candidate_id'
+gate record: C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-calib-2\gate.json

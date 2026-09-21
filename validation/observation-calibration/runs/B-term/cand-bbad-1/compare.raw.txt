@@ -1,0 +1,106 @@
+```json
+{
+  "schema": "product-observation/2",
+  "phase": "compare",
+  "stop_reason": "coverage-completed",
+  "surfaces": [
+    {
+      "id": "S-01",
+      "name": "CLI save and show entry",
+      "importance": "material",
+      "modes": ["save", "show"]
+    },
+    {
+      "id": "S-02",
+      "name": "CLI usage response",
+      "importance": "peripheral",
+      "modes": ["no-args"]
+    }
+  ],
+  "journeys": [
+    {
+      "id": "J-01",
+      "surface_ids": ["S-01"],
+      "evidence_refs": [
+        "evidence/compare-save-hello.txt",
+        "evidence/compare-show-after-save.txt",
+        "evidence/compare-save-second.txt",
+        "evidence/compare-show-repeat.txt"
+      ],
+      "outcome": "failed",
+      "notes": "Save exits successfully, but subsequent show reports '(no note)' for repeated inputs."
+    },
+    {
+      "id": "J-02",
+      "surface_ids": ["S-02"],
+      "evidence_refs": ["evidence/compare-no-args.txt"],
+      "outcome": "covered"
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-001",
+      "surface_ids": ["S-01"],
+      "severity": "high",
+      "category": "functional",
+      "confidence": "observed",
+      "observed": "Running save with 'hello' or 'second' exits with code 0, but running show afterward returns '(no note)' instead of the saved text.",
+      "expected_basis": "The original goal requires a user to save a note and read it back end to end.",
+      "reproduction": "Run `python app/app.py save hello`, then `python app/app.py show`; repeat with `save second` followed by `show`.",
+      "evidence_refs": [
+        "evidence/compare-save-hello.txt",
+        "evidence/compare-show-after-save.txt",
+        "evidence/compare-save-second.txt",
+        "evidence/compare-show-repeat.txt"
+      ],
+      "status": "confirmed",
+      "difference_classification": "confirmed-defect"
+    }
+  ],
+  "unobserved": [],
+  "capability_gaps": [],
+  "continuation": null,
+  "evidence_refs": [
+    "evidence/compare-save-hello.txt",
+    "evidence/compare-show-after-save.txt",
+    "evidence/compare-save-second.txt",
+    "evidence/compare-show-repeat.txt",
+    "evidence/compare-no-args.txt"
+  ],
+  "notes": "Compared against the packet's original goal. No historical baseline was supplied."
+}
+```
+
+--stderr--
+[0m
+> po-observer · gpt-5.6-luna
+[0m
+[0m→ [0mSkill "product-observer"
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-bbad-1/compare.packet.json
+[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/result-contract.md
+[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/finding-rules.md
+[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/backend-routing.md
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence\compare-save-hello.txt" -- python app/app.py save hello
+captured argv=["python", "app/app.py", "save", "hello"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence\compare-save-hello.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence\compare-save-hello.txt.stderr.txt
+--stdout--
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence\compare-show-after-save.txt" -- python app/app.py show
+captured argv=["python", "app/app.py", "show"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence\compare-show-after-save.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence\compare-show-after-save.txt.stderr.txt
+--stdout--
+(no note)
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence\compare-save-second.txt" -- python app/app.py save second
+captured argv=["python", "app/app.py", "save", "second"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence\compare-save-second.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence\compare-save-second.txt.stderr.txt
+--stdout--
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence\compare-show-repeat.txt" -- python app/app.py show
+captured argv=["python", "app/app.py", "show"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence\compare-show-repeat.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence\compare-show-repeat.txt.stderr.txt
+--stdout--
+(no note)
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence\compare-no-args.txt" -- python app/app.py
+captured argv=["python", "app/app.py"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence\compare-no-args.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bbad-1\evidence\compare-no-args.txt.stderr.txt
+--stdout--
+commands: save <text> | show
+[0m

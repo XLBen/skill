@@ -1,0 +1,159 @@
+```json
+{
+  "schema": "product-observation/2",
+  "phase": "discover",
+  "stop_reason": "coverage-completed",
+  "surfaces": [
+    {
+      "id": "S-01",
+      "name": "Task list CLI",
+      "importance": "material",
+      "modes": ["list", "add"]
+    },
+    {
+      "id": "S-02",
+      "name": "CLI usage and error handling",
+      "importance": "peripheral",
+      "modes": ["default", "invalid-input"]
+    }
+  ],
+  "journeys": [
+    {
+      "id": "J-01",
+      "surface_ids": ["S-01"],
+      "evidence_refs": ["evidence/discover-initial-list.txt"],
+      "outcome": "covered"
+    },
+    {
+      "id": "J-02",
+      "surface_ids": ["S-01"],
+      "evidence_refs": [
+        "evidence/discover-add-buy-milk.txt",
+        "evidence/discover-add-buy-milk.txt.stderr.txt"
+      ],
+      "outcome": "failed",
+      "notes": "The supplied demo command rejects the second task word."
+    },
+    {
+      "id": "J-03",
+      "surface_ids": ["S-01"],
+      "evidence_refs": [
+        "evidence/discover-add-single.txt",
+        "evidence/discover-add-quoted.txt",
+        "evidence/discover-list-final.txt"
+      ],
+      "outcome": "failed",
+      "notes": "Add reports success, but a subsequent list does not show the added tasks."
+    },
+    {
+      "id": "J-04",
+      "surface_ids": ["S-02"],
+      "evidence_refs": ["evidence/discover-no-args.txt"],
+      "outcome": "covered"
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-001",
+      "surface_ids": ["S-01"],
+      "severity": "high",
+      "category": "functional",
+      "confidence": "confirmed",
+      "observed": "Running the packet's demo command `python app/app.py add buy milk` exits with code 2 and reports `unrecognized arguments: milk`.",
+      "expected_basis": "The packet's public demo explicitly specifies `python app/app.py add buy milk`.",
+      "reproduction": "Run `python app/app.py add buy milk`; inspect the captured exit code and stderr.",
+      "evidence_refs": [
+        "evidence/discover-add-buy-milk.txt",
+        "evidence/discover-add-buy-milk.txt.stderr.txt"
+      ],
+      "status": "confirmed"
+    },
+    {
+      "id": "F-002",
+      "surface_ids": ["S-01"],
+      "severity": "high",
+      "category": "continuity",
+      "confidence": "confirmed",
+      "observed": "The add command reports `added: laundry` and `added: read book`, but a later list still contains only `buy milk` and `walk dog`; neither newly added task appears.",
+      "expected_basis": "The packet purpose states that a user can add a task and see it in the list afterwards.",
+      "reproduction": "Run `python app/app.py add laundry`, then `python app/app.py list`; repeat with quoted `python app/app.py add \"read book\"`, then list again.",
+      "evidence_refs": [
+        "evidence/discover-add-single.txt",
+        "evidence/discover-add-quoted.txt",
+        "evidence/discover-list-final.txt"
+      ],
+      "status": "confirmed"
+    }
+  ],
+  "unobserved": [],
+  "capability_gaps": [],
+  "continuation": null,
+  "evidence_refs": [
+    "evidence/discover-initial-list.txt",
+    "evidence/discover-add-buy-milk.txt",
+    "evidence/discover-add-buy-milk.txt.stderr.txt",
+    "evidence/discover-add-single.txt",
+    "evidence/discover-add-quoted.txt",
+    "evidence/discover-list-final.txt",
+    "evidence/discover-no-args.txt"
+  ],
+  "notes": "Core CLI surfaces were observed. The primary add-and-list journey is blocked by two confirmed functional failures."
+}
+```
+
+--stderr--
+[0m
+> po-observer · gpt-5.6-luna
+[0m
+[0m→ [0mSkill "product-observer"
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-ered-1/discover.packet.json
+[0m→ [0mRead app/README.md
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-ered-1/candidate.json
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-initial-list.txt" -- python app/app.py list
+captured argv=["python", "app/app.py", "list"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-initial-list.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-initial-list.txt.stderr.txt
+--stdout--
+[ ] buy milk
+[ ] walk dog
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-add-buy-milk.txt" -- python app/app.py add buy milk
+captured argv=["python", "app/app.py", "add", "buy", "milk"] exit=2 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-add-buy-milk.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-add-buy-milk.txt.stderr.txt
+--stdout--
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-list-after-add.txt" -- python app/app.py list
+captured argv=["python", "app/app.py", "list"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-list-after-add.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-list-after-add.txt.stderr.txt
+--stdout--
+[ ] buy milk
+[ ] walk dog
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-add-unique.txt" -- python app/app.py add call dentist
+captured argv=["python", "app/app.py", "add", "call", "dentist"] exit=2 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-add-unique.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-add-unique.txt.stderr.txt
+--stdout--
+[0m
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-ered-1/evidence/discover-add-unique.txt.stderr.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-ered-1/evidence/discover-add-buy-milk.txt.stderr.txt
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-add-single.txt" -- python app/app.py add laundry
+captured argv=["python", "app/app.py", "add", "laundry"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-add-single.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-add-single.txt.stderr.txt
+--stdout--
+added: laundry
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-add-quoted.txt" -- python app/app.py add "read book"
+captured argv=["python", "app/app.py", "add", "read book"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-add-quoted.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-add-quoted.txt.stderr.txt
+--stdout--
+added: read book
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-list-final.txt" -- python app/app.py list
+captured argv=["python", "app/app.py", "list"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-list-final.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-list-final.txt.stderr.txt
+--stdout--
+[ ] buy milk
+[ ] walk dog
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-no-args.txt" -- python app/app.py
+captured argv=["python", "app/app.py"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-no-args.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-ered-1\evidence\discover-no-args.txt.stderr.txt
+--stdout--
+use: list | add <task>
+[0m
+[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/result-contract.md
+[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/finding-rules.md
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-ered-1/evidence

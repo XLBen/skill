@@ -79,6 +79,65 @@ long-running start command as full verification, silently reuse an unknown old
 listener, or let a UI unit test stand in for interaction/navigation/result
 rendering. Missing tools are reported as unverified.
 
+## Whole-Product Observation Dispatch
+
+Schema-2 goals with `product_observation.required: true` dispatch the
+product-observer once a stable candidate exists (after implementation, engine
+verification and planned UI acceptance, before review-verdict/goal-finish):
+
+1. Controller freezes the candidate: write
+   `.opencode/mvp/observation/<G-ID>/<candidate-id>/candidate.json`
+   (`product-candidate/2`: entry, environment, backend, delivered-file
+   manifest with hashes, test data, sensory channels, runtime state, baseline
+   refs) and append the round to
+   `.opencode/mvp/<goal-slug>.product-audit.json` (`product-audit/2`; legacy
+   `/1` sidecars stay readable, engine writes are normalized to `/2`).
+2. Generate and archive each blind phase packet
+   (`workflow_packets.py observer <goal> --phase discover|compare [--model
+   <provider/model>] [--preflight <file>] --out
+   <candidate-dir>/<phase>.packet.json`) and dispatch a fresh
+   `mvp-product-observer`. Discover packets carry NO diff/tests/acceptance
+   material; the controller must not smuggle hints into the purpose text.
+3. The observer returns exactly one ```json fenced block
+   (`product-observation/2`) and never writes a result or workflow file. The
+   controller adopts it with `observation_results.adopt_result`, which
+   validates the payload, checks the controller envelope identity
+   (goal_id/candidate_id/observer_session_id/model/packet_hash/attempt),
+   verifies evidence refs and runtime provenance (`provenance_problems`), and
+   writes the accepted result create-only to
+   `<candidate>/<phase>/<run-id>/result.json`; rejections leave attempt
+   records under `attempts/` and no result. Never fall back to an
+   agent-written `*.result.json` — only the controller-adopted result is
+   observation evidence. After discover is adopted and bound, generate the
+   compare packet the same way and dispatch the second phase against
+   goal/history/baselines. The reviewer's `product-observation-review/2`
+   return is adopted with `observation_results.adopt_review`, which
+   recomputes the discover/compare hashes from the archived results and
+   rejects a payload or envelope that disagrees.
+4. Dispatch is model-pinned: prefer the project plugin's `visibility_dispatch`
+   host tool (it resolves the observer model from
+   `.opencode/mvp/visibility.json`; a per-call `model` override is legal).
+   The plugin is read at host startup, so the tool appears only after
+   OpenCode is restarted; while it is not loaded, report
+   `blocked`/capability-unavailable per Failure Branches or use a disclosed
+   fallback — never silently inherit the session model. The legacy CLI route
+   `opencode run --agent mvp-product-observer` is diagnostic only: the host
+   refuses a subagent as a primary agent and silently falls back to a
+   different agent (P0-1). Preflight reuse is identity-bound: a probe item
+   (`host`/`model`/`candidate`/`session`) may be skipped only when the
+   packet's preflight cover is `status: passed` AND every identity field it
+   records matches the dispatch context
+   (`observation_backend.preflight_skip_plan`); a "controller-verified" label
+   alone never exempts a probe.
+5. Route critical/high confirmed/intermittent findings to `/fix`; a repair
+   creates a NEW candidate id (old observation rounds stay as history) and
+   the new candidate must repeat a fresh, complete discover+compare round —
+   same-candidate repair re-observation never reuses a partial or previous
+   round. Missing backend = `blocked`, never `not-applicable`.
+6. Run `check.py product-audit-gate <goal> --trace <trace>` before
+   `finish-goal`; `--trace` is mandatory for required observation and the
+   engine re-checks everything mechanically.
+
 ## Delegation And Ceremony
 
 Independent test-author and reviewer dispatch follow the trigger matrix in

@@ -1,0 +1,55 @@
+{
+  "schema": "product-observation/1",
+  "goal_id": "G-OBS",
+  "candidate_id": "cand-x",
+  "observer_session_id": "ses-fake",
+  "surfaces": [
+    {
+      "id": "S-01",
+      "name": "game",
+      "importance": "material",
+      "modes": [
+        "a",
+        "b"
+      ]
+    }
+  ],
+  "journeys": [
+    {
+      "id": "J-01",
+      "surface_ids": [
+        "S-01"
+      ],
+      "evidence_refs": [
+        "evidence/j.txt"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-01",
+      "surface_ids": [
+        "S-01"
+      ],
+      "severity": "high",
+      "category": "functional",
+      "confidence": "observed",
+      "observed": "x",
+      "expected_basis": "y",
+      "reproduction": "z",
+      "evidence_refs": [
+        "evidence/f.txt"
+      ],
+      "status": "wontfix-invisible"
+    }
+  ],
+  "unobserved": [],
+  "capability_gaps": [],
+  "continuation": null,
+  "stop_reason": "coverage-completed",
+  "evidence_refs": [
+    "evidence/r.txt"
+  ],
+  "phase": "discover",
+  "packet_hash": "56c7a577389ae8c7771b3493ff1a618d699c0a6a523fd15c1fc3d7d59a03661a"
+}

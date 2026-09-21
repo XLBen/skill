@@ -1,0 +1,79 @@
+{
+  "schema": "product-observation/2",
+  "phase": "compare",
+  "stop_reason": "coverage-completed",
+  "surfaces": [
+    {
+      "id": "S-01",
+      "name": "CLI menu",
+      "importance": "material",
+      "modes": [
+        "default"
+      ]
+    },
+    {
+      "id": "S-02",
+      "name": "Home section",
+      "importance": "material",
+      "modes": [
+        "default"
+      ]
+    },
+    {
+      "id": "S-03",
+      "name": "Notes section",
+      "importance": "material",
+      "modes": [
+        "default"
+      ]
+    },
+    {
+      "id": "S-04",
+      "name": "Stats section",
+      "importance": "material",
+      "modes": [
+        "default"
+      ]
+    },
+    {
+      "id": "S-05",
+      "name": "Help section",
+      "importance": "material",
+      "modes": [
+        "default"
+      ]
+    }
+  ],
+  "journeys": [
+    {
+      "id": "J-01",
+      "surface_ids": [
+        "S-01",
+        "S-02",
+        "S-03",
+        "S-04",
+        "S-05"
+      ],
+      "evidence_refs": [
+        "evidence/compare-menu.txt",
+        "evidence/open-home.txt",
+        "evidence/open-notes.txt",
+        "evidence/open-stats.txt",
+        "evidence/open-help.txt"
+      ],
+      "outcome": "covered"
+    }
+  ],
+  "findings": [],
+  "unobserved": [],
+  "capability_gaps": [],
+  "continuation": null,
+  "evidence_refs": [
+    "evidence/compare-menu.txt",
+    "evidence/open-home.txt",
+    "evidence/open-notes.txt",
+    "evidence/open-stats.txt",
+    "evidence/open-help.txt"
+  ],
+  "notes": "Baseline is none. The live CLI menu listed home, notes, stats, and help; each documented section was reachable through the real entry point."
+}

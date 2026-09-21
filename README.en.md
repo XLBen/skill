@@ -217,6 +217,7 @@ vague → `/grill` → `/plan` → `/build`; bug → `/fix`; interrupted →
 | `step-executor` | isolated execution of one strict PLAN step |
 | `webapp-testing` | web journeys: assertion-first browser automation |
 | `computer-use` | desktop journeys: hard-budgeted GUI operation and verification |
+| `product-observer` | whole-product black-box observation: blind discover + goal/history compare, mandatory pre-finish gate |
 | `pua` | acceptance interrogation: closure / fact-driven / exhaustive-not-blind |
 | `i-have-adhd` | user communication: short view, full facts preserved |
 | `security-assurance` | conditional: trust boundaries, auth, privacy, secrets; threat model and control mapping |
@@ -224,9 +225,9 @@ vague → `/grill` → `/plan` → `/build`; bug → `/fix`; interrupted →
 | `incident-response` | conditional: active production impact - severity, containment, recovery |
 | `outcome-learning` | conditional: user/business hypotheses, baselines, smallest experiment |
 
-The installer additionally deploys five project subagents —
+The installer additionally deploys six project subagents —
 `mvp-researcher`, `mvp-worker`, `mvp-reviewer`, `mvp-test-author`,
-`mvp-step-executor` — into `.opencode/agents/` with minimal permission
+`mvp-step-executor`, `mvp-product-observer` — into `.opencode/agents/` with minimal permission
 boundaries (reviewer has no write; subagents may not dispatch further);
 fresh subagents provide real independent sessions — loading a skill alone
 creates no independence.

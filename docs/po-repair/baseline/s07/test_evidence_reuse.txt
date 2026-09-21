@@ -1,0 +1,21 @@
+﻿python : test_find_cli_writes_report (test_evidence_reuse.RegistryTests) ... ok
+所在位置 行:1 字符: 419
++ ... oding utf8; python -m unittest discover -s tests -p "test_evidence_re ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_find_cli_w...ryTests) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+test_find_lists_equivalent_and_rejects_others (test_evidence_reuse.RegistryTests) ... ok
+test_outcome_id_is_not_part_of_equivalence (test_evidence_reuse.RegistryTests) ... ok
+test_rejection_reasons (test_evidence_reuse.RegistryTests) ... ok
+test_cli_verify_goal_reuse_exit_codes (test_evidence_reuse.ReuseGoalEvidenceTests) ... ok
+test_reuse_refused_after_workspace_change (test_evidence_reuse.ReuseGoalEvidenceTests) ... ok
+test_reuse_refused_for_failed_source (test_evidence_reuse.ReuseGoalEvidenceTests) ... ok
+test_reuse_refused_for_source_without_workspace_binding (test_evidence_reuse.ReuseGoalEvidenceTests) ... ok
+test_reuse_refused_when_command_differs (test_evidence_reuse.ReuseGoalEvidenceTests) ... ok
+test_reuse_skips_reexecution_and_records_source (test_evidence_reuse.ReuseGoalEvidenceTests) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.839s
+
+OK

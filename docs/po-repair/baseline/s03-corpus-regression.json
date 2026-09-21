@@ -1,0 +1,360 @@
+{
+  "contract": "product-observation/2",
+  "corpus_dir": "docs/po-repair/corpus",
+  "files": [
+    {
+      "envelope_error_count": 3,
+      "envelope_errors": [
+        "envelope.model must be a non-empty string",
+        "envelope.attempt must be an integer >= 1",
+        "envelope.received_at must be a non-empty string"
+      ],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation/1 is not accepted; re-observe with product-observation/2"
+      ],
+      "kind": "report",
+      "path": "docs/po-repair/corpus/A-term/cand-bad/compare.result.json",
+      "schema": "product-observation/1",
+      "sha256": "60397b061473bab1bf94368e6825002bd02ac002b8a8fa4f73bc325b4063997d",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 3,
+      "envelope_errors": [
+        "envelope.model must be a non-empty string",
+        "envelope.attempt must be an integer >= 1",
+        "envelope.received_at must be a non-empty string"
+      ],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation/1 is not accepted; re-observe with product-observation/2"
+      ],
+      "kind": "report",
+      "path": "docs/po-repair/corpus/A-term/cand-bad/discover.result.json",
+      "schema": "product-observation/1",
+      "sha256": "42d9315d7145d455a32db26a0f103c7004a7ae8db228271dc3065fc6a37766be",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 3,
+      "envelope_errors": [
+        "envelope.model must be a non-empty string",
+        "envelope.attempt must be an integer >= 1",
+        "envelope.received_at must be a non-empty string"
+      ],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation/1 is not accepted; re-observe with product-observation/2"
+      ],
+      "kind": "report",
+      "path": "docs/po-repair/corpus/A-term/cand-good/discover.result.json",
+      "schema": "product-observation/1",
+      "sha256": "84458ca50b033dd2cfadd1477fcf0bb636727169c4341ce562058130b4a26ca2",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 3,
+      "envelope_errors": [
+        "envelope.model must be a non-empty string",
+        "envelope.attempt must be an integer >= 1",
+        "envelope.received_at must be a non-empty string"
+      ],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation/1 is not accepted; re-observe with product-observation/2"
+      ],
+      "kind": "report",
+      "path": "docs/po-repair/corpus/B-term/cand-bad/compare.result.json",
+      "schema": "product-observation/1",
+      "sha256": "efdce053319be7be4ab89b8064aa4f2d01925c8bc96ebf59156b8ede92b504d4",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 3,
+      "envelope_errors": [
+        "envelope.model must be a non-empty string",
+        "envelope.attempt must be an integer >= 1",
+        "envelope.received_at must be a non-empty string"
+      ],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation/1 is not accepted; re-observe with product-observation/2"
+      ],
+      "kind": "report",
+      "path": "docs/po-repair/corpus/B-term/cand-bad/discover.result.json",
+      "schema": "product-observation/1",
+      "sha256": "4355fadaa806c3b722c02881dece8b9990c4e93ec112d6b73f6b792bbd2a2ea2",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 3,
+      "envelope_errors": [
+        "envelope.model must be a non-empty string",
+        "envelope.attempt must be an integer >= 1",
+        "envelope.received_at must be a non-empty string"
+      ],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation/1 is not accepted; re-observe with product-observation/2"
+      ],
+      "kind": "report",
+      "path": "docs/po-repair/corpus/B-term/cand-fix/compare.result.json",
+      "schema": "product-observation/1",
+      "sha256": "65c09738bd10fbfbdc30e7478d7656f641743b01520c19618b892daf00107318",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 3,
+      "envelope_errors": [
+        "envelope.model must be a non-empty string",
+        "envelope.attempt must be an integer >= 1",
+        "envelope.received_at must be a non-empty string"
+      ],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation/1 is not accepted; re-observe with product-observation/2"
+      ],
+      "kind": "report",
+      "path": "docs/po-repair/corpus/B-term/cand-fix/discover.result.json",
+      "schema": "product-observation/1",
+      "sha256": "4ecc694b9cd4858e43c206df44c404239fda17380d2b678f66081fba929693a8",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 0,
+      "envelope_errors": [],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation-review/1 is not accepted; re-review with product-observation-review/2"
+      ],
+      "kind": "review",
+      "path": "docs/po-repair/corpus/B-term/cand-fix/review.result.json",
+      "schema": "product-observation-review/1",
+      "sha256": "5aa7df8e55fa2853d6c1ab4071aa8f5b78a0c2d70b2f96f60d8b170198589467",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 3,
+      "envelope_errors": [
+        "envelope.model must be a non-empty string",
+        "envelope.attempt must be an integer >= 1",
+        "envelope.received_at must be a non-empty string"
+      ],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation/1 is not accepted; re-observe with product-observation/2"
+      ],
+      "kind": "report",
+      "path": "docs/po-repair/corpus/C-term/cand-bad/compare.result.json",
+      "schema": "product-observation/1",
+      "sha256": "489249087a821d1b94add36b2e1ddd1f0c220a9d63a4a5c27cc0a8b63a348cca",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 3,
+      "envelope_errors": [
+        "envelope.model must be a non-empty string",
+        "envelope.attempt must be an integer >= 1",
+        "envelope.received_at must be a non-empty string"
+      ],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation/1 is not accepted; re-observe with product-observation/2"
+      ],
+      "kind": "report",
+      "path": "docs/po-repair/corpus/C-term/cand-bad/discover.result.json",
+      "schema": "product-observation/1",
+      "sha256": "f9655532b903b67fbcb7c18f1b84f32d688fda8fa54d79f6ff4ca57941265fa1",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 3,
+      "envelope_errors": [
+        "envelope.model must be a non-empty string",
+        "envelope.attempt must be an integer >= 1",
+        "envelope.received_at must be a non-empty string"
+      ],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation/1 is not accepted; re-observe with product-observation/2"
+      ],
+      "kind": "report",
+      "path": "docs/po-repair/corpus/D-term/cand-bad/compare.result.json",
+      "schema": "product-observation/1",
+      "sha256": "6eb7f663bd66875534282b1a9a2c7c9c685d37285c1d35288a6bb09f4e7a6c02",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 3,
+      "envelope_errors": [
+        "envelope.model must be a non-empty string",
+        "envelope.attempt must be an integer >= 1",
+        "envelope.received_at must be a non-empty string"
+      ],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation/1 is not accepted; re-observe with product-observation/2"
+      ],
+      "kind": "report",
+      "path": "docs/po-repair/corpus/D-term/cand-bad/discover.result.json",
+      "schema": "product-observation/1",
+      "sha256": "0544523e27932c429d4b205edfa0aeebc33dfccd162e527da29d192b3be922b6",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 3,
+      "envelope_errors": [
+        "envelope.model must be a non-empty string",
+        "envelope.attempt must be an integer >= 1",
+        "envelope.received_at must be a non-empty string"
+      ],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation/1 is not accepted; re-observe with product-observation/2"
+      ],
+      "kind": "report",
+      "path": "docs/po-repair/corpus/E-term/cand-good/discover.result.json",
+      "schema": "product-observation/1",
+      "sha256": "8034e9580f78ff69be281af31095b937c06bd70c03626f5409f0f946d0d5d1ef",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 3,
+      "envelope_errors": [
+        "envelope.model must be a non-empty string",
+        "envelope.attempt must be an integer >= 1",
+        "envelope.received_at must be a non-empty string"
+      ],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation/1 is not accepted; re-observe with product-observation/2"
+      ],
+      "kind": "report",
+      "path": "docs/po-repair/corpus/E-term/cand-redesign/compare.result.json",
+      "schema": "product-observation/1",
+      "sha256": "b16f9f98508a7c3e2975902cabd267f70374a454770767ed50638e2a69d3dd95",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 3,
+      "envelope_errors": [
+        "envelope.model must be a non-empty string",
+        "envelope.attempt must be an integer >= 1",
+        "envelope.received_at must be a non-empty string"
+      ],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation/1 is not accepted; re-observe with product-observation/2"
+      ],
+      "kind": "report",
+      "path": "docs/po-repair/corpus/E-term/cand-redesign/discover.result.json",
+      "schema": "product-observation/1",
+      "sha256": "c662f0fbdd33cf33b3b5d3bd36aa5fc707e3524f34b729134eefee9418386306",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 0,
+      "envelope_errors": [],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation-review/1 is not accepted; re-review with product-observation-review/2"
+      ],
+      "kind": "review",
+      "path": "docs/po-repair/corpus/E-term/cand-redesign/review.result.json",
+      "schema": "product-observation-review/1",
+      "sha256": "bfdb992f0ca949fd3e8b7c1c3e91e95e2f66af9e9777feb7f8f9e9fd167a47e0",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 3,
+      "envelope_errors": [
+        "envelope.model must be a non-empty string",
+        "envelope.attempt must be an integer >= 1",
+        "envelope.received_at must be a non-empty string"
+      ],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation/1 is not accepted; re-observe with product-observation/2"
+      ],
+      "kind": "report",
+      "path": "docs/po-repair/corpus/F-term/cand-bad/compare.result.json",
+      "schema": "product-observation/1",
+      "sha256": "65f47085d460406bb6c2c068780e1d4637efd0ac5e045b7ec915bbb6988e8186",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 3,
+      "envelope_errors": [
+        "envelope.model must be a non-empty string",
+        "envelope.attempt must be an integer >= 1",
+        "envelope.received_at must be a non-empty string"
+      ],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation/1 is not accepted; re-observe with product-observation/2"
+      ],
+      "kind": "report",
+      "path": "docs/po-repair/corpus/F-term/cand-bad/discover.result.json",
+      "schema": "product-observation/1",
+      "sha256": "cbae41b13d1f59506cb2196a984f0529194b215ce719451cdbad2af6f332d91e",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 3,
+      "envelope_errors": [
+        "envelope.model must be a non-empty string",
+        "envelope.attempt must be an integer >= 1",
+        "envelope.received_at must be a non-empty string"
+      ],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation/1 is not accepted; re-observe with product-observation/2"
+      ],
+      "kind": "report",
+      "path": "docs/po-repair/corpus/t1/cand-x/compare.result.json",
+      "schema": "product-observation/1",
+      "sha256": "3cc4887b28baeb5b593ac682cf8cd35d52440709c9ddf6196ebfb6fe47ec49f7",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 3,
+      "envelope_errors": [
+        "envelope.model must be a non-empty string",
+        "envelope.attempt must be an integer >= 1",
+        "envelope.received_at must be a non-empty string"
+      ],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation/1 is not accepted; re-observe with product-observation/2"
+      ],
+      "kind": "report",
+      "path": "docs/po-repair/corpus/t1/cand-x/discover.result.json",
+      "schema": "product-observation/1",
+      "sha256": "2c5441876ad5e7d6e9ec4afd261bd186f3bc7399351f50bef9bdcf6d6e40aca4",
+      "verdict": "legacy"
+    },
+    {
+      "envelope_error_count": 0,
+      "envelope_errors": [],
+      "error_count": 1,
+      "errors": [
+        "legacy schema product-observation-review/1 is not accepted; re-review with product-observation-review/2"
+      ],
+      "kind": "review",
+      "path": "docs/po-repair/corpus/t1/cand-x/review.result.json",
+      "schema": "product-observation-review/1",
+      "sha256": "aba13806ebc016ceac3d22d3d36a023eb37dc43393b89655b02dcd018d11423b",
+      "verdict": "legacy"
+    }
+  ],
+  "generated_by": "tests/test_observation_malformed.py (S03)",
+  "note": "All archived corpus files are v1; each gets the single legacy migration diagnostic from validate_observation_report/review.",
+  "totals": {
+    "files": 21,
+    "invalid": 0,
+    "legacy": 21,
+    "unreadable": 0,
+    "valid": 0
+  }
+}

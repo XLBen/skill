@@ -1,0 +1,73 @@
+{
+  "case": "F-term",
+  "variant": "bad",
+  "model": "openai/gpt-5.6-luna",
+  "cid": "cand-fbad-1",
+  "started_at": "2026-09-21T21:10:00+00:00",
+  "phases": {
+    "discover": {
+      "ok": true,
+      "path": "C:\\Users\\24083\\AppData\\Local\\Temp\\opencode\\s20a-target\\.opencode\\mvp\\observation\\G-OBS\\cand-fbad-1\\discover\\run-001\\result.json",
+      "session": "ses_f3a320c82ffeqkezfi72bZw4aA",
+      "stop_reason": "coverage-completed",
+      "findings": [
+        {
+          "id": "F-001",
+          "severity": "high",
+          "status": "confirmed",
+          "classification": null,
+          "observed": "After `save hello` succeeds, `save world` exits successfully but prints no confirmation and does not update the stored note; subsequent `show` still displays `hello`. The failure reproduced twice."
+        }
+      ],
+      "surfaces": 2,
+      "journeys": 2,
+      "repairs": 0,
+      "repair_log": [],
+      "dispatch": {
+        "exit_code": 0,
+        "timed_out": false,
+        "elapsed_seconds": 189.8
+      }
+    },
+    "compare": {
+      "ok": true,
+      "path": "C:\\Users\\24083\\AppData\\Local\\Temp\\opencode\\s20a-target\\.opencode\\mvp\\observation\\G-OBS\\cand-fbad-1\\compare\\run-001\\result.json",
+      "session": "ses_f3a2f2663ffeSknrM0KZdjiPjK",
+      "stop_reason": "coverage-completed",
+      "findings": [
+        {
+          "id": "F-001",
+          "severity": "high",
+          "status": "intermittent",
+          "classification": "confirmed-defect",
+          "observed": "A save command sometimes exits successfully without printing the documented success message and does not persist the requested note; show then returns the previous note. A subsequent save can succeed."
+        }
+      ],
+      "surfaces": 1,
+      "journeys": 1,
+      "repairs": 0,
+      "repair_log": [],
+      "dispatch": {
+        "exit_code": 0,
+        "timed_out": false,
+        "elapsed_seconds": 162.7
+      }
+    }
+  },
+  "gate": {
+    "exit_code": 1,
+    "output": "product audit gate: fail\r\n  - unresolved critical/high findings block completion: discover:F-001(high/confirmed), compare:F-001(high/intermittent)\r\n  - review verdict is 'needs-repair'; only sufficient clears the gate\r\ngate record: C:\\Users\\24083\\AppData\\Local\\Temp\\opencode\\s20a-target\\.opencode\\mvp\\observation\\G-OBS\\cand-fbad-1\\gate.json"
+  },
+  "status": "completed",
+  "candidate": {
+    "id": "cand-fbad-1",
+    "files": 2
+  },
+  "review": {
+    "ok": true,
+    "verdict": "needs-repair",
+    "findings_validity": "sufficient",
+    "coverage_adequacy": "sufficient"
+  },
+  "finished_at": "2026-09-21T21:16:54+00:00"
+}

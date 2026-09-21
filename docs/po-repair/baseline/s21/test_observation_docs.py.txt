@@ -1,0 +1,26 @@
+﻿python : test_permission_boundary (test_observation_docs.AgentContractTests) ... ok
+所在位置 行:1 字符: 304
++ ... in $tests){ python -m unittest discover -s tests -p $t -v 2>&1 | Out- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_permission...ctTests) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+test_reviewer_hash_semantics_bound_by_controller_or_engine (test_observation_docs.AgentContractTests) ... ok
+test_single_fenced_json_return (test_observation_docs.AgentContractTests) ... ok
+test_backend_routing_doc_names_four_backends_and_ffmpeg (test_observation_docs.BackendRoutingTests) ... ok
+test_routing_json_names_implemented_backends (test_observation_docs.BackendRoutingTests) ... ok
+test_check_py_exposes_required_commands (test_observation_docs.CommandSurfaceTests) ... ok
+test_command_wrappers_reference_existing_scripts (test_observation_docs.CommandSurfaceTests) ... ok
+test_doc_backticked_check_commands_are_implemented (test_observation_docs.CommandSurfaceTests) ... ok
+test_visibility_config_subcommands (test_observation_docs.CommandSurfaceTests) ... ok
+test_workflow_packets_observer_and_validate_subcommands (test_observation_docs.CommandSurfaceTests) ... ok
+test_observation_modules_import (test_observation_docs.ModuleImportAndVersionTests) ... ok
+test_schema_constants_match_contract_doc_and_docs (test_observation_docs.ModuleImportAndVersionTests) ... ok
+test_current_schema_versions_are_consistent (test_observation_docs.SchemaDriftTests) ... ok
+test_legacy_schema_only_with_legacy_context (test_observation_docs.SchemaDriftTests) ... ok
+test_result_contract_exists_with_contract_enums (test_observation_docs.SchemaDriftTests) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 0.068s
+
+OK

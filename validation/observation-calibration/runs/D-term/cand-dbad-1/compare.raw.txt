@@ -1,0 +1,104 @@
+```json
+{
+  "schema": "product-observation/2",
+  "phase": "compare",
+  "stop_reason": "coverage-completed",
+  "surfaces": [
+    {
+      "id": "S-01",
+      "name": "Theme setting CLI",
+      "importance": "material",
+      "modes": ["set-theme"]
+    },
+    {
+      "id": "S-02",
+      "name": "Notes page view CLI",
+      "importance": "material",
+      "modes": ["view"]
+    }
+  ],
+  "journeys": [
+    {
+      "id": "J-01",
+      "surface_ids": ["S-01", "S-02"],
+      "evidence_refs": [
+        "evidence/compare-repro-set-dark.txt",
+        "evidence/compare-repro-view.txt",
+        "evidence/compare-light-cycle.txt",
+        "evidence/compare-light-view.txt"
+      ],
+      "outcome": "partial",
+      "notes": "Setting light is reflected by view; setting dark reports success but view remains light."
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-001",
+      "surface_ids": ["S-01", "S-02"],
+      "severity": "high",
+      "category": "functional",
+      "confidence": "observed",
+      "observed": "After `set-theme dark` exits successfully with `Saved OK`, `view` renders `theme: light`. The same sequence was reproduced after a separate clean command cycle.",
+      "expected_basis": "The approved goal and demo promise that a user can set a theme and see it applied when viewing the notes page. The candidate README also documents set-theme as saving the theme and view as applying the saved theme.",
+      "reproduction": "Run `python app/app.py set-theme dark`, then run `python app/app.py view`; repeat the sequence. The first command reports success, while the second reports `rendering notes page with theme: light`.",
+      "evidence_refs": [
+        "evidence/compare-repro-set-dark.txt",
+        "evidence/compare-repro-view.txt"
+      ],
+      "status": "confirmed",
+      "difference_classification": "confirmed-defect",
+      "notes": "The README's v2 note says the setting only affects the settings display, but that documented behavior conflicts with the approved goal and does not explain the failed dark-theme persistence."
+    }
+  ],
+  "unobserved": [],
+  "capability_gaps": [],
+  "continuation": null,
+  "evidence_refs": [
+    "evidence/compare-repro-set-dark.txt",
+    "evidence/compare-repro-view.txt",
+    "evidence/compare-light-cycle.txt",
+    "evidence/compare-light-view.txt"
+  ],
+  "notes": "Compared the delivered CLI against the supplied goal and candidate documentation. Both material surfaces were exercised; dark theme application is confirmed broken."
+}
+```
+
+--stderr--
+[0m
+> po-observer · gpt-5.6-luna
+[0m
+[0m→ [0mSkill "product-observer"
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/compare.packet.json
+[0m→ [0mRead app/README.md
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/candidate.json
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\compare-set-dark.txt" -- python app/app.py set-theme dark
+captured argv=["python", "app/app.py", "set-theme", "dark"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\compare-set-dark.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\compare-set-dark.txt.stderr.txt
+--stdout--
+Saved OK
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\compare-view-after-dark.txt" -- python app/app.py view
+captured argv=["python", "app/app.py", "view"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\compare-view-after-dark.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\compare-view-after-dark.txt.stderr.txt
+--stdout--
+rendering notes page with theme: light
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\compare-repro-set-dark.txt" -- python app/app.py set-theme dark; if ($?) { python .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\compare-repro-view.txt" -- python app/app.py view }
+captured argv=["python", "app/app.py", "set-theme", "dark"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\compare-repro-set-dark.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\compare-repro-set-dark.txt.stderr.txt
+--stdout--
+Saved OK
+
+captured argv=["python", "app/app.py", "view"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\compare-repro-view.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\compare-repro-view.txt.stderr.txt
+--stdout--
+rendering notes page with theme: light
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\compare-light-cycle.txt" -- python app/app.py set-theme light; if ($?) { python .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\compare-light-view.txt" -- python app/app.py view }
+captured argv=["python", "app/app.py", "set-theme", "light"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\compare-light-cycle.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\compare-light-cycle.txt.stderr.txt
+--stdout--
+Saved OK
+
+captured argv=["python", "app/app.py", "view"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\compare-light-view.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\compare-light-view.txt.stderr.txt
+--stdout--
+rendering notes page with theme: light
+[0m
+[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/finding-rules.md
+[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/result-contract.md

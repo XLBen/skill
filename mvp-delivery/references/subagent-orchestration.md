@@ -50,6 +50,7 @@ step-executor。正常路由到主控（Normal 直接实现、Audited `direct`�
 | 多个可独立复现的故障 | 按问题域并行派 research/worker | 默认派发 |
 | Guarded/Audited 实质切片验收交接 | 派 fresh reviewer（见 SKILL.md 验收章节） | 能力可用即必须 |
 | Normal 验收（独立判断/盲区/用户要求） | 派 fresh reviewer | 按风险选择 |
+| 稳定候选版本的全产品观察（schema 2 且 `product_observation.required`） | 派 fresh product-observer（discover→compare 两阶段） | 必须且阻塞；无席位按 Failure Branches 阻塞并披露 |
 | 全目标 finish 检查 | 派 reviewer 复用 review 能力做 whole-goal 检查 | Guarded/Audited 能力可用即必须 |
 | Audited 测试冻结/评审 | test-author / reviewer 独立席位 | 必须且阻塞 |
 | Audited 步骤实现席位 | 按 Audited Execution Seat Selection 决策表 | 按决策表 |
@@ -93,6 +94,7 @@ step-executor。正常路由到主控（Normal 直接实现、Audited `direct`�
 | reviewer | `mvp-reviewer` | 无（禁止回退到会话内） | 只读评审，加载 `reviewer` skill |
 | test-author | `mvp-test-author` | 无（Audited 阻塞） | 冻结验收测试 |
 | step-executor | `mvp-step-executor` | 无（Audited 阻塞） | 单个编译步骤 |
+| product-observer | `mvp-product-observer` | 无（独立性阻塞） | 全产品黑盒观察（discover/compare），加载 `product-observer` skill |
 
 回退规则：只读角色可回退到内建只读 agent；写入角色仅在回退 agent 具备
 写入工具时可用；reviewer/test-author/step-executor 涉及独立性声明时
@@ -166,6 +168,20 @@ skipped:
 4. 任务输入文件在允许读取范围内；
 5. 本阶段 `stage-routing.json` 要求的 role skill 在运行时 skill 清单中
    实际可见；不可见时按 Failure Branches 处理并披露。
+6. 观察/评审席位优先用项目插件工具 `visibility_dispatch` 派发：它读取
+   `.opencode/mvp/visibility.json` 的项目级选择（observer 用 `selection`，
+   reviewer 用 `reviewer_selection`；显式 `model` 覆盖只作用于单次派发）。
+   插件在 OpenCode 启动时加载，新增/修改后必须重启 OpenCode，工具才会出现；
+   工具不可见时按 Failure Branches 记录 capability-unavailable 并披露，
+   不得静默继承会话模型。`opencode run --agent <subagent>` 不是生产派发路径：
+   宿主拒绝把 subagent 当 primary agent 并静默回落到其他 agent（P0-1），
+   只能作明确披露的诊断用途。
+7. 观察席位的模型能力（感知）探针必须对应本次实际派发的
+   `provider/model`：packet 的 `model` 与 preflight `covers.model` 不一致时
+   packet 生成即失败，运行时以 trace session model 为准。跳过任何重复探测
+   只能依据 `preflight_skip_plan`：覆盖项 `status: passed` 且其记录的**全部
+   身份字段**与本次派发上下文一致；出现 "controller-verified" 字样同样不
+   构成豁免，身份缺失或不符时必须重新探测。
 
 preflight 失败按 Failure Branches 降级或阻塞，并在 dispatch record 记录
 原因。不把“配置文件存在”当作“运行时已加载”。

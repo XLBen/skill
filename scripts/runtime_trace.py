@@ -46,10 +46,11 @@ ROLE_REQUIRED_SKILLS = {
     "reviewer": ["reviewer"],
     "test-author": ["test-author"],
     "step-executor": ["step-executor"],
+    "product-observer": ["product-observer"],
 }
-INDEPENDENCE_ROLES = {"reviewer", "test-author", "step-executor"}
+INDEPENDENCE_ROLES = {"reviewer", "test-author", "step-executor", "product-observer"}
 FALLBACK_ALLOWED_ROLES = {"research", "worker"}
-KNOWN_TASK_ROLES = {"research", "worker", "reviewer", "test-author", "step-executor"}
+KNOWN_TASK_ROLES = {"research", "worker", "reviewer", "test-author", "step-executor", "product-observer"}
 KNOWN_TASK_STATUS = {"pending", "dispatched", "done", "failed", "skipped"}
 KNOWN_TASK_RESULT_STATUS = {"completed", "needs_input", "waiting_controller", "blocked", "failed"}
 KNOWN_ACTION_STATUS = {"requested", "running", "completed", "failed", "unknown"}
@@ -124,6 +125,41 @@ def _resolve_ref(ref: Any, base_dir: Path | None) -> Path:
     return path
 
 
+def _parse_session_model(value: Any) -> dict[str, Any] | None:
+    """Normalize a stored session model into provider/model/variant fields.
+
+    The session store keeps ``session.model`` as a JSON string such as
+    ``{"id":"gpt-5.6-sol","providerID":"openai","variant":"high"}``; an
+    already normalized mapping is accepted too. Anything that is not a JSON
+    object carrying non-empty provider and model identifiers is unparsable
+    (``None``). Mirrors ``observation_results.parse_session_model``."""
+
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except ValueError:
+            return None
+    if not isinstance(value, dict):
+        return None
+    provider = value.get("provider_id", value.get("providerID"))
+    model = value.get("model_id", value.get("id"))
+    if not isinstance(provider, str) or not provider.strip():
+        return None
+    if not isinstance(model, str) or not model.strip():
+        return None
+    variant = value.get("variant")
+    if not isinstance(variant, str) or not variant.strip():
+        variant = None
+    return {"provider_id": provider, "model_id": model, "variant": variant}
+
+
+def _session_model_column(con: sqlite3.Connection) -> str:
+    """SQL expression for the session model column, null when absent."""
+
+    columns = {row[1] for row in con.execute("pragma table_info(session)")}
+    return "model" if "model" in columns else "null as model"
+
+
 def verify_native_trace(trace: dict[str, Any]) -> list[str]:
     """Cross-check a trace's claims against the session store it names.
 
@@ -146,11 +182,14 @@ def verify_native_trace(trace: dict[str, Any]) -> list[str]:
     except sqlite3.Error as exc:
         return [f"runtime trace source store is unreadable: {exc}"]
     try:
+        model_expr = _session_model_column(con)
         for entry in trace.get("sessions", []) or []:
             if not isinstance(entry, dict) or not entry.get("id"):
                 continue
             sid = entry["id"]
-            row = con.execute("select parent_id, agent from session where id=?", (sid,)).fetchone()
+            row = con.execute(
+                f"select parent_id, agent, {model_expr} from session where id=?", (sid,)
+            ).fetchone()
             if row is None:
                 problems.append(f"trace session {sid} is not present in the source store")
                 continue
@@ -161,6 +200,28 @@ def verify_native_trace(trace: dict[str, Any]) -> list[str]:
                 problems.append(
                     f"trace session {sid} agent {entry['agent']!r} does not match the source store"
                 )
+            if "model" in entry:
+                trace_model = _parse_session_model(entry.get("model"))
+                store_model = _parse_session_model(row["model"])
+                if entry.get("model") is not None and trace_model is None:
+                    problems.append(
+                        f"trace session {sid} model is not a parsable provider/model/variant object"
+                    )
+                elif trace_model is None and store_model is not None:
+                    problems.append(
+                        f"trace session {sid} records no model but the source store has one"
+                    )
+                elif trace_model is not None and store_model is None:
+                    problems.append(
+                        f"trace session {sid} model does not match the empty model in the source store"
+                    )
+                elif trace_model is not None and store_model is not None:
+                    for key in ("provider_id", "model_id", "variant"):
+                        if trace_model[key] != store_model[key]:
+                            problems.append(
+                                f"trace session {sid} model {key} {trace_model[key]!r} does not "
+                                f"match the source store ({store_model[key]!r})"
+                            )
         for ev in trace.get("skill_events", []) or []:
             sid, name = ev.get("session_id"), ev.get("skill")
             if not sid or not name:
@@ -350,8 +411,9 @@ def export_trace(target: Path, db_arg: str | None, lookback_days: int | None) ->
         cutoff = (_dt.datetime.now() - _dt.timedelta(days=lookback_days)).timestamp() * 1000
 
     want = _norm_dir(str(target))
+    model_expr = _session_model_column(con)
     rows = con.execute(
-        "select id, parent_id, directory, agent, time_created, time_updated from session"
+        f"select id, parent_id, directory, agent, {model_expr}, time_created, time_updated from session"
     ).fetchall()
     matched = []
     for r in rows:
@@ -367,11 +429,14 @@ def export_trace(target: Path, db_arg: str | None, lookback_days: int | None) ->
             matched.append(r)
 
     for r in matched:
+        raw_model = r["model"]
         trace["sessions"].append(
             {
                 "id": r["id"],
                 "parent_id": r["parent_id"],
                 "agent": r["agent"] or "(primary)",
+                "model": _parse_session_model(raw_model),
+                "model_raw": raw_model,
                 "created": _ts(r["time_created"]),
                 "updated": _ts(r["time_updated"]),
             }

@@ -119,6 +119,8 @@ claims: <准备检查的完成声明；逐项列出>
 acceptance: <本阶段既有 gate 和成功信号>
 artifacts: <当前文件、产物、diff、版本或 hash>
 evidence: <命令、输出、engine event、owner 记录、环境>
+product_observation: <schema 2 目标：当前候选 id、discover/compare 摘要、
+  未解决发现、重要未覆盖区域、能力缺口、reviewer 充分性结论；无则 none>
 known_gaps: <已知缺口；无则 none>
 owner_decisions: <已获得或等待的决定>
 user_entry: <真实入口、代表性输入和结果位置>

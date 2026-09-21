@@ -51,6 +51,29 @@ and the whole-goal verdict as two separately scoped results; neither substitutes
 for the other and each feeds its own gate. Run `finish-goal` only after this
 check, all applicable Audited gates and actual owner acceptance.
 
+Schema-2 goals with `product_observation.required: true` must additionally
+pass `check.py product-audit-gate <goal>.md --trace .opencode/mvp/trace.json`
+before `finish-goal`; `--trace` is mandatory for required observation (a
+missing trace or non-native provenance fails the gate), and the engine
+enforces the same gate inside `finish-goal` and `check-current`. Requirements:
+an independent product-observer executed both phases (`discover`, then
+`compare`) on the current candidate and the controller adopted both
+`product-observation/2` results into the phase run directories
+(`<candidate>/<phase>/<run-id>/result.json`); phase packets archived with
+matching hashes; the candidate manifest still matches the delivered files; no
+unresolved critical/high findings or capability gaps; and a reviewer
+`product-observation-review/2` with verdict `sufficient` whose
+`discover_hash`/`compare_hash` are computed by the controller/engine from the
+archived phase results (a payload or envelope hash that disagrees is
+rejected) and bound to the same reports. A pass writes the
+`product-audit-gate/2` record next to the current candidate, bound to the goal
+definition hash and the trace path/sha256/provenance; only that engine record
+clears the gate. A missing observation backend is `blocked` — never
+`not-applicable`, never a controller-authored re-description masquerading
+as observation. Repairs create a new candidate id and a fresh full
+discover+compare round; observation results never survive a candidate
+change. Protocol: `../../product-observer/references/observation-protocol.md`.
+
 When the project enables the runtime policy sidecar
 (`.opencode/mvp/runtime-policy.json`, schema `runtime-policy/1`), first export
 the native trace

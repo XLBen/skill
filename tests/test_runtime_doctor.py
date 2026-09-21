@@ -199,6 +199,7 @@ class CommandsOnlyTests(unittest.TestCase):
             "scripts/package_seal.py": "# seal\n",
             "scripts/verification_runner.py": "# runner\n",
             "scripts/runtime_trace.py": "# trace\n",
+            "scripts/product_observation.py": "# observation\n",
             "scripts/workflow_metrics.py": "# metrics\n",
             "scripts/workflow_packets.py": "# packets\n",
             "scripts/workflow_runtime.py": "# runtime\n",

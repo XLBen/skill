@@ -1,0 +1,32 @@
+﻿python : test_corpus_replay_terminates_and_records_baseline (test_observation_format_repair.CorpusReplayTests) ... ok
+所在位置 行:1 字符: 338
++ ... in $tests){ python -m unittest discover -s tests -p $t -v 2>&1 | Out- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_corpus_rep...ayTests) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+test_compare_template_validates (test_observation_format_repair.RepairPromptTests) ... ok
+test_prompt_contains_every_required_part (test_observation_format_repair.RepairPromptTests) ... ok
+test_unknown_phase_and_odd_problems_never_raise (test_observation_format_repair.RepairPromptTests) ... ok
+test_marker_attempt_is_recorded_parsed_ok (test_observation_format_repair.RunFormatRepairRecordingTests) ... ok
+test_run_dir_continues_existing_numbering (test_observation_format_repair.RunFormatRepairRecordingTests) ... ok
+test_run_dir_records_each_attempt_with_incrementing_ids (test_observation_format_repair.RunFormatRepairRecordingTests) 
+... ok
+test_first_valid_is_adopted (test_observation_format_repair.RunFormatRepairTests) ... ok
+test_fix_from_template_patch_is_adopted (test_observation_format_repair.RunFormatRepairTests) ... ok
+test_invalid_then_valid_adopts (test_observation_format_repair.RunFormatRepairTests) ... ok
+test_marker_stops_with_reason (test_observation_format_repair.RunFormatRepairTests) ... ok
+test_marker_variants_never_raise (test_observation_format_repair.RunFormatRepairTests) ... ok
+test_marker_without_reason_still_stops (test_observation_format_repair.RunFormatRepairTests) ... ok
+test_max_repairs_zero_sends_nothing (test_observation_format_repair.RunFormatRepairTests) ... ok
+test_non_marker_repair_outcome_is_not_a_marker (test_observation_format_repair.RunFormatRepairTests) ... ok
+test_odd_first_texts_never_raise (test_observation_format_repair.RunFormatRepairTests) ... ok
+test_phase_mismatch_is_repaired_not_adopted (test_observation_format_repair.RunFormatRepairTests) ... ok
+test_repair_cap_stops_as_needs_observation (test_observation_format_repair.RunFormatRepairTests) ... ok
+test_send_exception_is_failed (test_observation_format_repair.RunFormatRepairTests) ... ok
+test_two_repairs_then_valid_adopts (test_observation_format_repair.RunFormatRepairTests) ... ok
+
+----------------------------------------------------------------------
+Ran 20 tests in 0.084s
+
+OK

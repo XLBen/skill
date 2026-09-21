@@ -1,0 +1,34 @@
+```json
+{
+  "schema": "product-observation-review/2",
+  "findings_validity": "sufficient",
+  "coverage_adequacy": "sufficient",
+  "verdict": "needs-repair",
+  "notes": "F-001 is supported by existing evidence and correctly identifies an unresolved high-severity persistence failure. Save/show journeys were adequately exercised, including repeated attempts; no material coverage gaps were found.",
+  "related_finding_ids": ["F-001"]
+}
+```
+
+--stderr--
+[0m
+> po-reviewer · gpt-5.6-luna
+[0m
+[0m→ [0mSkill "reviewer"
+[0m→ [0mRead E:/MISC/代码项目/skill/contract-review/references/reviewer-protocol.md
+[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/finding-rules.md
+[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/observation-protocol.md
+[0m→ [0mRead .opencode/mvp/g-obs.md
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-fbad-1/compare/run-001/result.json
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-fbad-1/discover/run-001/result.json
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-fbad-1/evidence
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-fbad-1/evidence/save3.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-fbad-1/evidence/save-world2.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-fbad-1/evidence/serial-save-1.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-fbad-1/candidate.json
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-fbad-1/evidence/save1.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-fbad-1/evidence/show1.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-fbad-1/evidence/show3.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-fbad-1/evidence/serial-show-1.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-fbad-1/evidence/serial-save-2.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-fbad-1/evidence/show-world2.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-fbad-1/evidence/serial-show-2.txt

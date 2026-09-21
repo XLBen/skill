@@ -1,0 +1,35 @@
+```json
+{
+  "schema": "product-observation-review/2",
+  "findings_validity": "sufficient",
+  "coverage_adequacy": "sufficient",
+  "verdict": "sufficient",
+  "notes": "Candidate cand-calib-2: evidence is readable and supports the reported clean runs; both documented modes reach game over with exit code 0. No material findings or missing goal surfaces identified.",
+  "related_finding_ids": []
+}
+```
+
+--stderr--
+[0m
+> po-reviewer · gpt-5.6-luna
+[0m
+[0m→ [0mSkill "reviewer"
+[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/finding-rules.md
+[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/observation-protocol.md
+[0m→ [0mRead E:/MISC/代码项目/skill/contract-review/references/reviewer-protocol.md
+[0m→ [0mRead .opencode/mvp/g-obs.md
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-calib-2/discover/run-001/result.json
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-calib-2/compare/run-001/result.json
+[0m✱ [0mGlob "**/*"[90m in .opencode/mvp/observation/G-OBS/cand-calib-2/evidence · 15 matches[0m
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-calib-2/evidence/default.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-calib-2/evidence/mode-a.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-calib-2/evidence/mode-b.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-calib-2/evidence/invalid-mode.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-calib-2/evidence/default-entry.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-calib-2/evidence/default-entry.txt.meta.json
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-calib-2/evidence/mode-a.txt.meta.json
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-calib-2/evidence/mode-b.txt.meta.json
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-calib-2/evidence/invalid-mode.txt.meta.json
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-calib-2/evidence/invalid-mode.txt.stderr.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-calib-2/evidence/mode-a.txt.stderr.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-calib-2/evidence/mode-b.txt.stderr.txt

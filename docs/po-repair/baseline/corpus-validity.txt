@@ -1,0 +1,24 @@
+S00 corpus direct-check (current scripts/product_observation.py)
+INVALID         A-term/cand-bad/compare  errors= 2 handmade=False sha256=60397b061473bab1bf94368e6825002bd02ac002b8a8fa4f73bc325b4063997d 
+INVALID         A-term/cand-bad/discover errors=19 handmade=False sha256=42d9315d7145d455a32db26a0f103c7004a7ae8db228271dc3065fc6a37766be 
+VALID           A-term/cand-good/discover errors= 0 handmade=False sha256=84458ca50b033dd2cfadd1477fcf0bb636727169c4341ce562058130b4a26ca2 
+INVALID         B-term/cand-bad/compare  errors= 8 handmade=False sha256=efdce053319be7be4ab89b8064aa4f2d01925c8bc96ebf59156b8ede92b504d4 
+INVALID         B-term/cand-bad/discover errors=28 handmade=False sha256=4355fadaa806c3b722c02881dece8b9990c4e93ec112d6b73f6b792bbd2a2ea2 
+INVALID         B-term/cand-fix/compare  errors=17 handmade=False sha256=65c09738bd10fbfbdc30e7478d7656f641743b01520c19618b892daf00107318 
+INVALID         B-term/cand-fix/discover errors=16 handmade=False sha256=4ecc694b9cd4858e43c206df44c404239fda17380d2b678f66081fba929693a8 
+VALIDATOR-CRASH B-term/cand-fix/review   errors= 1 handmade=False sha256=5aa7df8e55fa2853d6c1ab4071aa8f5b78a0c2d70b2f96f60d8b170198589467 review.findings_validity
+INVALID         C-term/cand-bad/compare  errors= 6 handmade=False sha256=489249087a821d1b94add36b2e1ddd1f0c220a9d63a4a5c27cc0a8b63a348cca 
+INVALID         C-term/cand-bad/discover errors=16 handmade=False sha256=f9655532b903b67fbcb7c18f1b84f32d688fda8fa54d79f6ff4ca57941265fa1 
+INVALID         D-term/cand-bad/compare  errors= 8 handmade=False sha256=6eb7f663bd66875534282b1a9a2c7c9c685d37285c1d35288a6bb09f4e7a6c02 
+INVALID         D-term/cand-bad/discover errors=18 handmade=False sha256=0544523e27932c429d4b205edfa0aeebc33dfccd162e527da29d192b3be922b6 
+INVALID         E-term/cand-good/discover errors=17 handmade=False sha256=8034e9580f78ff69be281af31095b937c06bd70c03626f5409f0f946d0d5d1ef 
+INVALID         E-term/cand-redesign/compare  errors= 2 handmade=False sha256=b16f9f98508a7c3e2975902cabd267f70374a454770767ed50638e2a69d3dd95 
+INVALID         E-term/cand-redesign/discover errors=18 handmade=False sha256=c662f0fbdd33cf33b3b5d3bd36aa5fc707e3524f34b729134eefee9418386306 
+VALIDATOR-CRASH E-term/cand-redesign/review   errors= 1 handmade=False sha256=bfdb992f0ca949fd3e8b7c1c3e91e95e2f66af9e9777feb7f8f9e9fd167a47e0 review.findings_validity
+INVALID         F-term/cand-bad/compare  errors=23 handmade=False sha256=65f47085d460406bb6c2c068780e1d4637efd0ac5e045b7ec915bbb6988e8186 
+INVALID         F-term/cand-bad/discover errors=35 handmade=False sha256=cbae41b13d1f59506cb2196a984f0529194b215ce719451cdbad2af6f332d91e 
+VALID           t1/cand-x/compare  errors= 0 handmade=True sha256=3cc4887b28baeb5b593ac682cf8cd35d52440709c9ddf6196ebfb6fe47ec49f7 
+INVALID         t1/cand-x/discover errors= 1 handmade=True sha256=2c5441876ad5e7d6e9ec4afd261bd186f3bc7399351f50bef9bdcf6d6e40aca4 
+VALID           t1/cand-x/review   errors= 0 handmade=True sha256=aba13806ebc016ceac3d22d3d36a023eb37dc43393b89655b02dcd018d11423b 
+
+TOTAL=21 VALID=3 INVALID=16 VALIDATOR-CRASH=2 HANDMADE=3

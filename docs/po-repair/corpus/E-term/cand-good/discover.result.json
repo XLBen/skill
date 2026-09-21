@@ -1,0 +1,211 @@
+{
+  "schema": "product-observation/1",
+  "phase": "discover",
+  "goal_id": "G-OBS",
+  "candidate_id": "cand-good",
+  "status": "completed",
+  "baseline": "none",
+  "backend": {
+    "name": "terminal",
+    "status": "available",
+    "probe": "python 3.10.7; entry commands executed from project dir; outputs captured (stdout/stderr separated) and read back by observing model; evidence persisted under evidence/runs/"
+  },
+  "lease": {
+    "resource": "Tasks CLI process invocations + delivered state under projects/E-term/app/",
+    "owner_session": "product-observer (this dispatch)",
+    "candidate_id": "cand-good",
+    "status": "held for phase duration; no competing UI runner observed; observer mutations limited to attempted adds and evidence files under .opencode/"
+  },
+  "budget": {
+    "semantic_actions_used": 21,
+    "cap_per_surface_group": 40,
+    "observation_cycles_per_action_used": 2,
+    "wall_clock_minutes_used": "<10",
+    "exhausted": false
+  },
+  "product_map": [
+    {
+      "id": "S1",
+      "surface": "list",
+      "entry": "python app/app.py list",
+      "behavior_observed": "renders checkbox lines '[ ] task'; always prints '[ ] buy milk' and '[ ] walk dog'; exit 0; output invariant across all invocations"
+    },
+    {
+      "id": "S2",
+      "surface": "add <task>",
+      "entry": "python app/app.py add <task>",
+      "behavior_observed": "echoes 'added: <task>' and exits 0 for any non-empty argument (multi-word and unicode accepted); added task never appears in list; empty/missing arg echoes 'added: None'"
+    },
+    {
+      "id": "S3",
+      "surface": "state/persistence",
+      "entry": "side-effect probe (filesystem before/after)",
+      "behavior_observed": "no product-created state file exists after 9 add attempts (project dir and user profile scanned, 15-minute window); fresh app dir contained only app.py and README.md"
+    },
+    {
+      "id": "S4",
+      "surface": "argument handling",
+      "entry": "no-args / --help / -h / unknown command / case variants / extra args",
+      "behavior_observed": "no-args and unknown command print 'use: list | add <task>' exit 0; --help and -h print nothing on stdout or stderr, exit 2; subcommands case-sensitive; extra args to list ignored"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "J1",
+      "name": "first-run empty state",
+      "steps": "fresh-state check -> list",
+      "outcome": "non-empty fixed list shown; see F-002"
+    },
+    {
+      "id": "J2",
+      "name": "documented core: add then list",
+      "steps": "add todo -> list -> add buy-bread -> list",
+      "outcome": "confirmations printed, adds invisible; see F-001"
+    },
+    {
+      "id": "J3",
+      "name": "input variety and persistence probe",
+      "steps": "add unicode/multi-word/empty/no-arg -> list -> filesystem side-effect scan",
+      "outcome": "all adds confirmed then vanished; no state file ever created; unicode echo correct in UTF-8 evidence"
+    },
+    {
+      "id": "J4",
+      "name": "arg handling and help",
+      "steps": "no-args, --help, -h, unknown command, ADD/List/extra-arg, retry of case case",
+      "outcome": "usage line for fall-through cases; silent help; case-sensitive commands; see F-003, F-005"
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-001",
+      "surface_ids": [
+        "S2",
+        "S3"
+      ],
+      "severity": "critical",
+      "category": "functional",
+      "confidence": "observed",
+      "observed": "Every 'add <task>' invocation prints 'added: <task>' and exits 0, but the added task never appears in 'list'. Reproduced with 6 distinct adds (todo, buy-bread, 任务-中文-test, multi word task, case-test, retry-test). 'list' output stayed exactly '[ ] buy milk' / '[ ] walk dog' throughout. No product-created state file appeared anywhere (project dir and user profile scanned). User input is silently lost.",
+      "expected_basis": "Discover packet purpose: 'A user can list tasks and add one with the Tasks CLI'. README describes a task list. The product's own 'added: X' confirmation asserts the add succeeded, contradicting the observed state.",
+      "reproduction": "1) cd project dir; 2) python app/app.py add todo  -> 'added: todo', exit 0 (evidence runs/02); 3) python app/app.py list -> 'todo' absent (runs/03); 4) repeat with distinct names incl. unicode (runs/04, runs/13, runs/17); 5) filesystem scan shows no created state file (runs/06)",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/02-add-todo.txt",
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/03-list-after-add.txt",
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/04-add-buy-bread.txt",
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/05-list-after-second-add.txt",
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/17-list-final-all-adds.txt",
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/06-fs-side-effects.txt"
+      ],
+      "status": "confirmed"
+    },
+    {
+      "id": "F-002",
+      "surface_ids": [
+        "S1",
+        "S3"
+      ],
+      "severity": "high",
+      "category": "functional",
+      "confidence": "observed",
+      "observed": "On a delivered state with no data file present, first 'list' prints '[ ] buy milk' and '[ ] walk dog' - two tasks no user added. The README documents no way to remove or complete tasks, and list output never changes regardless of usage (6/6 invocations identical).",
+      "expected_basis": "Fresh-state filesystem evidence (runs/00, runs/06) contradicts the listed content; README promises a 'Simple task list' of user tasks; a list the user cannot influence defeats the documented surface.",
+      "reproduction": "1) verify app/ contains only app.py and README.md (evidence 00-app-dir-before.txt); 2) python app/app.py list -> two phantom tasks, exit 0 (runs/01); 3) run list after any adds -> identical output (runs/17)",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/00-app-dir-before.txt",
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/01-list-fresh.txt",
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/17-list-final-all-adds.txt"
+      ],
+      "status": "confirmed",
+      "note": "Distinct user-visible symptom from F-001 (phantom fixed content vs lost input); likely same root cause, to be linked at repair."
+    },
+    {
+      "id": "F-003",
+      "surface_ids": [
+        "S4"
+      ],
+      "severity": "medium",
+      "category": "functional",
+      "confidence": "observed",
+      "observed": "'python app/app.py --help' and '-h' produce zero bytes on stdout and zero bytes on stderr and exit with code 2. In contrast, no-args and unknown commands print 'use: list | add <task>' with exit 0. A user following the universal help convention hits a silent dead end.",
+      "expected_basis": "The product's own feedback elsewhere (usage line on empty args) shows help text is the intended affordance; universal CLI convention is that --help/-h display usage.",
+      "reproduction": "1) python app/app.py --help -> empty stdout, empty stderr, exit 2 (runs/08, captured on separate channels, run twice); 2) python app/app.py -h -> same (runs/09); 3) compare with python app/app.py frobnicate -> usage line (runs/10)",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/08-help-flag.txt",
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/09-h-flag.txt",
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/10-unknown-command.txt"
+      ],
+      "status": "confirmed"
+    },
+    {
+      "id": "F-004",
+      "surface_ids": [
+        "S2"
+      ],
+      "severity": "low",
+      "category": "content",
+      "confidence": "observed",
+      "observed": "'python app/app.py add' (no argument) and 'add \"\"' (empty string) both print 'added: None' and exit 0, leaking an internal placeholder token as a task-name confirmation and accepting invalid input without a validation error.",
+      "expected_basis": "The product's own confirmation format implies echoing a user-supplied task name; 'None' is not user input. Upstream taxonomy: form validation that accepts invalid input.",
+      "reproduction": "1) python app/app.py add -> 'added: None', exit 0 (runs/11); 2) python app/app.py add \"\" -> 'added: None', exit 0 (runs/12)",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/11-add-no-arg.txt",
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/12-add-empty-string.txt"
+      ],
+      "status": "confirmed"
+    },
+    {
+      "id": "F-005",
+      "surface_ids": [
+        "S4"
+      ],
+      "severity": "low",
+      "category": "ux",
+      "confidence": "observed",
+      "observed": "Subcommands are case-sensitive: 'ADD retry-test' and 'List' fall through to the usage line 'use: list | add <task>' (exit 0), verified on two independent attempts. Exit-code conventions are also inconsistent: usage fall-through exits 0 while --help/-h exit 2.",
+      "expected_basis": "Common CLI convention treats commands case-insensitively or at least documents the constraint; the product's own exit codes are internally inconsistent (0 for invalid commands, 2 for help flags).",
+      "reproduction": "1) python app/app.py ADD case-test -> usage line (runs/16); 2) retry python app/app.py ADD retry-test and python app/app.py List -> usage line both times (runs/18); 3) compare exit codes in runs/07, runs/08, runs/10",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/16-add-uppercase.txt",
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/18-case-sensitivity-retry.txt"
+      ],
+      "status": "confirmed"
+    }
+  ],
+  "unobserved_areas": [],
+  "capability_gaps": [],
+  "continuation": null,
+  "stop_reason": "coverage-complete-within-budget",
+  "evidence_refs": [
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/00-app-dir-before.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/01-list-fresh.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/02-add-todo.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/03-list-after-add.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/04-add-buy-bread.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/05-list-after-second-add.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/06-fs-side-effects.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/07-no-args.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/08-help-flag.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/09-h-flag.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/10-unknown-command.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/11-add-no-arg.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/12-add-empty-string.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/13-add-unicode.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/14-add-multiword.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/15-list-extra-arg.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/16-add-uppercase.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/17-list-final-all-adds.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/runs/18-case-sensitivity-retry.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/19-session-notes.txt"
+  ],
+  "packet_binding": {
+    "packet_schema": "workflow-observer-packet/1",
+    "packet_path": ".opencode/mvp/observation/G-OBS/cand-good/discover.packet.json",
+    "candidate_manifest_sha256_verified": true,
+    "source_code_read": false,
+    "goal_card_read": false
+  },
+  "packet_hash": "fbc6a36f70577611a188ba1c2ae8d96bcdd185753d29ac619d73fdebac5e6cf3",
+  "surfaces": [],
+  "unobserved": [],
+  "observer_session_id": "ses_f3de97a86ffeRdn1tZQUOdGMuM"
+}

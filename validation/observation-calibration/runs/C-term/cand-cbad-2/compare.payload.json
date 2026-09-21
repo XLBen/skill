@@ -1,0 +1,128 @@
+{
+  "schema": "product-observation/2",
+  "phase": "compare",
+  "surfaces": [
+    {
+      "id": "S-01",
+      "importance": "material",
+      "modes": [
+        "default"
+      ],
+      "name": "CLI menu"
+    },
+    {
+      "id": "S-02",
+      "importance": "material",
+      "modes": [
+        "default"
+      ],
+      "name": "Home section"
+    },
+    {
+      "id": "S-03",
+      "importance": "material",
+      "modes": [
+        "default"
+      ],
+      "name": "Notes section"
+    },
+    {
+      "id": "S-04",
+      "importance": "material",
+      "modes": [
+        "default"
+      ],
+      "name": "Stats section"
+    },
+    {
+      "id": "S-05",
+      "importance": "material",
+      "modes": [
+        "default"
+      ],
+      "name": "Archive section"
+    },
+    {
+      "id": "S-06",
+      "importance": "material",
+      "modes": [
+        "default"
+      ],
+      "name": "Help section"
+    },
+    {
+      "id": "S-07",
+      "importance": "peripheral",
+      "modes": [
+        "default"
+      ],
+      "name": "CLI usage and invalid input"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "J-01",
+      "outcome": "covered",
+      "surface_ids": [
+        "S-01"
+      ],
+      "evidence_refs": [
+        "evidence/compare-menu.txt",
+        "evidence/compare-menu-repeat.txt"
+      ]
+    },
+    {
+      "id": "J-02",
+      "outcome": "covered",
+      "surface_ids": [
+        "S-02",
+        "S-03",
+        "S-04",
+        "S-05",
+        "S-06"
+      ],
+      "evidence_refs": [
+        "evidence/compare-home.txt",
+        "evidence/compare-notes.txt",
+        "evidence/compare-stats.txt",
+        "evidence/compare-archive.txt",
+        "evidence/compare-help.txt"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-001",
+      "surface_ids": [
+        "S-01"
+      ],
+      "severity": "medium",
+      "category": "functional",
+      "confidence": "observed",
+      "status": "confirmed",
+      "difference_classification": "confirmed-defect",
+      "observed": "The menu lists home, notes, stats, and help, but omits archive.",
+      "expected_basis": "The original goal and public README require browsing all five documented sections through the menu.",
+      "reproduction": "Run `python app/app.py menu`; archive is absent in both captured runs. Run `python app/app.py open archive`; the archive section is directly reachable.",
+      "evidence_refs": [
+        "evidence/compare-menu.txt",
+        "evidence/compare-menu-repeat.txt",
+        "evidence/compare-archive.txt"
+      ]
+    }
+  ],
+  "unobserved": [],
+  "capability_gaps": [],
+  "continuation": null,
+  "stop_reason": "coverage-completed",
+  "evidence_refs": [
+    "evidence/compare-menu.txt",
+    "evidence/compare-menu-repeat.txt",
+    "evidence/compare-home.txt",
+    "evidence/compare-notes.txt",
+    "evidence/compare-stats.txt",
+    "evidence/compare-archive.txt",
+    "evidence/compare-help.txt"
+  ],
+  "notes": "All documented sections were rechecked through the real CLI entry point. No historical baseline was supplied. The menu omission of archive remains confirmed."
+}

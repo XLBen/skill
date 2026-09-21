@@ -1,0 +1,64 @@
+﻿python : test_confirmed_high_is_blocking (test_observation_semantics.BlockingSemanticsTests) ... ok
+所在位置 行:1 字符: 338
++ ... in $tests){ python -m unittest discover -s tests -p $t -v 2>&1 | Out- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_confirmed_...csTests) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+test_dismissed_and_resolved_are_not_blocking (test_observation_semantics.BlockingSemanticsTests) ... ok
+test_malformed_values_do_not_raise (test_observation_semantics.BlockingSemanticsTests) ... ok
+test_medium_confirmed_is_not_blocking (test_observation_semantics.BlockingSemanticsTests) ... ok
+test_owner_decision_high_is_blocking (test_observation_semantics.BlockingSemanticsTests) ... ok
+test_clean_round_still_passes (test_observation_semantics.CollectSemanticIntegrationTests) ... ok
+test_dismissed_high_with_owner_decision_passes_the_gate (test_observation_semantics.CollectSemanticIntegrationTests) 
+... ok
+test_insufficient_coverage_with_needs_observation_is_consistent 
+(test_observation_semantics.CollectSemanticIntegrationTests) ... ok
+test_insufficient_coverage_with_sufficient_verdict_fails_consistency 
+(test_observation_semantics.CollectSemanticIntegrationTests) ... ok
+test_intended_change_high_without_owner_decision_fails_the_gate 
+(test_observation_semantics.CollectSemanticIntegrationTests) ... ok
+test_open_blocking_with_needs_repair_review_is_consistent (test_observation_semantics.CollectSemanticIntegrationTests) 
+... ok
+test_open_blocking_with_sufficient_review_fails_consistency 
+(test_observation_semantics.CollectSemanticIntegrationTests) ... ok
+test_owner_decision_high_still_blocks_with_needs_repair_review 
+(test_observation_semantics.CollectSemanticIntegrationTests) ... ok
+test_readme_only_dismissal_fails_the_gate (test_observation_semantics.CollectSemanticIntegrationTests) ... ok
+test_blocked_verdict_is_unconstrained (test_observation_semantics.ReviewVerdictConsistencyTests) ... ok
+test_insufficient_coverage_with_sufficient_verdict_is_a_problem 
+(test_observation_semantics.ReviewVerdictConsistencyTests) ... ok
+test_insufficient_findings_validity_with_sufficient_verdict_is_a_problem 
+(test_observation_semantics.ReviewVerdictConsistencyTests) ... ok
+test_insufficient_with_needs_observation_passes (test_observation_semantics.ReviewVerdictConsistencyTests) ... ok
+test_insufficient_with_needs_repair_is_still_a_problem (test_observation_semantics.ReviewVerdictConsistencyTests) ... 
+ok
+test_invalid_verdict_is_reported_without_raising (test_observation_semantics.ReviewVerdictConsistencyTests) ... ok
+test_no_blocking_with_needs_observation_is_a_problem (test_observation_semantics.ReviewVerdictConsistencyTests) ... ok
+test_no_blocking_with_needs_repair_is_a_problem (test_observation_semantics.ReviewVerdictConsistencyTests) ... ok
+test_no_blocking_with_sufficient_passes (test_observation_semantics.ReviewVerdictConsistencyTests) ... ok
+test_non_dict_review_returns_problem (test_observation_semantics.ReviewVerdictConsistencyTests) ... ok
+test_open_blocking_with_needs_repair_passes (test_observation_semantics.ReviewVerdictConsistencyTests) ... ok
+test_open_blocking_with_sufficient_verdict_is_a_problem (test_observation_semantics.ReviewVerdictConsistencyTests) ... 
+ok
+test_confirmed_defect_high_has_no_semantic_problem (test_observation_semantics.SemanticFindingTests) ... ok
+test_dismissed_high_with_owner_decision_passes (test_observation_semantics.SemanticFindingTests) ... ok
+test_dismissed_high_without_owner_decision_is_a_problem (test_observation_semantics.SemanticFindingTests) ... ok
+test_intended_change_high_with_owner_decision_passes (test_observation_semantics.SemanticFindingTests) ... ok
+test_intended_change_high_without_owner_decision_is_a_problem (test_observation_semantics.SemanticFindingTests) ... ok
+test_intended_change_medium_without_owner_decision_passes (test_observation_semantics.SemanticFindingTests) ... ok
+test_known_old_issue_needs_evidence (test_observation_semantics.SemanticFindingTests) ... ok
+test_non_dict_finding_returns_problem (test_observation_semantics.SemanticFindingTests) ... ok
+test_owner_decision_classification_needs_basis (test_observation_semantics.SemanticFindingTests) ... ok
+test_owner_decision_classification_with_notes_passes (test_observation_semantics.SemanticFindingTests) ... ok
+test_readme_only_dismissal_keeps_blocking (test_observation_semantics.SemanticFindingTests) ... ok
+test_resolved_with_resolution_ref_passes (test_observation_semantics.SemanticFindingTests) ... ok
+test_resolved_without_resolution_ref_is_a_problem (test_observation_semantics.SemanticFindingTests) ... ok
+test_resolved_missing_resolution_ref_fails_contract (test_observation_semantics.StructuralBridgeTests) ... ok
+test_resolved_with_resolution_ref_and_evidence_passes_contract (test_observation_semantics.StructuralBridgeTests) ... 
+ok
+
+----------------------------------------------------------------------
+Ran 41 tests in 0.196s
+
+OK

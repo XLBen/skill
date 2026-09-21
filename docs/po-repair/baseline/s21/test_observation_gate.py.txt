@@ -1,0 +1,44 @@
+﻿python : test_current_candidate_resolution_is_reported (test_observation_gate.CrossRoundResolutionTests) ... ok
+所在位置 行:1 字符: 338
++ ... in $tests){ python -m unittest discover -s tests -p $t -v 2>&1 | Out- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_current_ca...onTests) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+test_missing_finding_in_earlier_round_is_reported (test_observation_gate.CrossRoundResolutionTests) ... ok
+test_resolution_to_known_earlier_finding_passes (test_observation_gate.CrossRoundResolutionTests) ... ok
+test_unknown_earlier_round_is_reported (test_observation_gate.CrossRoundResolutionTests) ... ok
+test_unreadable_earlier_round_is_reported (test_observation_gate.CrossRoundResolutionTests) ... ok
+test_absolute_evidence_ref_is_reported (test_observation_gate.EvidenceReferenceTests) ... ok
+test_check_covers_findings_journeys_and_report_refs (test_observation_gate.EvidenceReferenceTests) ... ok
+test_evidence_ref_escaping_the_candidate_scope_is_reported (test_observation_gate.EvidenceReferenceTests) ... ok
+test_existing_evidence_files_pass (test_observation_gate.EvidenceReferenceTests) ... ok
+test_missing_evidence_file_is_reported (test_observation_gate.EvidenceReferenceTests) ... ok
+test_malformed_finding_skips_redundant_semantic_diagnostics (test_observation_gate.FullDiagnosisTests) ... ok
+test_missing_manifest_still_checks_phases_review_and_evidence (test_observation_gate.FullDiagnosisTests) ... ok
+test_missing_review_does_not_skip_report_provenance (test_observation_gate.FullDiagnosisTests) ... ok
+test_one_pass_reports_multiple_independent_problem_classes (test_observation_gate.FullDiagnosisTests) ... ok
+test_sidecar_structure_problem_still_runs_other_checks (test_observation_gate.FullDiagnosisTests) ... ok
+test_changed_trace_file_blocks_check_current (test_observation_gate.GateRecordClosedLoopTests) ... ok
+test_failed_gate_verdict_blocks_finish (test_observation_gate.GateRecordClosedLoopTests) ... ok
+test_finish_and_check_current_require_a_gate_record (test_observation_gate.GateRecordClosedLoopTests) ... ok
+test_gate_cli_marks_unverified_provenance_failed (test_observation_gate.GateRecordClosedLoopTests) ... ok
+test_gate_cli_requires_a_trace (test_observation_gate.GateRecordClosedLoopTests) ... ok
+test_gate_cli_short_circuits_when_not_required (test_observation_gate.GateRecordClosedLoopTests) ... ok
+test_gate_cli_writes_passed_gate_and_finish_goal_completes (test_observation_gate.GateRecordClosedLoopTests) ... ok
+test_stale_goal_definition_hash_blocks_finish (test_observation_gate.GateRecordClosedLoopTests) ... ok
+test_unverified_trace_provenance_blocks_check_current (test_observation_gate.GateRecordClosedLoopTests) ... ok
+test_capability_gap_still_blocks (test_observation_gate.ObservationRegressionTests) ... ok
+test_owner_decision_finding_still_blocks (test_observation_gate.ObservationRegressionTests) ... ok
+test_current_candidate_is_rejected (test_observation_gate.ResolutionBindingFunctionTests) ... ok
+test_known_round_with_matching_finding_passes (test_observation_gate.ResolutionBindingFunctionTests) ... ok
+test_missing_finding_id_is_rejected (test_observation_gate.ResolutionBindingFunctionTests) ... ok
+test_non_resolved_finding_is_ignored (test_observation_gate.ResolutionBindingFunctionTests) ... ok
+test_unknown_round_is_rejected (test_observation_gate.ResolutionBindingFunctionTests) ... ok
+test_unreadable_round_is_rejected (test_observation_gate.ResolutionBindingFunctionTests) ... ok
+test_review_hashes_use_sidecar_referenced_files (test_observation_gate.ReviewHashBindingTests) ... ok
+
+----------------------------------------------------------------------
+Ran 33 tests in 1.598s
+
+OK

@@ -1,0 +1,8 @@
+{
+  "schema": "product-observation-review/2",
+  "findings_validity": "sufficient",
+  "coverage_adequacy": "sufficient",
+  "verdict": "sufficient",
+  "notes": "The phase payloads are structurally complete and their evidence refs trace to the archived round.",
+  "related_finding_ids": ["F-01"]
+}

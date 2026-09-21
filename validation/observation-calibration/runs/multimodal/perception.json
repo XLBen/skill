@@ -1,0 +1,24 @@
+{
+  "probe": {
+    "path": "validation\\observation-calibration\\runs\\multimodal\\probe.png",
+    "color": "green",
+    "sha256": "c9427e46cb25954864c281489244359b4f3732aa7fd5b619391251d2c301c06c",
+    "size": 48
+  },
+  "answer": "green",
+  "verified": true,
+  "claim_problems": [],
+  "exit_code": 0,
+  "elapsed": 10.14951,
+  "record": {
+    "schema": "perception-probe/1",
+    "image": {
+      "path": "probe.png",
+      "sha256": "c9427e46cb25954864c281489244359b4f3732aa7fd5b619391251d2c301c06c"
+    },
+    "described_by": "opencode/openai:gpt-5.6-luna",
+    "description": "dominant color probe",
+    "session_id": "ses-calib-probe",
+    "created_at": "2026-09-21T20:42:00Z"
+  }
+}

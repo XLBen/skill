@@ -1,0 +1,578 @@
+﻿python.exe : test_acceptance_chain_keeps_full_handoff_and_reviewer_result (test_adhd_integration.AdhdIntegrationTests) 
+... ok
+所在位置 行:1 字符: 138
++ ... w(); $out = & python -m unittest discover -s tests -p "test_*.py" -v  ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_acceptance...onTests) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+test_command_wrappers_load_the_output_layer (test_adhd_integration.AdhdIntegrationTests) ... ok
+test_converge_review_precedes_slice_owner_acceptance (test_adhd_integration.AdhdIntegrationTests) ... ok
+test_skill_has_internal_output_contract_and_upstream_boundary (test_adhd_integration.AdhdIntegrationTests) ... ok
+test_cli_check_reports_pass_and_fail (test_assurance_policy.CliTests) ... ok
+test_no_policy_file_is_ignored (test_assurance_policy.FinishPlanEnforcementTests) ... ok
+test_non_strict_policy_is_ignored (test_assurance_policy.FinishPlanEnforcementTests) ... ok
+test_strict_policy_accepts_complete_package (test_assurance_policy.FinishPlanEnforcementTests) ... ok
+test_strict_policy_rejects_incomplete_package (test_assurance_policy.FinishPlanEnforcementTests) ... ok
+test_wrong_policy_schema_fails_even_without_package_files (test_assurance_policy.FinishPlanEnforcementTests) ... ok
+test_circuit_break_fails (test_assurance_policy.PackageCheckTests) ... ok
+test_happy_package_passes (test_assurance_policy.PackageCheckTests) ... ok
+test_missing_phase0_fails (test_assurance_policy.PackageCheckTests) ... ok
+test_missing_required_file_fails (test_assurance_policy.PackageCheckTests) ... ok
+test_owner_gate_is_not_a_defect (test_assurance_policy.PackageCheckTests) ... ok
+test_pending_binding_manifest_fails (test_assurance_policy.PackageCheckTests) ... ok
+test_policy_schema_validation (test_assurance_policy.PackageCheckTests) ... ok
+test_protected_hash_mismatch_fails (test_assurance_policy.PackageCheckTests) ... ok
+test_refuted_phase0_fails (test_assurance_policy.PackageCheckTests) ... ok
+test_same_author_fails (test_assurance_policy.PackageCheckTests) ... ok
+test_unresolved_dispatch_action_fails (test_assurance_policy.PackageCheckTests) ... ok
+test_duplicate_assignment_and_unknown_step (test_audited_parallel.ParallelPlanTests) ... ok
+test_independent_disjoint_scopes_are_admissible (test_audited_parallel.ParallelPlanTests) ... ok
+test_overlapping_scopes_fall_back_to_serial (test_audited_parallel.ParallelPlanTests) ... ok
+test_protected_paths_are_rejected (test_audited_parallel.ParallelPlanTests) ... ok
+test_report_shape_and_cli (test_audited_parallel.ParallelPlanTests) ... ok
+test_step_dependency_falls_back_to_serial (test_audited_parallel.ParallelPlanTests) ... ok
+test_unit_dependency_falls_back_to_serial (test_audited_parallel.ParallelPlanTests) ... ok
+test_writer_limit_falls_back_to_serial (test_audited_parallel.ParallelPlanTests) ... ok
+test_conflicting_patch_is_refused_at_apply (test_audited_parallel.RealGitIntegrationTests) ... ok
+test_out_of_scope_parallel_change_is_rejected_before_integration (test_audited_parallel.RealGitIntegrationTests) ... ok
+test_two_isolated_patches_integrate_serially (test_audited_parallel.RealGitIntegrationTests) ... ok
+test_grill_points_to_outcome_learning_for_value_hypotheses (test_domain_skills.EntryPointHookTests) ... ok
+test_orchestration_mentions_the_domain_registry (test_domain_skills.EntryPointHookTests) ... ok
+test_readmes_list_the_new_skills (test_domain_skills.EntryPointHookTests) ... ok
+test_systematic_debugging_routes_production_impact_to_incident_response (test_domain_skills.EntryPointHookTests) ... ok
+test_all_capabilities_registered (test_domain_skills.RoutingRegistrationTests) ... ok
+test_insertion_filter (test_domain_skills.RoutingRegistrationTests) ... ok
+test_unknown_insertion_token_is_rejected (test_domain_skills.RoutingRegistrationTests) ... ok
+test_skill_directories_have_matching_frontmatter (test_domain_skills.SkillFilesTests) ... ok
+test_skills_are_conditional_not_always_on (test_domain_skills.SkillFilesTests) ... ok
+test_broad_include_does_not_wedge_on_workflow_state (test_evidence_binding.CheckCurrentTests) ... ok
+test_completed_goal_is_current_until_the_product_changes (test_evidence_binding.CheckCurrentTests) ... ok
+test_snapshot_include_covers_excluded_delivery_inputs (test_evidence_binding.CheckCurrentTests) ... ok
+test_snapshot_include_rejects_traversal (test_evidence_binding.CheckCurrentTests) ... ok
+test_unreadable_included_file_fails_the_snapshot (test_evidence_binding.CheckCurrentTests) ... ok
+test_complete_temporary_payload_is_recovered_without_rerun (test_evidence_binding.InterruptedReservationTests) ... ok
+test_incomplete_temporary_reservation_blocks_until_explicit_recovery 
+(test_evidence_binding.InterruptedReservationTests) ... ok
+test_evidence_predating_workspace_binding_blocks_finish (test_evidence_binding.WorkspaceBindingTests) ... ok
+test_new_product_file_after_verification_blocks_finish (test_evidence_binding.WorkspaceBindingTests) ... ok
+test_product_change_after_verification_blocks_finish (test_evidence_binding.WorkspaceBindingTests) ... ok
+test_verification_command_that_mutates_workspace_is_rejected (test_evidence_binding.WorkspaceBindingTests) ... ok
+test_workflow_and_cache_writes_do_not_invalidate (test_evidence_binding.WorkspaceBindingTests) ... ok
+test_find_cli_writes_report (test_evidence_reuse.RegistryTests) ... ok
+test_find_lists_equivalent_and_rejects_others (test_evidence_reuse.RegistryTests) ... ok
+test_outcome_id_is_not_part_of_equivalence (test_evidence_reuse.RegistryTests) ... ok
+test_rejection_reasons (test_evidence_reuse.RegistryTests) ... ok
+test_cli_verify_goal_reuse_exit_codes (test_evidence_reuse.ReuseGoalEvidenceTests) ... ok
+test_reuse_refused_after_workspace_change (test_evidence_reuse.ReuseGoalEvidenceTests) ... ok
+test_reuse_refused_for_failed_source (test_evidence_reuse.ReuseGoalEvidenceTests) ... ok
+test_reuse_refused_for_source_without_workspace_binding (test_evidence_reuse.ReuseGoalEvidenceTests) ... ok
+test_reuse_refused_when_command_differs (test_evidence_reuse.ReuseGoalEvidenceTests) ... ok
+test_reuse_skips_reexecution_and_records_source (test_evidence_reuse.ReuseGoalEvidenceTests) ... ok
+test_commands_only_leaves_config_untouched (test_install.InstallTests) ... ok
+test_default_root_skips_same_file_and_records_manifest (test_install.InstallTests) ... ok
+test_inline_agent_conflict_fails_before_copying (test_install.InstallTests) ... ok
+test_installed_engine_resolves_its_own_routing_copy (test_install.InstallTests) ... ok
+test_invalid_manifest_files_type_fails_before_copying (test_install.InstallTests) ... ok
+test_jsonc_hint_lists_live_paths_without_editing_config (test_install.InstallTests) ... ok
+test_local_jsonc_inline_agent_conflict_fails_before_copying (test_install.InstallTests) ... ok
+test_only_live_skills_registered_without_automatic_mcp (test_install.InstallTests) ... ok
+test_real_repository_install_discovers_computer_use_once (test_install.InstallTests) ... ok
+test_refuses_unowned_agent_overwrite_and_force_replaces (test_install.InstallTests) ... ok
+test_singular_agent_dir_conflict_fails_before_copying (test_install.InstallTests) ... ok
+test_singular_agent_dir_without_conflict_installs (test_install.InstallTests) ... ok
+test_upgrade_preserves_unrelated_config_and_deduplicates_live_paths (test_install.InstallTests) ... ok
+test_upgrade_retires_removed_agent_files (test_install.InstallTests) ... ok
+test_comments_and_trailing_commas (test_install.ParseJsoncTests) ... ok
+test_comments_do_not_join_tokens (test_install.ParseJsoncTests) ... ok
+test_preserves_strings_while_removing_trailing_commas (test_install.ParseJsoncTests) ... ok
+test_unterminated_comment (test_install.ParseJsoncTests) ... ok
+{
+  "schema": "workflow-parallel-plan/1",
+  "plan": "C:/Users/Public/Documents/Wondershare/CreatorTemp/tmp6y08rc0d/PLAN.json",
+  "max_writers": 2,
+  "admissible": true,
+  "problems": [],
+  "tasks": [
+    {
+      "task_id": "T-A",
+      "step_ids": [
+        "S-01"
+      ],
+      "write_scope": [
+        "src/a/**"
+      ],
+      "work_root": null
+    },
+    {
+      "task_id": "T-B",
+      "step_ids": [
+        "S-02"
+      ],
+      "write_scope": [
+        "src/b/**"
+      ],
+      "work_root": null
+    }
+  ],
+  "rules": {
+    "integration": "controller applies collected patches serially",
+    "formal_v": "after integration, on the canonical version, controller-owned",
+    "review": "fresh reviewer sees the integrated version only",
+    "protected_tests": "write scopes must not touch frozen acceptance paths",
+    "fallback": "any failed condition means serial execution"
+  }
+}
+{
+  "schema": "workflow-parallel-plan/1",
+  "plan": "C:/Users/Public/Documents/Wondershare/CreatorTemp/tmp6y08rc0d/PLAN.json",
+  "max_writers": 2,
+  "admissible": false,
+  "problems": [
+    "task T-A: write scope 'tests/**' touches protected acceptance path 'tests/**'"
+  ],
+  "tasks": [
+    {
+      "task_id": "T-A",
+      "step_ids": [
+        "S-01"
+      ],
+      "write_scope": [
+        "tests/**"
+      ],
+      "work_root": null
+    }
+  ],
+  "rules": {
+    "integration": "controller applies collected patches serially",
+    "formal_v": "after integration, on the canonical version, controller-owned",
+    "review": "fresh reviewer sees the integrated version only",
+    "protected_tests": "write scopes must not touch frozen acceptance paths",
+    "fallback": "any failed condition means serial execution"
+  }
+}
+test_cli_observer_command_writes_packet (test_observer_packets.ObserverPacketTests) ... ok
+test_compare_packet_carries_goal_history (test_observer_packets.ObserverPacketTests) ... ok
+test_compare_requires_saved_discover (test_observer_packets.ObserverPacketTests) ... ok
+test_discover_packet_blind_and_valid (test_observer_packets.ObserverPacketTests) ... ok
+test_discover_packet_rejects_goal_history (test_observer_packets.ObserverPacketTests) ... ok
+test_forbidden_field_rejected (test_observer_packets.ObserverPacketTests) ... ok
+test_schema1_goal_rejected_for_packets (test_observer_packets.ObserverPacketTests) ... ok
+test_stale_candidate_manifest_detected (test_observer_packets.ObserverPacketTests) ... ok
+test_stale_goal_card_detected (test_observer_packets.ObserverPacketTests) ... ok
+test_unknown_phase_rejected (test_observer_packets.ObserverPacketTests) ... ok
+test_added_and_removed_files_are_reported (test_package_seal.SealTests) ... ok
+test_changed_file_fails_verification (test_package_seal.SealTests) ... ok
+test_cli_seal_and_verify (test_package_seal.SealTests) ... ok
+observer packet written: C:\Users\Public\Documents\Wondershare\CreatorTemp\tmp6sc3n2k7\cli.packet.json (phase=discover, candidate=cand-1)
+test_cli_verify_missing_seal (test_package_seal.SealTests) ... ok
+test_invalid_parent_and_missing_package_fail (test_package_seal.SealTests) ... ok
+test_parent_lineage_is_recorded (test_package_seal.SealTests) ... ok
+test_seal_file_itself_is_not_sealed (test_package_seal.SealTests) ... ok
+test_seal_verifies_clean_package (test_package_seal.SealTests) ... ok
+test_budget_exhausted_stop_reason_blocks (test_product_observation.ObservationProject) ... ok
+test_candidate_file_change_invalidates (test_product_observation.ObservationProject) ... ok
+test_dismissed_high_not_blocking (test_product_observation.ObservationProject) ... ok
+test_enforce_raises_for_required_goal_without_sidecar (test_product_observation.ObservationProject) ... ok
+test_finish_goal_enforces_observation (test_product_observation.ObservationProject) ... ok
+test_full_valid_round_passes_and_writes_gate (test_product_observation.ObservationProject) ... ok
+test_insufficient_review_verdict_blocks (test_product_observation.ObservationProject) ... ok
+test_material_surface_unobserved_blocks (test_product_observation.ObservationProject) ... ok
+test_missing_compare_phase_fails (test_product_observation.ObservationProject) ... ok
+test_missing_sidecar_fails (test_product_observation.ObservationProject) ... ok
+test_review_hash_mismatch_blocks (test_product_observation.ObservationProject) ... ok
+test_schema1_goal_short_circuits (test_product_observation.ObservationProject) ... ok
+test_schema2_goal_validates (test_product_observation.ObservationProject) ... ok
+test_trace_provenance_missing_session_blocks (test_product_observation.ObservationProject) ... ok
+test_trace_provenance_with_skill_load_passes (test_product_observation.ObservationProject) ... ok
+test_unresolved_high_finding_blocks (test_product_observation.ObservationProject) ... ok
+test_report_schema_validation (test_product_observation.ObservationSpecTests) ... ok
+test_required_false_needs_reason_and_basis (test_product_observation.ObservationSpecTests) ... ok
+test_schema1_without_spec_ok (test_product_observation.ObservationSpecTests) ... ok
+test_schema2_requires_spec (test_product_observation.ObservationSpecTests) ... ok
+test_researcher_agent_documents_side_effect_boundary (test_protocol_contracts.AgentPermissionTests) ... ok
+test_skill_documented_package_manifest_path_is_writable (test_protocol_contracts.AgentPermissionTests) ... ok
+test_test_author_manifest_paths_match_permissions (test_protocol_contracts.AgentPermissionTests) ... ok
+test_dispatch_record_v2_example_has_required_runtime_fields (test_protocol_contracts.DispatchRecordSchemaTests) ... ok
+test_runtime_pointers_in_goal_json_would_invalidate_evidence_hash (test_protocol_contracts.DispatchRecordSchemaTests) 
+... ok
+test_engine_gates_in_cards_are_assigned_to_the_controller (test_protocol_contracts.PuaStageTimingTests) ... ok
+test_goal_finish_card_splits_pre_and_post_gate_evidence (test_protocol_contracts.PuaStageTimingTests) ... ok
+test_stage_check_index_links_every_card (test_protocol_contracts.PuaStageTimingTests) ... ok
+test_output_example_is_valid_json_with_adjudication_fields (test_protocol_contracts.ReviewerInterfaceTests) ... ok
+test_role_formats_named_in_matrix_exist_in_role_skills (test_protocol_contracts.ReviewerInterfaceTests) ... ok
+test_canonical_combinations (test_protocol_contracts.SeatSelectionTests) ... ok
+test_every_profile_interaction_has_exactly_one_seat (test_protocol_contracts.SeatSelectionTests) ... ok
+test_step_protocol_and_construction_reference_the_authority_table (test_protocol_contracts.SeatSelectionTests) ... ok
+test_all_stage_cards_are_declared (test_pua_integration.PuaIntegrationTests) ... ok
+test_pua_is_internal_only (test_pua_integration.PuaIntegrationTests) ... ok
+test_stage_hosts_expose_explicit_acceptance_hooks (test_pua_integration.PuaIntegrationTests) ... ok
+test_binding_updates_manifest_and_dispatch (test_review_lifecycle.BindTestAuthorTests) ... ok
+test_cli_bind_reports_bound_session (test_review_lifecycle.BindTestAuthorTests) ... ok
+test_manifest_without_binding_rows_is_rejected (test_review_lifecycle.BindTestAuthorTests) ... ok
+test_missing_provenance_is_rejected (test_review_lifecycle.BindTestAuthorTests) ... ok
+test_rebinding_other_session_is_rejected (test_review_lifecycle.BindTestAuthorTests) ... ok
+test_rebinding_same_session_is_idempotent (test_review_lifecycle.BindTestAuthorTests) ... ok
+test_construction_binds_before_implementation (test_review_lifecycle.DocumentationInvariantTests) ... ok
+test_reviewer_reuse_and_dual_verdict_rules_exist (test_review_lifecycle.DocumentationInvariantTests) ... ok
+test_test_author_agent_no_longer_demands_the_id_first (test_review_lifecycle.DocumentationInvariantTests) ... ok
+test_test_author_is_single_round_with_binding (test_review_lifecycle.DocumentationInvariantTests) ... ok
+test_reviewer_payload_with_dual_verdicts_passes_existing_validator (test_review_lifecycle.ReviewerReuseTests) ... ok
+test_brainstorming_triggers_on_durable_consequences (test_risk_taxonomy.DesignTriggerTests) ... ok
+test_test_author_points_to_the_risk_matrix_and_it_exists (test_risk_taxonomy.DesignTriggerTests) ... ok
+test_fixture_goal_stays_valid (test_risk_taxonomy.RiskTaxonomyTests) ... ok
+test_new_high_risk_factors_require_audited (test_risk_taxonomy.RiskTaxonomyTests) ... ok
+test_production_change_requires_guarded (test_risk_taxonomy.RiskTaxonomyTests) ... ok
+test_unknown_factor_is_rejected (test_risk_taxonomy.RiskTaxonomyTests) ... ok
+test_commands_only_preserves_previous_engine_manifest_entries (test_runtime_doctor.CommandsOnlyTests) ... ok
+test_commands_only_skips_agents_and_engine (test_runtime_doctor.CommandsOnlyTests) ... ok
+test_deep_merge_keeps_nested_permissions (test_runtime_doctor.ConfigParsingTests) ... ok
+test_jsonc_trailing_commas_are_accepted (test_runtime_doctor.ConfigParsingTests) ... ok
+test_freshness_drift_is_diagnostic_unless_requested (test_runtime_doctor.FreshnessTests) ... ok
+test_installed_file_change_is_detected (test_runtime_doctor.FreshnessTests) ... ok
+test_manifest_without_fingerprints_is_not_reported_fresh (test_runtime_doctor.FreshnessTests) ... ok
+test_reference_change_is_detected (test_runtime_doctor.FreshnessTests) ... ok
+test_lookback_excludes_old_sessions (test_runtime_doctor.HostDoctorTests) ... ok
+test_lookback_keeps_recent_sessions (test_runtime_doctor.HostDoctorTests) ... ok
+test_windows_data_directory_is_discovered (test_runtime_doctor.HostDoctorTests) ... ok
+test_invalid_frontmatter_exits_nonzero (test_runtime_doctor.StrictModeTests) ... ok
+project: C:\Users\Public\Documents\Wondershare\CreatorTemp\tmpogwe37hj\proj
+project config: NONE (host will not see workflow skills)
+skills expected: 5
+  - bad [project-default]  <-- missing description (skill is filtered out by the host)
+  - file-workflow [external-agents]  <-- missing frontmatter
+  - form-workflow [external-agents]  <-- missing frontmatter
+  - good [project-default]
+  - research-workflow [external-agents]  <-- missing frontmatter
+agents expected: (none)
+host database: no readable opencode session database found
+sessions in project: 0
+skills with real completed loads: -
+task dispatches: 0 (verified 0)
+findings:
+  [SKILL_INVOCATION] expected-not-evidenced
+  [SUBAGENT_PROVENANCE] unavailable
+  [INSTALL_STATIC] ok
+test_valid_project_exits_zero (test_runtime_doctor.StrictModeTests) ... ok
+test_export_filters_by_directory_and_includes_children (test_runtime_evidence.ExportTests) ... ok
+test_export_normalizes_sessions_skills_and_tasks (test_runtime_evidence.ExportTests) ... ok
+test_custom_policy_path_gate_is_enforceable (test_runtime_evidence.RuntimeGateEngineTests) ... ok
+test_default_policy_created_after_custom_gate_blocks_finish (test_runtime_evidence.RuntimeGateEngineTests) ... ok
+test_empty_policy_requirements_cannot_remove_defaults (test_runtime_evidence.RuntimeGateEngineTests) ... ok
+test_failed_gate_blocks_finish (test_runtime_evidence.RuntimeGateEngineTests) ... ok
+test_finish_goal_without_policy_keeps_legacy_behavior (test_runtime_evidence.RuntimeGateEngineTests) ... ok
+test_goal_definition_change_after_gate_blocks_finish (test_runtime_evidence.RuntimeGateEngineTests) ... ok
+test_hand_written_trace_fails_gate (test_runtime_evidence.RuntimeGateEngineTests) ... ok
+test_malformed_policy_is_an_error_not_a_pass (test_runtime_evidence.RuntimeGateEngineTests) ... ok
+test_policy_change_after_gate_blocks_finish (test_runtime_evidence.RuntimeGateEngineTests) ... ok
+test_policy_created_after_gate_blocks_finish (test_runtime_evidence.RuntimeGateEngineTests) ... ok
+test_policy_deletion_after_gate_blocks_finish (test_runtime_evidence.RuntimeGateEngineTests) ... ok
+test_policy_rescope_after_gate_blocks_finish (test_runtime_evidence.RuntimeGateEngineTests) ... ok
+test_policy_without_gate_blocks_finish (test_runtime_evidence.RuntimeGateEngineTests) ... ok
+test_runtime_gate_pass_writes_sidecar_and_allows_finish (test_runtime_evidence.RuntimeGateEngineTests) ... ok
+test_runtime_gate_requires_trace_and_dispatch (test_runtime_evidence.RuntimeGateEngineTests) ... ok
+test_stale_gate_blocks_finish_after_dispatch_changes (test_runtime_evidence.RuntimeGateEngineTests) ... ok
+test_store_record_must_be_completed (test_runtime_evidence.RuntimeGateEngineTests) ... ok
+test_trace_content_must_exist_in_the_source_store (test_runtime_evidence.RuntimeGateEngineTests) ... ok
+test_dispatch_levels_reference_known_values (test_runtime_evidence.StageRoutingContractTests) ... ok
+test_every_stage_has_entry_and_required_skills (test_runtime_evidence.StageRoutingContractTests) ... ok
+test_pua_entries_carry_explicit_roles (test_runtime_evidence.StageRoutingContractTests) ... ok
+test_reviewer_conditions_are_consistent_with_entry_rigors (test_runtime_evidence.StageRoutingContractTests) ... ok
+test_reviewer_stages_declare_mode (test_runtime_evidence.StageRoutingContractTests) ... ok
+test_schema_and_stage_ids (test_runtime_evidence.StageRoutingContractTests) ... ok
+test_agent_name_substring_is_not_disclosure (test_runtime_evidence.ValidateTests) ... ok
+test_completed_action_requires_evidence_ref (test_runtime_evidence.ValidateTests) ... ok
+test_declared_pua_stage_requires_matching_acceptance (test_runtime_evidence.ValidateTests) ... ok
+test_declared_pua_stage_requires_pua_load (test_runtime_evidence.ValidateTests) ... ok
+test_duplicate_action_id_fails (test_runtime_evidence.ValidateTests) ... ok
+test_failed_skill_load_fails (test_runtime_evidence.ValidateTests) ... ok
+test_failed_task_is_not_reusable (test_runtime_evidence.ValidateTests) ... ok
+test_goal_rigor_blocks_downgrade_even_on_normal_slice (test_runtime_evidence.ValidateTests) ... ok
+test_good_chain_passes (test_runtime_evidence.ValidateTests) ... ok
+test_independence_skip_blocked_without_policy (test_runtime_evidence.ValidateTests) ... ok
+test_load_dispatch_rejects_unknown_version (test_runtime_evidence.ValidateTests) ... ok
+test_load_trace_rejects_wrong_schema (test_runtime_evidence.ValidateTests) ... ok
+test_missing_child_session_fails (test_runtime_evidence.ValidateTests) ... ok
+test_missing_pua_load_for_reviewer_fails (test_runtime_evidence.ValidateTests) ... ok
+test_non_native_trace_cannot_pass (test_runtime_evidence.ValidateTests) ... ok
+test_normal_reviewer_does_not_require_pua (test_runtime_evidence.ValidateTests) ... ok
+test_policy_review_satisfied_goal_requires_goal_scope_verdict (test_runtime_evidence.ValidateTests) ... ok
+test_policy_unknown_requirement_fails (test_runtime_evidence.ValidateTests) ... ok
+test_provenance_agent_mismatch_fails (test_runtime_evidence.ValidateTests) ... ok
+test_pua_repair_overrides_satisfied_claim (test_runtime_evidence.ValidateTests) ... ok
+test_review_floor_requires_done_status (test_runtime_evidence.ValidateTests) ... ok
+test_reviewer_fallback_to_general_fails (test_runtime_evidence.ValidateTests) ... ok
+test_reviewer_invalid_envelope_status_fails (test_runtime_evidence.ValidateTests) ... ok
+test_reviewer_issues_override_satisfied_claim (test_runtime_evidence.ValidateTests) ... ok
+test_reviewer_same_session_as_implementer_fails (test_runtime_evidence.ValidateTests) ... ok
+test_satisfied_reviewer_requires_result_ref (test_runtime_evidence.ValidateTests) ... ok
+test_satisfied_verdict_on_non_done_task_fails (test_runtime_evidence.ValidateTests) ... ok
+test_session_without_parent_fails (test_runtime_evidence.ValidateTests) ... ok
+test_skip_reason_whitelist_enforced (test_runtime_evidence.ValidateTests) ... ok
+test_truncated_trace_cannot_pass (test_runtime_evidence.ValidateTests) ... ok
+test_undisclosed_worker_fallback_fails_and_disclosed_passes (test_runtime_evidence.ValidateTests) ... ok
+test_unknown_status_and_duplicate_ids_fail (test_runtime_evidence.ValidateTests) ... ok
+test_unlinked_child_session_fails (test_runtime_evidence.ValidateTests) ... ok
+test_unresolved_controller_action_fails (test_runtime_evidence.ValidateTests) ... ok
+test_unresolved_owner_pending_actions_fail (test_runtime_evidence.ValidateTests) ... ok
+test_validate_cli_derives_slice_rigor_from_dispatch (test_runtime_evidence.ValidateTests) ... ok
+test_validate_cli_rejects_unsupported_store (test_runtime_evidence.ValidateTests) ... ok
+test_verify_native_trace_accepts_matching_failed_records (test_runtime_evidence.ValidateTests) ... ok
+test_verify_native_trace_accepts_retry_after_failed_skill_load (test_runtime_evidence.ValidateTests) ... ok
+test_verify_native_trace_accepts_retry_after_failed_tool_call (test_runtime_evidence.ValidateTests) ... ok
+test_agents_reference_their_skills (test_subagent_orchestration.AgentDefinitionTests) ... ok
+test_all_project_agents_exist_with_expected_boundaries (test_subagent_orchestration.AgentDefinitionTests) ... ok
+test_command_wrappers_reference_the_orchestration_protocol (test_subagent_orchestration.EntryIntegrationTests) ... ok
+test_construction_and_reviewer_protocol_map_to_project_agents (test_subagent_orchestration.EntryIntegrationTests) ... 
+ok
+test_reviewer_description_covers_lightweight_and_whole_goal_review (test_subagent_orchestration.EntryIntegrationTests) 
+... ok
+test_controller_mandates_delegation_and_removes_cost_discretion 
+(test_subagent_orchestration.OrchestrationProtocolTests) ... ok
+test_reference_files_exist_and_define_the_matrix (test_subagent_orchestration.OrchestrationProtocolTests) ... ok
+test_task_worker_skill_exists_with_controller_contract (test_subagent_orchestration.OrchestrationProtocolTests) ... ok
+test_worker_delegation_is_part_of_build_loop (test_subagent_orchestration.OrchestrationProtocolTests) ... ok
+test_export_includes_mcp_calls_excludes_context_tools (test_ui_acceptance.ToolEventsExportTests) ... ok
+test_native_tool_calls_policy_requirement (test_ui_acceptance.ToolEventsExportTests) ... ok
+test_applicability_none_without_reason_fails (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_bind_then_validate_passes (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_blocked_scenario_fails_and_is_not_applicability (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_changed_artifact_invalidates (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_declared_without_scenarios_fails (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_empty_outcome_coverage_fails (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_foreign_session_call_ref_fails (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_missing_result_file_fails (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_not_applicable_without_reason_fails (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_passed_with_fabricated_call_ref_fails (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_passed_without_computer_use_load_fails (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_passed_without_execution_metadata_fails (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_passed_without_native_call_refs_fails (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_passed_without_observation_refs_fails (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_passed_without_result_refs_fails (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_passed_without_session_evidence_fails (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_pending_required_scenario_fails (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_policy_ui_tools_accepts_matching_tool_without_runner (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_policy_ui_tools_rejects_unrelated_tool (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_rebind_after_change_is_rejected_without_new_execution (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_rebind_after_reset_and_reexecution_passes (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_rebind_with_stale_execution_is_rejected (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_required_must_be_boolean (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_required_scenario_cannot_be_not_applicable (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_unbound_identity_fails_until_bind (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_unknown_outcome_reference_fails (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_without_ui_tools_a_runner_evidence_is_required (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_wrong_schema_raises (test_ui_acceptance.UiAcceptanceValidationTests) ... ok
+test_artifact_change_after_gate_blocks_finish (test_ui_acceptance.UiGateEngineTests) ... ok
+test_failed_scenario_gate_blocks_finish (test_ui_acceptance.UiGateEngineTests) ... ok
+test_gate_rejects_calls_missing_from_the_source_store (test_ui_acceptance.UiGateEngineTests) ... ok
+test_gate_rejects_non_native_trace (test_ui_acceptance.UiGateEngineTests) ... ok
+test_goal_declared_ui_blocks_when_sidecar_deleted (test_ui_acceptance.UiGateEngineTests) ... ok
+test_goal_declared_ui_outcome_coverage_enforced (test_ui_acceptance.UiGateEngineTests) ... ok
+test_goal_declared_ui_rejects_applicability_none (test_ui_acceptance.UiGateEngineTests) ... ok
+test_no_sidecar_and_no_policy_keeps_legacy_behavior (test_ui_acceptance.UiGateEngineTests) ... ok
+test_policy_change_after_gate_blocks_finish (test_ui_acceptance.UiGateEngineTests) ... ok
+test_policy_created_after_ui_gate_blocks_finish (test_ui_acceptance.UiGateEngineTests) ... ok
+test_sidecar_without_gate_blocks_finish (test_ui_acceptance.UiGateEngineTests) ... ok
+test_stale_ui_gate_blocks_finish_after_sidecar_change (test_ui_acceptance.UiGateEngineTests) ... ok
+test_ui_gate_bind_then_pass_allows_finish (test_ui_acceptance.UiGateEngineTests) ... ok
+test_cli_failure_maps_to_exit_1 (test_verification_runner.CliTests) ... ok
+{
+  "dimension": "INSTALL_STATIC",
+  "project": "C:\\Users\\Public\\Documents\\Wondershare\\CreatorTemp\\tmp137cw6zt\\proj",
+  "config": {
+    "project": null,
+    "global": {
+      "path": "C:\\Users\\24083\\.config\\opencode\\opencode.jsonc",
+      "status": "ok"
+    },
+    "shape_problems": [],
+    "schema_check": "skipped (offline)"
+  },
+  "skills_expected": [
+    {
+      "name": "file-workflow",
+      "path": "C:\\Users\\24083\\.agents\\skills\\file-workflow\\SKILL.md",
+      "source_root": "C:\\Users\\24083\\.agents\\skills",
+      "problems": [
+        "missing frontmatter"
+      ],
+      "source": "external-agents"
+    },
+    {
+      "name": "form-workflow",
+      "path": "C:\\Users\\24083\\.agents\\skills\\form-workflow\\SKILL.md",
+      "source_root": "C:\\Users\\24083\\.agents\\skills",
+      "problems": [
+        "missing frontmatter"
+      ],
+      "source": "external-agents"
+    },
+    {
+      "name": "good",
+      "path": "C:\\Users\\Public\\Documents\\Wondershare\\CreatorTemp\\tmp137cw6zt\\proj\\.opencode\\skills\\good\\SKILL.md",
+      "source_root": "C:\\Users\\Public\\Documents\\Wondershare\\CreatorTemp\\tmp137cw6zt\\proj\\.opencode\\skills",
+      "problems": [],
+      "source": "project-default"
+    },
+    {
+      "name": "research-workflow",
+      "path": "C:\\Users\\24083\\.agents\\skills\\research-workflow\\SKILL.md",
+      "source_root": "C:\\Users\\24083\\.agents\\skills",
+      "problems": [
+        "missing frontmatter"
+      ],
+      "source": "external-agents"
+    }
+  ],
+  "skills_duplicate_names": [],
+  "agents_expected": [],
+  "builtin_agents": [
+    "build",
+    "plan",
+    "general",
+    "explore",
+    "scout",
+    "compaction",
+    "title",
+    "summary"
+  ],
+  "commands": [],
+  "install_manifest": null,
+  "skills_freshness": null,
+  "installed_integrity": null
+}
+test_cli_isolation_error_maps_to_exit_2 (test_verification_runner.CliTests) ... ok
+test_cli_writes_report_and_maps_exit (test_verification_runner.CliTests) ... ok
+test_missing_engine_fails_closed (test_verification_runner.ContainerModeTests) ... ok
+test_missing_image_fails_closed (test_verification_runner.ContainerModeTests) ... ok
+test_host_failure_exit_code_recorded (test_verification_runner.HostModeTests) ... ok
+test_host_success_reports_non_isolated (test_verification_runner.HostModeTests) ... ok
+test_host_timeout_is_recorded (test_verification_runner.HostModeTests) ... ok
+test_invalid_inputs (test_verification_runner.HostModeTests) ... ok
+test_output_is_bounded (test_verification_runner.HostModeTests) ... ok
+test_require_isolation_refuses_host (test_verification_runner.HostModeTests) ... ok
+test_compare_reports_deltas (test_workflow_metrics.CompareTests) ... ok
+test_compare_treats_missing_values_as_unavailable (test_workflow_metrics.CompareTests) ... ok
+test_main_compare_invalid_input (test_workflow_metrics.CompareTests) ... INVALID: metrics schema must be 
+workflow-metrics/1: C:\Users\Public\Documents\Wondershare\CreatorTemp\tmpjef0pxzs\bad.json
+ok
+test_duplicate_command_candidates_flag_repeats_only (test_workflow_metrics.ExportTests) ... ok
+test_export_summarizes_sessions_messages_and_tools (test_workflow_metrics.ExportTests) ... ok
+test_export_without_database_reports_error (test_workflow_metrics.ExportTests) ... metrics export failed: no readable 
+opencode session database found
+ok
+test_interrupted_session_with_no_finished_message (test_workflow_metrics.ExportTests) ... ok
+test_main_export_writes_report (test_workflow_metrics.ExportTests) ... ok
+test_missing_columns_times_and_interrupted_sessions_degrade_honestly (test_workflow_metrics.ExportTests) ... ok
+test_parallel_overlap_does_not_double_count (test_workflow_metrics.ExportTests) ... ok
+test_merge_ignores_invalid_intervals (test_workflow_metrics.IntervalTests) ... ok
+test_merge_overlapping_and_adjacent (test_workflow_metrics.IntervalTests) ... ok
+test_parses_json_string_plain_string_and_object (test_workflow_metrics.ModelParsingTests) ... ok
+test_stage_cli_writes_packet (test_workflow_packets.CliTests) ... ok
+test_unknown_stage_cli_returns_2 (test_workflow_packets.CliTests) ... INVALID: unknown stage_id 'nope'
+ok
+test_validate_cli_reports_stale_exit_1 (test_workflow_packets.CliTests) ... ok
+test_handoff_collects_facts_and_gaps_with_empty_claims (test_workflow_packets.HandoffPacketTests) ... ok
+test_handoff_is_deterministic (test_workflow_packets.HandoffPacketTests) ... ok
+test_handoff_reads_dispatch_state_and_unresolved_actions (test_workflow_packets.HandoffPacketTests) ... ok
+test_handoff_surfaces_missing_stale_and_foreign_evidence (test_workflow_packets.HandoffPacketTests) ... ok
+test_validate_flags_changed_goal_and_evidence (test_workflow_packets.HandoffPacketTests) ... ok
+test_reviewer_skill_loads_mode_files_on_demand (test_workflow_packets.ReadSurfaceTests) ... ok
+test_stage_packet_is_compact_and_excludes_other_modes (test_workflow_packets.ReadSurfaceTests) ... ok
+test_converge_audit_mode_names_its_mode_file (test_workflow_packets.StagePacketTests) ... ok
+test_missing_inputs_are_declared_not_omitted (test_workflow_packets.StagePacketTests) ... ok
+test_packet_is_deterministic_for_identical_inputs (test_workflow_packets.StagePacketTests) ... ok
+test_stage_packet_resolves_owners_and_formal_verification (test_workflow_packets.StagePacketTests) ... ok
+test_unknown_stage_and_role_fail (test_workflow_packets.StagePacketTests) ... ok
+test_validate_flags_stale_routing (test_workflow_packets.StagePacketTests) ... ok
+test_goal_finish_card_is_audited_only (test_workflow_protocol.PuaNarrowingTests) ... ok
+test_review_verdict_card_narrowed_to_guarded_audited (test_workflow_protocol.PuaNarrowingTests) ... ok
+test_reviewer_pua_is_guarded_audited_only (test_workflow_protocol.PuaNarrowingTests) ... ok
+test_test_author_and_step_executor_require_pua_at_audited (test_workflow_protocol.PuaNarrowingTests) ... ok
+test_unknown_rigor_fails_closed_for_reviewer (test_workflow_protocol.PuaNarrowingTests) ... ok
+test_worker_never_requires_a_pua_card (test_workflow_protocol.PuaNarrowingTests) ... ok
+test_audited_never_resolves_to_worker (test_workflow_protocol.ResponsibilityRoutingTests) ... ok
+test_every_semantic_check_has_one_known_owner (test_workflow_protocol.ResponsibilityRoutingTests) ... ok
+test_formal_verification_is_controller_owned (test_workflow_protocol.ResponsibilityRoutingTests) ... ok
+test_guarded_worker_skill_does_not_apply_to_audited (test_workflow_protocol.ResponsibilityRoutingTests) ... ok
+test_implementation_seat_resolves_per_rigor (test_workflow_protocol.ResponsibilityRoutingTests) ... ok
+test_step_review_is_explicitly_mandatory_for_audited (test_workflow_protocol.ResponsibilityRoutingTests) ... ok
+test_test_freeze_and_step_verification_owners (test_workflow_protocol.ResponsibilityRoutingTests) ... ok
+test_unknown_rigor_and_missing_audited_inputs_fail_closed (test_workflow_protocol.ResponsibilityRoutingTests) ... ok
+test_validation_rejects_duplicate_checks_and_unknown_owners (test_workflow_protocol.ResponsibilityRoutingTests) ... ok
+test_validation_rejects_non_controller_formal_verification (test_workflow_protocol.ResponsibilityRoutingTests) ... ok
+test_audited_independence_reviews_block (test_workflow_protocol.ReviewerConditionTests) ... ok
+test_goal_finish_is_mandatory_for_guarded_audited_and_risk_triggered_for_normal 
+(test_workflow_protocol.ReviewerConditionTests) ... ok
+test_goal_validation_is_not_an_audited_stage (test_workflow_protocol.ReviewerConditionTests) ... ok
+test_goal_verification_has_a_routing_stage (test_workflow_protocol.ReviewerConditionTests) ... ok
+test_review_verdict_guarded_is_mandatory (test_workflow_protocol.ReviewerConditionTests) ... ok
+test_review_verdict_normal_is_risk_triggered (test_workflow_protocol.ReviewerConditionTests) ... ok
+test_slice_implementation_has_no_reviewer_dispatch (test_workflow_protocol.ReviewerConditionTests) ... ok
+test_stage_card_is_role_aware (test_workflow_protocol.ReviewerConditionTests) ... ok
+test_unknown_rigor_string_fails_closed_for_pua (test_workflow_protocol.ReviewerConditionTests) ... ok
+test_default_path_finds_repository_routing (test_workflow_protocol.RoutingLoadTests) ... ok
+test_duplicate_stage_rejected (test_workflow_protocol.RoutingLoadTests) ... ok
+test_loaded_routing_validates (test_workflow_protocol.RoutingLoadTests) ... ok
+test_malformed_condition_rejected (test_workflow_protocol.RoutingLoadTests) ... ok
+test_missing_file_fails_closed (test_workflow_protocol.RoutingLoadTests) ... ok
+test_every_profile_interaction_resolves (test_workflow_protocol.SeatSelectionTests) ... ok
+test_markdown_table_agrees_with_json_authority (test_workflow_protocol.SeatSelectionTests) ... ok
+test_unknown_profile_rejected (test_workflow_protocol.SeatSelectionTests) ... ok
+test_completed_requires_evidence (test_workflow_runtime.ActionResultTests) ... ok
+test_completed_with_evidence_and_idempotent_replay (test_workflow_runtime.ActionResultTests) ... ok
+test_new_action_inserted (test_workflow_runtime.ActionResultTests) ... ok
+test_terminal_state_change_needs_force (test_workflow_runtime.ActionResultTests) ... ok
+test_invalid_update_returns_1_and_preserves_file (test_workflow_runtime.CliTests) ... ok
+test_next_action_cli_writes_output (test_workflow_runtime.CliTests) ... ok
+test_duplicate_requires_force_attempt (test_workflow_runtime.DispatchBeginTests) ... ok
+test_force_attempt_increments_attempt (test_workflow_runtime.DispatchBeginTests) ... ok
+test_pending_task_dispatches_without_force (test_workflow_runtime.DispatchBeginTests) ... ok
+test_records_new_dispatch_and_archives_body (test_workflow_runtime.DispatchBeginTests) ... ok
+test_revision_conflict_rejected (test_workflow_runtime.DispatchBeginTests) ... ok
+test_unknown_role_rejected_without_mutation (test_workflow_runtime.DispatchBeginTests) ... ok
+test_completed_records_verdict_and_result_ref (test_workflow_runtime.DispatchResultTests) ... ok
+test_completed_requires_provenance_for_independence_roles (test_workflow_runtime.DispatchResultTests) ... ok
+test_failed_status_maps_to_failed (test_workflow_runtime.DispatchResultTests) ... ok
+test_missing_result_ref_fails_without_mutation (test_workflow_runtime.DispatchResultTests) ... ok
+test_result_archive_body_is_copied (test_workflow_runtime.DispatchResultTests) ... ok
+test_audited_missing_package_is_blocker (test_workflow_runtime.NextActionTests) ... ok
+test_circuit_break_takes_precedence (test_workflow_runtime.NextActionTests) ... ok
+test_idle_record_yields_controller_decision_with_candidates (test_workflow_runtime.NextActionTests) ... ok
+test_in_flight_and_failed_tasks (test_workflow_runtime.NextActionTests) ... ok
+test_owner_decision_reported (test_workflow_runtime.NextActionTests) ... ok
+test_unresolved_action_before_await_task (test_workflow_runtime.NextActionTests) ... ok
+test_clearing_frontier_does_not_resolve_open_questions (test_workflow_validation.BriefValidationTests) ... ok
+test_confirmation_fields_are_typed_and_required (test_workflow_validation.BriefValidationTests) ... ok
+test_final_artifact_and_hash_are_unchanged (test_workflow_validation.BriefValidationTests) ... ok
+test_final_confirmation_and_summary_remain_strict (test_workflow_validation.BriefValidationTests) ... ok
+test_first_question_can_be_persisted_without_inventing_decisions (test_workflow_validation.BriefValidationTests) ... ok
+test_frontier_is_unique_and_only_references_open_questions (test_workflow_validation.BriefValidationTests) ... ok
+test_public_template_is_a_valid_unconfirmed_draft (test_workflow_validation.BriefValidationTests) ... ok
+test_legacy_e_node_still_requires_bundle_hash (test_workflow_validation.EvidenceBundleHashTests) ... ok
+test_present_bundle_hash_is_still_verified_in_v02 (test_workflow_validation.EvidenceBundleHashTests) ... ok
+test_v02_e_node_does_not_require_bundle_hash (test_workflow_validation.EvidenceBundleHashTests) ... ok
+test_all_required_successes_must_be_verified_before_finish (test_workflow_validation.GoalValidationTests) ... ok
+test_draft_source_still_cannot_enter_goal_execution (test_workflow_validation.GoalValidationTests) ... ok
+test_internal_outcomes_are_allowed_alongside_a_real_entry (test_workflow_validation.GoalValidationTests) ... ok
+test_no_entry_is_rejected_before_verification_execution (test_workflow_validation.GoalValidationTests) ... ok
+test_non_success_deferrals_remain_valid (test_workflow_validation.GoalValidationTests) ... ok
+test_success_cannot_be_removed_by_any_non_outcome_disposition (test_workflow_validation.GoalValidationTests) ... ok
+test_user_entry_required_in_every_status (test_workflow_validation.GoalValidationTests) ... ok
+test_installed_engine_validates_drafts_and_runs_selftest (test_workflow_validation.InstalledWorkflowTests) ... ok
+test_cleanup_accepts_integrated_confirmation (test_worktree_tasks.AdmissionAndCleanupTests) ... ok
+test_cleanup_refuses_unintegrated_work (test_worktree_tasks.AdmissionAndCleanupTests) ... ok
+test_conflicting_patch_is_rejected_but_serial_batch_integrates (test_worktree_tasks.AdmissionAndCleanupTests) ... ok
+test_create_refuses_dirty_workspace_unless_allowed (test_worktree_tasks.AdmissionAndCleanupTests) ... ok
+test_dirty_workspace_blocks_new_isolation (test_worktree_tasks.AdmissionAndCleanupTests) ... ok
+test_new_and_binary_files_survive_the_round_trip (test_worktree_tasks.IsolationTests) ... ok
+test_rename_between_scoped_directories_integrates (test_worktree_tasks.IsolationTests) ... ok
+test_task_worktree_isolates_writes_until_apply (test_worktree_tasks.IsolationTests) ... ok
+test_cross_boundary_rename_is_out_of_scope (test_worktree_tasks.ScopeTests) ... ok
+test_empty_scope_is_a_problem (test_worktree_tasks.ScopeTests) ... ok
+test_out_of_scope_change_is_reported (test_worktree_tasks.ScopeTests) ... ok
+
+----------------------------------------------------------------------
+Ran 408 tests in 37.269s
+
+OK

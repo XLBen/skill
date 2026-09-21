@@ -1,0 +1,32 @@
+ M README.en.md
+ M README.md
+ M computer-use/SKILL.md
+ M computer-use/references/ui-acceptance-protocol.md
+ M i-have-adhd/SKILL.md
+ M mvp-delivery/SKILL.md
+ M mvp-delivery/references/delivery-execution.md
+ M mvp-delivery/references/delivery-finish.md
+ M mvp-delivery/references/delivery-recovery.md
+ M mvp-delivery/references/goal-definition.md
+ M mvp-delivery/references/stage-routing.json
+ M mvp-delivery/references/subagent-orchestration.md
+ M mvp-delivery/references/subagent-templates.md
+ M reviewer/SKILL.md
+ M scripts/check.py
+ M scripts/install.py
+ M scripts/runtime_trace.py
+ M scripts/workflow_packets.py
+ M scripts/workflow_protocol.py
+ M scripts/workflow_runtime.py
+ M systematic-debugging/SKILL.md
+ M tests/test_install.py
+ M tests/test_runtime_doctor.py
+ M tests/test_subagent_orchestration.py
+ M webapp-testing/SKILL.md
+?? .opencode/agents/mvp-product-observer.md
+?? docs/po-repair/
+?? product-observer/
+?? scripts/product_observation.py
+?? tests/test_observer_packets.py
+?? tests/test_product_observation.py
+?? validation/product-observation/

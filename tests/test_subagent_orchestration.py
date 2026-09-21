@@ -26,6 +26,12 @@ AGENTS = {
         '"docs/**": deny',
         '".opencode/mvp/**": deny',
     },
+    "mvp-product-observer": {
+        "mode: subagent",
+        "task: deny",
+        "edit: deny",
+        "product-observer",
+    },
 }
 
 
@@ -88,6 +94,7 @@ class AgentDefinitionTests(unittest.TestCase):
             "mvp-reviewer": "reviewer",
             "mvp-test-author": "test-author",
             "mvp-step-executor": "step-executor",
+            "mvp-product-observer": "product-observer",
         }
         for agent, skill in pairs.items():
             with self.subTest(agent=agent):

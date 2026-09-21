@@ -1,0 +1,35 @@
+{
+  "case": "A-term",
+  "variant": "good",
+  "model": "openai/gpt-5.6-luna",
+  "cid": "cand-calib-1",
+  "started_at": "2026-09-21T20:27:22+00:00",
+  "phases": {
+    "discover": {
+      "ok": true,
+      "path": "C:\\Users\\24083\\AppData\\Local\\Temp\\opencode\\s20a-target\\.opencode\\mvp\\observation\\G-OBS\\cand-calib-1\\discover\\run-002\\result.json",
+      "session": "ses_f3a591290ffe9UbCCfdniQ5IqJ",
+      "stop_reason": "coverage-completed",
+      "findings": [],
+      "surfaces": 2,
+      "journeys": 2,
+      "repairs": 0,
+      "repair_log": [],
+      "dispatch": {
+        "exit_code": 0,
+        "timed_out": false,
+        "elapsed_seconds": 80.0
+      }
+    }
+  },
+  "gate": {
+    "exit_code": 1,
+    "output": "product audit gate: fail\r\n  - compare result missing/unreadable (C:\\Users\\24083\\AppData\\Local\\Temp\\opencode\\s20a-target\\.opencode\\mvp\\observation\\G-OBS\\cand-calib-1\\compare\\run-001\\result.json): unreadable: [Errno 2] No such file or directory: 'C:\\\\Users\\\\24083\\\\AppData\\\\Local\\\\Temp\\\\opencode\\\\s20a-target\\\\.opencode\\\\mvp\\\\observation\\\\G-OBS\\\\cand-calib-1\\\\compare\\\\run-001\\\\result.json'\r\n  - observation review missing/unreadable: unreadable: [Errno 2] No such file or directory: 'C:\\\\Users\\\\24083\\\\AppData\\\\Local\\\\Temp\\\\opencode\\\\s20a-target\\\\.opencode\\\\mvp\\\\observation\\\\G-OBS\\\\cand-calib-1\\\\review\\\\run-001\\\\result.json'\r\ngate record: C:\\Users\\24083\\AppData\\Local\\Temp\\opencode\\s20a-target\\.opencode\\mvp\\observation\\G-OBS\\cand-calib-1\\gate.json"
+  },
+  "status": "completed",
+  "candidate": {
+    "id": "cand-calib-1",
+    "files": 2
+  },
+  "finished_at": "2026-09-21T20:28:42+00:00"
+}

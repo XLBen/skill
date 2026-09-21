@@ -1,0 +1,114 @@
+{
+  "schema": "product-observation-review/1",
+  "mode": "review",
+  "scope_type": "acceptance-item",
+  "goal_id": "G-OBS",
+  "candidate_id": "cand-fix",
+  "bindings": {
+    "candidate_manifest": ".opencode/mvp/observation/G-OBS/cand-fix/candidate.json",
+    "discover_result": {
+      "path": ".opencode/mvp/observation/G-OBS/cand-fix/discover.result.json",
+      "sha256": "4ecc694b9cd4858e43c206df44c404239fda17380d2b678f66081fba929693a8"
+    },
+    "compare_result": {
+      "path": ".opencode/mvp/observation/G-OBS/cand-fix/compare.result.json",
+      "packet_sha256": "168b6846f7a5044bd526fd899bb31ddc11a00afb3e848707d34a6c3e4f96fe1f"
+    },
+    "goal_card_sha256": "b7fb5191daed4aecf3112fb7c5a7750ee412601fd2ea3012de939add426e585e"
+  },
+  "verdict": "sufficient",
+  "findings_validity": {
+    "result": "valid",
+    "detail": "All five standing findings (F-001..F-005) carry real expected_basis grounded in public docs (app/README.md), the product's own usage/help surface, or internal state contradictions (UTF-8 disk vs GBK stdout; save-strict vs show-lenient argparse) — none preference-driven. Reproduction evidence exists on disk for every finding and matches the reported transcripts: F-001 (high, confirmed) reproduced twice from clean state in two independent phases (evidence/j5-edges.md, evidence/compare-c3-bare-save-delta.txt, 19->0 bytes with false 'Saved OK'); F-002 backed by byte-level dual captures (j4-show-rawbytes.bin, compare-c4-show-rawbytes.bin) plus a cp1252 crash traceback; F-005 reproduced twice. Severities are reasonable: destructive bare-save graded high not critical (requires malformed invocation, single-note store); encoding defect graded medium (presentation-layer, data intact); low items justified. The two observer-side false positives (300-char 'truncation', wrong evidence path) were disproven with byte evidence and annotated in place, not suppressed. F-004 is correctly held as owner-decision, not silently closed. No dismissal relies on an implementer assertion."
+  },
+  "coverage_adequacy": {
+    "result": "adequate",
+    "detail": "Product map covers every README-documented entrance (save/show) in BOTH documented invocation forms (C6 cwd=app 'python app.py' vs packet form 'python app/app.py', with cross-form storage continuity) plus the undocumented --smoke surface discovered via the product's own usage line, cold start, overwrite semantics, unicode, whitespace/300-char notes, and error paths (bare invocation, unknown subcommand, extra args per command, unquoted multi-word). Not happy-paths-only. Disappearance hunting was performed against the immediately preceding round (C2 help-surface re-bind; D1/D2/D8 deltas), and the compare explicitly hunted and found a user-impact regression (D3: cand-bad silent no-op bare save -> cand-fix destructive success) rather than excusing it as a side effect of the fix. Baseline honesty: the declared 'cand-good' ref was found missing and recorded explicitly instead of silently assumed; compare fell back to the cand-bad round artifacts, which exist with evidence. Unobserved areas (multi-line notes, external edits, >300-char notes, concurrency) are recorded rather than assumed N/A; none is a material entrance promised by the goal or README."
+  },
+  "checked_scope": [
+    "Goal card g-obs.md (schema v2; product_observation.required true with reason) — applicability properly declared",
+    "Pointer sidecar g-obs.product-audit.json (product-audit/1, 2 rounds, current_candidate cand-fix)",
+    "cand-bad round: discover.result.json, compare.result.json, gate.json (verdict failed: structural schema failures + unresolved-findings stop reasons), 9 evidence files",
+    "cand-fix round: candidate.json, discover packet+result, compare packet+result, all 13 referenced evidence files present and read (j1-j5, compare-c1/c2/c3/c4-c5/c6, 2 raw-byte .bin captures)",
+    "app/README.md public documentation vs claims inventory P1-P3 (match)",
+    "runtime-trace/1 provenance: distinct po-observer sessions matching observer_session_id fields (ses_f3dc72cf...=discover, ses_f3dbcdbc...=compare), intervening build session with one edit (repair), evidence UTC timestamps align with trace tool-call times (local=UTC+1); no reviewer session exists for cand-bad",
+    "Packet whitelist compliance: discover packet carries only purpose/entry/evidence-dir/hashes; goal content and baselines appear only in the compare packet; no 'check feature X' hint-smuggling found"
+  ],
+  "not_checked": [
+    "No SHA-256 recomputed by this seat (no shell tool available); hash bindings accepted from recorded preflight verifications in both phase results",
+    "Product not re-observed and app/app.py source not read (reviewer judges evidence; observer never read source either)",
+    "Engine gate for cand-fix not yet written (no gate.json in cand-fix dir); engine structural pass/fail not run by this seat",
+    "opencode.db inspected only via the exported runtime-trace/1, not directly",
+    "opencode.json and .opencode/workflow/ configs not inspected (outside observation material)"
+  ],
+  "issues": [
+    {
+      "id": "ISSUE-01",
+      "fingerprint": "sidecar-claims-cand-bad-review-that-has-no-artifact-or-provenance",
+      "classification": "soft",
+      "scope": "acceptance-item",
+      "affected": [
+        "g-obs.product-audit.json rounds[0].review_ref",
+        "cand-fix compare.result.json baseline.note"
+      ],
+      "failure": "The audit trail asserts a cand-bad review-verdict that cannot have been persisted: rounds[0].review_ref points to .opencode/mvp/observation/G-OBS/cand-bad/review.result.json which does not exist (glob over .opencode/mvp/** finds zero review.result.json), no reviewer-agent session appears in runtime-trace/1 for that window, and the cand-fix compare baseline.note describes cand-bad as 'complete discover+compare+review'. Secondary narration imprecision in the same family: compare preflight attributes the note.txt drift (16 bytes 'final state note') to 'discover's last journey', but no discover transcript ends in that state (plausibly the 05:28 build session's own verification save). Neither defect undermines cand-fix's evidence chain — its resolutions were re-verified by direct observation, which is the required binding — but rounds[] must not cite results that do not exist.",
+      "evidence": [
+        "g-obs.product-audit.json lines 10",
+        "glob .opencode/mvp/**/review.result.json -> no files",
+        ".opencode/mvp/trace.json sessions (no reviewer agent; gap 03:57-05:27 between compare end and repair)",
+        "cand-fix compare.result.json line 47 and preflight line 9",
+        "cand-fix evidence j1-j5 end-states vs compare C1 pre-state bytes"
+      ],
+      "evidence_needed": [],
+      "smallest_repair": "Controller (sidecar owner) corrects rounds[0]: remove the unfulfilled review_ref or replace it with an explicit 'review-not-performed; engine gate failed -> routed to repair' annotation; append a correction note to the round record. Do not rewrite the observer-owned compare.result.json; this review result documents the narration corrections."
+    },
+    {
+      "id": "ISSUE-02",
+      "fingerprint": "cand-fix-discover-report-shape-will-fail-engine-gate",
+      "classification": "soft",
+      "scope": "acceptance-item",
+      "affected": [
+        ".opencode/mvp/observation/G-OBS/cand-fix/discover.result.json"
+      ],
+      "failure": "The cand-fix discover report carries the same schema defects the engine gate failed on cand-bad: top-level 'surfaces' is an empty array, journeys lack surface_ids/evidence_refs fields, and stop_reason 'coverage-complete: ...' is not in the enum (valid value: 'coverage-completed'). Semantic content is complete (product_map S1-S4 with entries; findings reference valid surface ids) and the compare report is gate-shaped and self-declares the gap in structural_note_for_controller. Per protocol the engine gate must pass independently of this semantic review, so the round cannot proceed on this verdict alone.",
+      "evidence": [
+        "cand-fix discover.result.json lines 61-104 (journeys without surface_ids), 199 (surfaces: []), 200 (stop_reason)",
+        "cand-bad gate.json failures list (identical defect classes)",
+        "cand-fix compare.result.json structural_note_for_controller"
+      ],
+      "evidence_needed": [],
+      "smallest_repair": "Schema remediation of the discover result's structural fields only (surfaces[], journey surface_ids/evidence_refs, enum stop_reason) by the observer/controller without altering semantic content, so check.py product-audit-gate can judge the round; in the longer term fix the observer's result template."
+    }
+  ],
+  "resolved": [
+    {
+      "issue_id": "cand-bad/F-002",
+      "fingerprint": "show-never-displays-saved-note (cand-bad, critical, confirmed; ID reused on cand-fix for an unrelated encoding defect — deliberately not conflated)",
+      "disposition": "resolved",
+      "basis": "Re-verified by direct observation on cand-fix, correctly bound to this round: C1/C5/C6 + discover J1 transcripts show save->show round trip working in both documented invocation forms (.opencode/mvp/observation/G-OBS/cand-fix/evidence/compare-c1-goal-demo.txt, compare-c4-c5-unicode-overwrite.txt, compare-c6-readme-form.txt, j1-happy-path.txt), corroborated against cand-bad's own 8-save '(no note)' record"
+    },
+    {
+      "issue_id": "cand-bad/F-001",
+      "fingerprint": "documented-Saved-OK-feedback-never-printed (cand-bad, medium, confirmed)",
+      "disposition": "resolved",
+      "basis": "'Saved OK' prints on every proper save in C1/C3/C5/C6 and discover J1/J2 evidence on cand-fix"
+    },
+    {
+      "issue_id": "cand-bad/D7",
+      "fingerprint": "overwrite-vs-append-semantics-under-investigation (cand-bad, capability gap masked by critical F-002)",
+      "disposition": "resolved",
+      "basis": "C5 on cand-fix observes overwrite semantics (save 'first' -> show 'first'; save 'second' -> show 'second')"
+    }
+  ],
+  "standing_blockers": {
+    "finish_goal_blocked": true,
+    "blocking_findings": [
+      "F-001 (cand-fix, high, confirmed): bare 'save' prints 'Saved OK' exit 0 and truncates app/note.txt to 0 bytes, destroying the stored note — destructive silent data loss with false success feedback"
+    ],
+    "routing": "Per finding-rules: F-001 blocks finish-goal and routes to /fix, then a NEW candidate id with a full representative discover+compare sweep (not a single-issue retest). F-002 (medium, confirmed) and F-003/F-005 (low) are recorded and non-blocking by default; F-004 awaits an owner decision (document or remove --smoke); blocking is preserved until that decision."
+  },
+  "next_controller_action": "Repair ISSUE-01 (sidecar record) and ISSUE-02 (discover schema shape), then route F-001 to /fix and open a new candidate round with full discover+compare on the new candidate id; F-004 goes to the owner. This verdict judges the cand-fix observation material as sufficient and does not accept the candidate.",
+  "reviewer_session_id": "ses-reviewer",
+  "discover_hash": "4ecc694b9cd4858e43c206df44c404239fda17380d2b678f66081fba929693a8",
+  "compare_hash": "65c09738bd10fbfbdc30e7478d7656f641743b01520c19618b892daf00107318"
+}

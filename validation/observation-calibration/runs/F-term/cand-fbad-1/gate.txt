@@ -1,0 +1,4 @@
+product audit gate: fail
+  - unresolved critical/high findings block completion: discover:F-001(high/confirmed), compare:F-001(high/intermittent)
+  - review verdict is 'needs-repair'; only sufficient clears the gate
+gate record: C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-fbad-1\gate.json

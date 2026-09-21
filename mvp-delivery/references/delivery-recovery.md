@@ -1,5 +1,33 @@
 # Delivery Recovery Details
 
+> When to read: before `/resume`, before invalidating evidence after product
+> or definition changes, and before migrating unfinished schema-1 goals.
+
+## Product Observation Recovery
+
+Schema-2 observation state is recovered from the product-audit sidecar and
+the current candidate directory, never guessed from chat history:
+
+```text
+goal card -> dispatch record -> product-audit sidecar
+  -> current_candidate -> round files under
+     .opencode/mvp/observation/<G-ID>/<candidate>/
+  -> unresolved findings -> continuation cursor -> candidate identity check
+```
+
+- The candidate id still matches the delivered files → continue an
+  `incomplete` phase from its continuation cursor; closed findings are kept.
+- The candidate changed (repair, dependency, config, asset) → the old round
+  is history: archive it, create a new candidate id, and run a fresh full
+  discover+compare round. Never replay old observations onto a new
+  candidate.
+- A missing observation backend stays `blocked` with the prerequisite
+  named; it never becomes `not-applicable` and never converts into a
+  controller-authored summary.
+- An unfinished schema-1 product goal is migrated to schema 2 (adding
+  `product_observation`) before its next product change; the definition
+  change resets outcome evidence per the standard invalidation rules.
+
 > When to read: `/resume`, after an Audited slice finishes, when a completed
 > package needs a defect repair, or when scope/deferred questions arise.
 > Seat: controller. Inputs: goal card, dispatch record, audit packages,
@@ -71,3 +99,22 @@ pending/blocked，阻止 complete。可选愿望不应假装成 BS 后静默删�
 需求已明确时不提问，直接宣布首片并开始；不明确时只问使最终成功变得可观察
 所必需的问题，一次一个；一旦可以选择并验证首片就执行，不继续做完整需求
 访谈。若用户明确要求深度澄清，再加载 `grill`。
+
+## Observation Resume 与 Lease
+
+`scripts/observation_resume.py` 把续跑与独占规则固化为离线可测判定：
+
+- 只有 `stop_reason == "budget-exhausted"` 且 `continuation`
+  （`checkpoint`、`visited_surface_ids`、`pending_surface_ids`）合法的
+  discover/compare result 才允许 resume；phase 不同 → reject，candidate
+  不同 → `new-round`，model 或 environment 与 result 记录不同 → `new-run`。
+  旧 packet/result/evidence 一律 create-only，续跑从不覆盖它们。
+- no-progress 熔断按失败签名的时间序**跨 session 计数**：末尾连续 3 次同签名
+  （且无新证据）即停；session 结束不重置计数，避免每个 session 重新起步。
+- lease（`observation-lease/1`：`resource_id`、`owner_session`、
+  `candidate_id`、`acquired_at`、`status`）覆盖浏览器会话、共享桌面/模拟器、
+  app data dir 等资源；`ui-operate` 与 `backend-run` 必须持有已登记、active
+  且未超龄的 lease，越界资源/非 active/stale 一律不通过（未知活动 fail
+  closed 需要 lease）。
+- `media-analysis`、`evidence-review`、`read-only` 不需要 UI lease；但同样
+  不得覆盖任何旧证据。

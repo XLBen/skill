@@ -1,0 +1,87 @@
+﻿python : test_absent_evidence_is_implemented_not_verified (test_observation_vision.AdapterStatusTests) ... ok
+所在位置 行:1 字符: 304
++ ... in $tests){ python -m unittest discover -s tests -p $t -v 2>&1 | Out- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_absent_evi...usTests) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+test_all_needs_passed_is_verified (test_observation_vision.AdapterStatusTests) ... ok
+test_failed_probe_beats_passed_probes (test_observation_vision.AdapterStatusTests) ... ok
+test_garbage_matrix_always_returns_a_status (test_observation_vision.AdapterStatusTests) ... ok
+test_malformed_adapter_does_not_raise (test_observation_vision.AdapterStatusTests) ... ok
+test_malformed_needs_blocks_verified (test_observation_vision.AdapterStatusTests) ... ok
+test_missing_probe_is_implemented_not_verified (test_observation_vision.AdapterStatusTests) ... ok
+test_need_entries_filtered_and_deduped (test_observation_vision.AdapterStatusTests) ... ok
+test_odd_probe_values_count_as_missing (test_observation_vision.AdapterStatusTests) ... ok
+test_probes_not_an_object (test_observation_vision.AdapterStatusTests) ... ok
+test_result_carries_host_for_audit (test_observation_vision.AdapterStatusTests) ... ok
+test_status_hint_never_upgrades (test_observation_vision.AdapterStatusTests) ... ok
+test_unavailable_reason_wins_even_with_passed_probes (test_observation_vision.AdapterStatusTests) ... ok
+test_invalid_color_raises (test_observation_vision.ColorProbeTests) ... ok
+test_invalid_rng_raises (test_observation_vision.ColorProbeTests) ... ok
+test_invalid_size_raises (test_observation_vision.ColorProbeTests) ... ok
+test_parent_directories_created (test_observation_vision.ColorProbeTests) ... ok
+test_png_signature_chunks_and_dimensions (test_observation_vision.ColorProbeTests) ... ok
+test_random_choices_stay_in_allowed_set (test_observation_vision.ColorProbeTests) ... ok
+test_returned_fields (test_observation_vision.ColorProbeTests) ... ok
+test_rng_choice_is_reproducible (test_observation_vision.ColorProbeTests) ... ok
+test_same_color_is_deterministic (test_observation_vision.ColorProbeTests) ... ok
+test_sha256_matches_file_bytes (test_observation_vision.ColorProbeTests) ... ok
+test_adapter_ids_and_keys (test_observation_vision.ConstantsAndAdapterDataTests) ... ok
+test_capability_and_status_enums (test_observation_vision.ConstantsAndAdapterDataTests) ... ok
+test_direct_multimodal_facts (test_observation_vision.ConstantsAndAdapterDataTests) ... ok
+test_midscene_facts (test_observation_vision.ConstantsAndAdapterDataTests) ... ok
+test_ui_tars_facts (test_observation_vision.ConstantsAndAdapterDataTests) ... ok
+test_audio_and_video_go_to_s17 (test_observation_vision.DispatchModeTests) ... ok
+test_canvas_with_image_read_is_direct (test_observation_vision.DispatchModeTests) ... ok
+test_covered_visual_plus_audio_is_still_blocked_for_s17 (test_observation_vision.DispatchModeTests) ... ok
+test_desktop_direct_needs_all_three_capabilities (test_observation_vision.DispatchModeTests) ... ok
+test_desktop_hybrid_with_ui_tars (test_observation_vision.DispatchModeTests) ... ok
+test_desktop_midscene_misses_desktop_control (test_observation_vision.DispatchModeTests) ... ok
+test_direct_multimodal_is_not_an_engine_adapter (test_observation_vision.DispatchModeTests) ... ok
+test_hybrid_accepts_adapter_status_dict (test_observation_vision.DispatchModeTests) ... ok
+test_malformed_channels_are_blocked_not_structured (test_observation_vision.DispatchModeTests) ... ok
+test_malformed_inputs_do_not_raise (test_observation_vision.DispatchModeTests) ... ok
+test_no_channels_is_structured (test_observation_vision.DispatchModeTests) ... ok
+test_observer_capability_must_be_true (test_observation_vision.DispatchModeTests) ... ok
+test_single_string_channel_is_accepted (test_observation_vision.DispatchModeTests) ... ok
+test_structured_only (test_observation_vision.DispatchModeTests) ... ok
+test_unknown_adapter_ids_are_ignored (test_observation_vision.DispatchModeTests) ... ok
+test_unknown_channel_is_blocked_and_named (test_observation_vision.DispatchModeTests) ... ok
+test_unverified_adapter_does_not_unlock_hybrid (test_observation_vision.DispatchModeTests) ... ok
+test_visual_missing_image_read_hybrid_with_midscene (test_observation_vision.DispatchModeTests) ... ok
+test_visual_with_image_read_is_direct (test_observation_vision.DispatchModeTests) ... ok
+test_visual_without_any_coverage_is_blocked (test_observation_vision.DispatchModeTests) ... ok
+test_direct_multimodal_is_unverifiable_only (test_observation_vision.HostRequirementsTests) ... ok
+test_empty_or_nonstring_env_values_are_missing (test_observation_vision.HostRequirementsTests) ... ok
+test_env_not_a_dict_means_every_env_var_missing (test_observation_vision.HostRequirementsTests) ... ok
+test_malformed_adapter_does_not_raise (test_observation_vision.HostRequirementsTests) ... ok
+test_midscene_all_checkable_present_but_network_unverifiable (test_observation_vision.HostRequirementsTests) ... ok
+test_missing_env_key_is_missing (test_observation_vision.HostRequirementsTests) ... ok
+test_non_callable_which_fails_closed (test_observation_vision.HostRequirementsTests) ... ok
+test_prose_requirement_is_never_guessed (test_observation_vision.HostRequirementsTests) ... ok
+test_satisfied_only_when_all_items_checkable_and_present (test_observation_vision.HostRequirementsTests) ... ok
+test_ui_tars_command_and_prose_classification (test_observation_vision.HostRequirementsTests) ... ok
+test_which_exception_is_treated_as_missing (test_observation_vision.HostRequirementsTests) ... ok
+test_which_none_marks_package_missing (test_observation_vision.HostRequirementsTests) ... ok
+test_absolute_path_inside_root_passes (test_observation_vision.PerceptionClaimTests) ... ok
+test_absolute_path_outside_root_is_reported (test_observation_vision.PerceptionClaimTests) ... ok
+test_file_without_record_is_not_a_claim (test_observation_vision.PerceptionClaimTests) ... ok
+test_malformed_record_returns_structural_problems (test_observation_vision.PerceptionClaimTests) ... ok
+test_matching_claim_passes (test_observation_vision.PerceptionClaimTests) ... ok
+test_missing_image_is_reported (test_observation_vision.PerceptionClaimTests) ... ok
+test_path_escaping_root_is_reported (test_observation_vision.PerceptionClaimTests) ... ok
+test_sha_mismatch_is_reported (test_observation_vision.PerceptionClaimTests) ... ok
+test_unusable_evidence_root_does_not_raise (test_observation_vision.PerceptionClaimTests) ... ok
+test_build_accepts_path_objects_without_raising (test_observation_vision.PerceptionRecordTests) ... ok
+test_build_shape_and_values (test_observation_vision.PerceptionRecordTests) ... ok
+test_file_existence_is_not_part_of_record_validation (test_observation_vision.PerceptionRecordTests) ... ok
+test_missing_or_wrong_fields_are_reported (test_observation_vision.PerceptionRecordTests) ... ok
+test_non_object_record (test_observation_vision.PerceptionRecordTests) ... ok
+test_uppercase_hex_is_accepted (test_observation_vision.PerceptionRecordTests) ... ok
+test_valid_record_has_no_problems (test_observation_vision.PerceptionRecordTests) ... ok
+
+----------------------------------------------------------------------
+Ran 76 tests in 0.161s
+
+OK

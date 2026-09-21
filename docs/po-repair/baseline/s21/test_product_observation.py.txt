@@ -1,0 +1,42 @@
+﻿python : test_budget_exhausted_stop_reason_blocks (test_product_observation.ObservationProject) ... ok
+所在位置 行:1 字符: 338
++ ... in $tests){ python -m unittest discover -s tests -p $t -v 2>&1 | Out- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_budget_exh...Project) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+test_candidate_file_change_invalidates (test_product_observation.ObservationProject) ... ok
+test_dismissed_high_not_blocking (test_product_observation.ObservationProject) ... ok
+test_enforce_raises_for_required_goal_without_sidecar (test_product_observation.ObservationProject) ... ok
+test_finish_goal_enforces_observation (test_product_observation.ObservationProject) ... ok
+test_full_valid_round_passes_and_writes_gate (test_product_observation.ObservationProject) ... ok
+test_insufficient_review_verdict_blocks (test_product_observation.ObservationProject) ... ok
+test_material_surface_unobserved_blocks (test_product_observation.ObservationProject) ... ok
+test_missing_compare_phase_fails (test_product_observation.ObservationProject) ... ok
+test_missing_sidecar_fails (test_product_observation.ObservationProject) ... ok
+test_owner_decision_critical_finding_blocks (test_product_observation.ObservationProject) ... ok
+test_review_hash_mismatch_blocks (test_product_observation.ObservationProject) ... ok
+test_schema1_goal_short_circuits (test_product_observation.ObservationProject) ... ok
+test_schema2_goal_validates (test_product_observation.ObservationProject) ... ok
+test_trace_provenance_missing_session_blocks (test_product_observation.ObservationProject) ... ok
+test_trace_provenance_with_skill_load_passes (test_product_observation.ObservationProject) ... ok
+test_unresolved_high_finding_blocks (test_product_observation.ObservationProject) ... ok
+test_report_schema_validation (test_product_observation.ObservationSpecTests) ... ok
+test_required_false_needs_reason_and_basis (test_product_observation.ObservationSpecTests) ... ok
+test_schema1_without_spec_ok (test_product_observation.ObservationSpecTests) ... ok
+test_schema2_requires_spec (test_product_observation.ObservationSpecTests) ... ok
+test_audit_sidecar_accepts_both_versions (test_product_observation.V2ContractBridgeTests) ... ok
+test_audit_sidecar_rejects_unknown_schema (test_product_observation.V2ContractBridgeTests) ... ok
+test_candidate_runtime_state_type_checked (test_product_observation.V2ContractBridgeTests) ... ok
+test_compare_requires_difference_classification (test_product_observation.V2ContractBridgeTests) ... ok
+test_discover_rejects_difference_classification (test_product_observation.V2ContractBridgeTests) ... ok
+test_legacy_schemas_get_single_migration_diagnostic (test_product_observation.V2ContractBridgeTests) ... ok
+test_resolved_without_resolution_ref_is_reported (test_product_observation.V2ContractBridgeTests) ... ok
+test_v2_attempt_must_be_positive_integer (test_product_observation.V2ContractBridgeTests) ... ok
+test_v2_report_requires_controller_envelope (test_product_observation.V2ContractBridgeTests) ... ok
+test_v2_review_requires_structural_envelope (test_product_observation.V2ContractBridgeTests) ... ok
+
+----------------------------------------------------------------------
+Ran 31 tests in 0.538s
+
+OK

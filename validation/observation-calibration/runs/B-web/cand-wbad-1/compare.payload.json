@@ -1,0 +1,75 @@
+{
+  "schema": "product-observation/2",
+  "phase": "compare",
+  "surfaces": [
+    {
+      "id": "S-01",
+      "name": "Notes page",
+      "importance": "material",
+      "modes": [
+        "default"
+      ]
+    }
+  ],
+  "journeys": [
+    {
+      "id": "J-01",
+      "surface_ids": [
+        "S-01"
+      ],
+      "outcome": "covered",
+      "evidence_refs": [
+        "evidence/compare-entry.png",
+        "evidence/compare-after-save.png",
+        "evidence/compare-after-reload.png"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-01",
+      "surface_ids": [
+        "S-01"
+      ],
+      "severity": "high",
+      "category": "functional",
+      "confidence": "observed",
+      "status": "confirmed",
+      "difference_classification": "confirmed-defect",
+      "observed": "After editing the note to \"compare note alpha beta\" and clicking Save, reloading the Notes page restored \"hello world\". The edited note was not persisted.",
+      "expected_basis": "The approved goal requires a user to write a note and save it; the README states that Save persists the note.",
+      "reproduction": "Open the Notes page, replace the note with \"compare note alpha beta\", click Save, reload the page, and observe that the original \"hello world\" value returns.",
+      "evidence_refs": [
+        "evidence/compare-after-save.png",
+        "evidence/compare-after-reload.png"
+      ]
+    },
+    {
+      "id": "F-02",
+      "surface_ids": [
+        "S-01"
+      ],
+      "severity": "medium",
+      "category": "ux",
+      "confidence": "observed",
+      "status": "confirmed",
+      "difference_classification": "confirmed-defect",
+      "observed": "After clicking Save, no visible \"Saved ✓\" status appeared.",
+      "expected_basis": "The candidate README explicitly promises that the status shows \"Saved ✓\" after saving.",
+      "reproduction": "Edit the note and click Save; inspect the page for the documented save confirmation.",
+      "evidence_refs": [
+        "evidence/compare-after-save.png"
+      ]
+    }
+  ],
+  "unobserved": [],
+  "capability_gaps": [],
+  "continuation": null,
+  "stop_reason": "coverage-completed",
+  "evidence_refs": [
+    "evidence/compare-entry.png",
+    "evidence/compare-after-save.png",
+    "evidence/compare-after-reload.png"
+  ],
+  "notes": "The material Notes journey was completed. The core save behavior is broken and remains unresolved."
+}

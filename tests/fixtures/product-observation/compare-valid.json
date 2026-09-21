@@ -1,0 +1,47 @@
+{
+  "schema": "product-observation/2",
+  "phase": "compare",
+  "stop_reason": "coverage-completed",
+  "surfaces": [
+    {
+      "id": "S-01",
+      "name": "Main entry",
+      "importance": "material",
+      "modes": ["default"]
+    },
+    {
+      "id": "S-02",
+      "name": "Settings",
+      "importance": "material"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "J-01",
+      "surface_ids": ["S-01", "S-02"],
+      "evidence_refs": ["evidence/j01.mp4"],
+      "outcome": "covered"
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-01",
+      "surface_ids": ["S-02"],
+      "severity": "high",
+      "category": "continuity",
+      "confidence": "observed",
+      "observed": "The settings page lost the export entry that existed in the previous stable build.",
+      "expected_basis": "The approved target keeps the export entry reachable from settings.",
+      "reproduction": "Open the main entry, go to settings, and look for the export entry.",
+      "evidence_refs": ["evidence/f01.png"],
+      "status": "owner-decision",
+      "difference_classification": "owner-decision",
+      "owner_decision_ref": "decisions/D-07.md"
+    }
+  ],
+  "unobserved": [],
+  "capability_gaps": [],
+  "continuation": null,
+  "evidence_refs": ["evidence/compare-001.md"],
+  "notes": "Compare sweep against the original goal and the historical map."
+}

@@ -1,0 +1,8 @@
+{
+  "schema": "product-observation-review/2",
+  "findings_validity": "sufficient",
+  "coverage_adequacy": "sufficient",
+  "verdict": "sufficient",
+  "notes": "All documented sections were listed and opened successfully through the real CLI entry point. Evidence is replayable, exit codes are successful, and basic invalid, no-argument, and repeat behavior were covered. No material findings were reported.",
+  "related_finding_ids": []
+}

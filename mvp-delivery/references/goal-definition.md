@@ -14,6 +14,16 @@ fence, using schema 1 from `tests/fixtures/goal-valid.md` and `check.py`:
 - Required top-level fields: `schema_version: 1`, `id: G-NAME`, `status`
   (`active|blocked|complete`), `source`, `goal`, `rigor` (`normal|guarded|audited`),
   `risk`, `first_slice`, `demo`, `constraints`, `deferred`, and nonempty `outcomes`.
+- **Schema 2**: new product-changing goals use `schema_version: 2`, which adds
+  the required `product_observation: {"required": true|false, "reason": "...",
+  "basis": "..."}` field. New product goals default `required: true`.
+  `required: false` is legal only for changes that cannot affect delivered
+  behavior and needs a non-empty `reason` plus a concrete `basis` (how that
+  was determined); the obligation cannot be dropped by deleting the audit
+  sidecar. Unfinished schema-1 product goals are explicitly migrated to
+  schema 2 before the next product change (a definition change: evidence
+  invalidation rules apply). Completed historical cards stay schema 1 and
+  are never rewritten or claimed to have passed the observation gate.
 - `constraints` and `deferred` are string arrays. `risk` contains `factors` and
   a nonempty `rationale`. Factors: `none` alone, or `external-boundary`,
   `cross-module`, `production-change` (Guarded minimum) plus
@@ -100,8 +110,23 @@ python .opencode/workflow/scripts/check.py brief docs/brief.md
 python .opencode/workflow/scripts/check.py goal .opencode/mvp/<goal>.md
 python .opencode/workflow/scripts/check.py verify-goal .opencode/mvp/<goal>.md O-01 --evidence .opencode/mvp/evidence/<goal>-O-01-01.json
 python .opencode/workflow/scripts/check.py verify-goal .opencode/mvp/<goal>.md O-02 --evidence .opencode/mvp/evidence/<goal>-O-02-01.json --reuse .opencode/mvp/evidence/<goal>-O-01-01.json
+python .opencode/workflow/scripts/check.py product-audit-gate .opencode/mvp/<goal>.md --trace .opencode/mvp/trace.json
 python .opencode/workflow/scripts/check.py finish-goal .opencode/mvp/<goal>.md
 ```
+
+Schema-2 goals with `product_observation.required: true` additionally
+require, before `finish-goal`: the product-audit sidecar
+(`.opencode/mvp/<goal>.product-audit.json`, schema `product-audit/2`; legacy
+`/1` stays readable), a candidate round under
+`.opencode/mvp/observation/<G-ID>/<candidate>/` (`candidate.json`, archived
+`discover.packet.json`/`compare.packet.json`, adopted run results
+`discover/<run-id>/result.json` and `compare/<run-id>/result.json`, plus
+`review/<run-id>/result.json`), and a passing
+`check.py product-audit-gate <goal>.md --trace <trace.json>`. Phase packets
+are generated with
+`workflow_packets.py observer <goal> --phase discover|compare --out ...`
+and archived into the candidate directory. See
+`../../product-observer/references/observation-protocol.md`.
 
 Strict-equivalence reuse: when an outcome's verification is exactly the same
 command, cwd, timeout, expected text, assertion kind/policy/assertion and goal
@@ -156,6 +181,11 @@ and live in the goal's dispatch record (`active_slice.package`, see
 the engine rewrites the card on every verification and binds evidence to the
 definition hash, so a runtime pointer in the JSON would be lost or would
 invalidate verified outcomes. They are not substitutes for goal verification.
+The runtime-state policy sidecar (`.opencode/mvp/<slug>.runtime-state.json`,
+schema `runtime-state-policy/1`; it excludes declared product-managed files
+from the verification snapshot and is bound into every evidence record) and
+the observer visibility settings (`.opencode/mvp/visibility.json`) are runtime
+state as well: they live next to the card and are never written into goal JSON.
 
 ## Shell And Authorization
 

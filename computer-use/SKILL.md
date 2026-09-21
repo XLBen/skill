@@ -50,10 +50,14 @@ Rules:
   identity. Changed artifacts invalidate the affected scenarios; `ui-gate
   --bind` never re-labels old results onto a changed build (reset the
   affected scenarios, re-execute, then bind).
-- **Single operator**: only the main controller operates the shared desktop
-  or browser session. Worker/test-author/step-executor seats return requested
-  GUI scenarios via CONTROLLER_ACTION instead of acquiring control. The
-  independent reviewer only reads the recorded evidence; it never operates.
+- **Exclusive UI lease**: planned UI-acceptance journeys are operated by the
+  main controller. During a product-observation phase, the dispatched
+  product-observer holds the exclusive lease over the delivered candidate's
+  UI session for the audit window and the controller pauses other UI runners
+  per the existing pause rules. Worker/test-author/step-executor seats never
+  operate either resource and return requested GUI scenarios via
+  CONTROLLER_ACTION instead of acquiring control. The independent reviewer
+  only reads the recorded evidence; it never operates.
 - **Evidence, not ceremony**: a fixed screenshot count is not required; what is
   required is observation, action, and result evidence sufficient for an
   independent reviewer to judge the scenario (see the three proofs below).
@@ -91,8 +95,11 @@ Rules:
    cannot finish inside its budget ends `blocked` or `failed` with evidence —
    it is never extended by silently restarting the count.
 
-Only the main controller operates the shared desktop. Pause other UI runners
-before taking control; never run two writers against the same app/session.
+Only the main controller operates the shared desktop for planned UI
+acceptance; a dispatched product-observer holds the exclusive lease over the
+delivered candidate's UI session during its audit window. Pause other UI
+runners before taking control; never run two writers against the same
+app/session.
 Subagents may author tests, implement files or review evidence, but must return
 a requested GUI scenario to the controller rather than acquire desktop control.
 This does not waive independent test authorship or reviewer provenance.

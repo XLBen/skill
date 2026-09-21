@@ -1,0 +1,90 @@
+{
+  "case": "E-term",
+  "variant": "redesign",
+  "model": "openai/gpt-5.6-luna",
+  "cid": "cand-ered-1",
+  "started_at": "2026-09-21T21:00:45+00:00",
+  "phases": {
+    "discover": {
+      "ok": true,
+      "path": "C:\\Users\\24083\\AppData\\Local\\Temp\\opencode\\s20a-target\\.opencode\\mvp\\observation\\G-OBS\\cand-ered-1\\discover\\run-001\\result.json",
+      "session": "ses_f3a3a84a2ffe72R1rlBkP4Tqzc",
+      "stop_reason": "coverage-completed",
+      "findings": [
+        {
+          "id": "F-001",
+          "severity": "high",
+          "status": "confirmed",
+          "classification": null,
+          "observed": "Running the packet's demo command `python app/app.py add buy milk` exits with code 2 and reports `unrecognized arguments: milk`."
+        },
+        {
+          "id": "F-002",
+          "severity": "high",
+          "status": "confirmed",
+          "classification": null,
+          "observed": "The add command reports `added: laundry` and `added: read book`, but a later list still contains only `buy milk` and `walk dog`; neither newly added task appears."
+        }
+      ],
+      "surfaces": 2,
+      "journeys": 4,
+      "repairs": 1,
+      "repair_log": [
+        {
+          "attempt": 1,
+          "problems_before": [
+            "result.findings[0].confidence must be one of ('observed', 'likely', 'uncertain')",
+            "result.findings[1].confidence must be one of ('observed', 'likely', 'uncertain')"
+          ],
+          "exit_code": 0,
+          "timed_out": false
+        }
+      ],
+      "dispatch": {
+        "exit_code": 0,
+        "timed_out": false,
+        "elapsed_seconds": 359.9
+      }
+    },
+    "compare": {
+      "ok": true,
+      "path": "C:\\Users\\24083\\AppData\\Local\\Temp\\opencode\\s20a-target\\.opencode\\mvp\\observation\\G-OBS\\cand-ered-1\\compare\\run-001\\result.json",
+      "session": "ses_f3a350537ffed6N1VoAzIwEIX5",
+      "stop_reason": "coverage-completed",
+      "findings": [
+        {
+          "id": "F-01",
+          "severity": "high",
+          "status": "confirmed",
+          "classification": "confirmed-defect",
+          "observed": "Adding the unique task \"compare probe task\" exits successfully and prints \"added: compare probe task\", but a subsequent list omits that task."
+        }
+      ],
+      "surfaces": 1,
+      "journeys": 1,
+      "repairs": 0,
+      "repair_log": [],
+      "dispatch": {
+        "exit_code": 0,
+        "timed_out": false,
+        "elapsed_seconds": 106.2
+      }
+    }
+  },
+  "gate": {
+    "exit_code": 1,
+    "output": "product audit gate: fail\r\n  - unresolved critical/high findings block completion: discover:F-001(high/confirmed), discover:F-002(high/confirmed), compare:F-01(high/confirmed)\r\n  - review verdict is 'needs-observation'; only sufficient clears the gate\r\ngate record: C:\\Users\\24083\\AppData\\Local\\Temp\\opencode\\s20a-target\\.opencode\\mvp\\observation\\G-OBS\\cand-ered-1\\gate.json"
+  },
+  "status": "completed",
+  "candidate": {
+    "id": "cand-ered-1",
+    "files": 2
+  },
+  "review": {
+    "ok": true,
+    "verdict": "needs-observation",
+    "findings_validity": "sufficient",
+    "coverage_adequacy": "insufficient"
+  },
+  "finished_at": "2026-09-21T21:09:54+00:00"
+}

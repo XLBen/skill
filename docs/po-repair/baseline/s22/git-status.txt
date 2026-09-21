@@ -1,0 +1,68 @@
+ M .opencode/agents/mvp-reviewer.md
+ M .opencode/commands/resume.md
+ M README.en.md
+ M README.md
+ M computer-use/SKILL.md
+ M computer-use/references/ui-acceptance-protocol.md
+ M i-have-adhd/SKILL.md
+ M mvp-delivery/SKILL.md
+ M mvp-delivery/references/delivery-execution.md
+ M mvp-delivery/references/delivery-finish.md
+ M mvp-delivery/references/delivery-recovery.md
+ M mvp-delivery/references/goal-definition.md
+ M mvp-delivery/references/stage-routing.json
+ M mvp-delivery/references/subagent-orchestration.md
+ M mvp-delivery/references/subagent-templates.md
+ M reviewer/SKILL.md
+ M scripts/check.py
+ M scripts/evidence_registry.py
+ M scripts/install.py
+ M scripts/runtime_trace.py
+ M scripts/workflow_packets.py
+ M scripts/workflow_protocol.py
+ M scripts/workflow_runtime.py
+ M systematic-debugging/SKILL.md
+ M tests/test_install.py
+ M tests/test_runtime_doctor.py
+ M tests/test_subagent_orchestration.py
+ M webapp-testing/SKILL.md
+?? .opencode/agents/mvp-product-observer.md
+?? .opencode/commands/visibility.md
+?? .opencode/plugins/
+?? docs/po-repair/
+?? product-observer/
+?? scripts/observation_backend.py
+?? scripts/observation_candidate.py
+?? scripts/observation_contract.py
+?? scripts/observation_media.py
+?? scripts/observation_process.py
+?? scripts/observation_results.py
+?? scripts/observation_resume.py
+?? scripts/observation_vision.py
+?? scripts/product_observation.py
+?? scripts/runtime_state_policy.py
+?? scripts/visibility_config.py
+?? tests/fixtures/product-observation/
+?? tests/js/
+?? tests/test_calibration_driver.py
+?? tests/test_observation_backend.py
+?? tests/test_observation_candidate.py
+?? tests/test_observation_contract.py
+?? tests/test_observation_dispatch.py
+?? tests/test_observation_docs.py
+?? tests/test_observation_format_repair.py
+?? tests/test_observation_gate.py
+?? tests/test_observation_malformed.py
+?? tests/test_observation_media.py
+?? tests/test_observation_permissions.py
+?? tests/test_observation_process.py
+?? tests/test_observation_results.py
+?? tests/test_observation_resume.py
+?? tests/test_observation_semantics.py
+?? tests/test_observation_state_binding.py
+?? tests/test_observation_vision.py
+?? tests/test_observer_packets.py
+?? tests/test_product_observation.py
+?? tests/test_visibility_config.py
+?? validation/observation-calibration/
+?? validation/product-observation/

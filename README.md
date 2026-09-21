@@ -175,6 +175,7 @@ hash（brief 冻结、证据、artifact identity），被引用的文件不删�
 | `step-executor` | 隔离执行单个严格 PLAN 步骤 |
 | `webapp-testing` | Web 旅程：断言式浏览器自动化 |
 | `computer-use` | 桌面旅程：硬预算 GUI 操作与验证 |
+| `product-observer` | 全产品黑盒观察：独立探索 + 目标/历史查漏，交付前强制 gate |
 | `pua` | 验收质询：闭环/事实驱动/穷尽不盲目 |
 | `i-have-adhd` | 用户沟通：短视图，不删完整事实 |
 | `security-assurance` | 条件型：信任边界/认证/隐私/密钥的安全保证与威胁建模 |
@@ -183,7 +184,7 @@ hash（brief 冻结、证据、artifact identity），被引用的文件不删�
 | `outcome-learning` | 条件型：用户/业务结果假设、基线与最小实验 |
 
 安装器另会部署 `mvp-researcher`、`mvp-worker`、`mvp-reviewer`、
-`mvp-test-author`、`mvp-step-executor` 五个项目子代理到
+`mvp-test-author`、`mvp-step-executor`、`mvp-product-observer` 六个项目子代理到
 `.opencode/agents/`，带最小权限边界（reviewer 无写入；子代理禁止再派发）；
 fresh 子代理提供真实独立 session，加载 skill 本身不创造独立性。
 

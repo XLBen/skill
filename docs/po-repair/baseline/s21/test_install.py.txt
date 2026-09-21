@@ -1,0 +1,33 @@
+﻿python : test_commands_only_leaves_config_untouched (test_install.InstallTests) ... ok
+所在位置 行:1 字符: 304
++ ... in $tests){ python -m unittest discover -s tests -p $t -v 2>&1 | Out- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_commands_o...llTests) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+test_commands_only_skips_plugins_and_engine_scripts (test_install.InstallTests) ... ok
+test_default_root_skips_same_file_and_records_manifest (test_install.InstallTests) ... ok
+test_inline_agent_conflict_fails_before_copying (test_install.InstallTests) ... ok
+test_installed_engine_resolves_its_own_routing_copy (test_install.InstallTests) ... ok
+test_invalid_manifest_files_type_fails_before_copying (test_install.InstallTests) ... ok
+test_jsonc_hint_lists_live_paths_without_editing_config (test_install.InstallTests) ... ok
+test_local_jsonc_inline_agent_conflict_fails_before_copying (test_install.InstallTests) ... ok
+test_only_live_skills_registered_without_automatic_mcp (test_install.InstallTests) ... ok
+test_plugin_dependency_hint_omitted_when_node_modules_present (test_install.InstallTests) ... ok
+test_plugin_dependency_hint_when_node_modules_missing (test_install.InstallTests) ... ok
+test_real_repository_install_discovers_computer_use_once (test_install.InstallTests) ... ok
+test_refuses_unowned_agent_overwrite_and_force_replaces (test_install.InstallTests) ... ok
+test_refuses_unowned_plugin_overwrite_and_force_replaces (test_install.InstallTests) ... ok
+test_singular_agent_dir_conflict_fails_before_copying (test_install.InstallTests) ... ok
+test_singular_agent_dir_without_conflict_installs (test_install.InstallTests) ... ok
+test_upgrade_preserves_unrelated_config_and_deduplicates_live_paths (test_install.InstallTests) ... ok
+test_upgrade_retires_removed_agent_files (test_install.InstallTests) ... ok
+test_comments_and_trailing_commas (test_install.ParseJsoncTests) ... ok
+test_comments_do_not_join_tokens (test_install.ParseJsoncTests) ... ok
+test_preserves_strings_while_removing_trailing_commas (test_install.ParseJsoncTests) ... ok
+test_unterminated_comment (test_install.ParseJsoncTests) ... ok
+
+----------------------------------------------------------------------
+Ran 22 tests in 2.261s
+
+OK

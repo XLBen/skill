@@ -1,0 +1,45 @@
+{
+  "schema": "product-observation/2",
+  "phase": "discover",
+  "stop_reason": "coverage-completed",
+  "surfaces": [
+    {
+      "id": "S-01",
+      "name": "Main entry",
+      "importance": "material",
+      "modes": ["default"]
+    },
+    {
+      "id": "S-02",
+      "name": "Settings",
+      "importance": "peripheral"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "J-01",
+      "surface_ids": ["S-01"],
+      "evidence_refs": ["evidence/j01.png"],
+      "outcome": "covered"
+    },
+    {
+      "id": "J-02",
+      "surface_ids": ["S-02"],
+      "evidence_refs": ["evidence/j02.png"],
+      "outcome": "partial"
+    }
+  ],
+  "findings": [],
+  "unobserved": [],
+  "capability_gaps": [],
+  "continuation": null,
+  "evidence_refs": ["evidence/round-001.md"],
+  "notes": "Independent discover sweep over the entry and settings surfaces.",
+  "goal_id": "G-OBS",
+  "candidate_id": "cand-1",
+  "observer_session_id": "ses_observer",
+  "model": "provider/model",
+  "packet_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "received_at": "2026-09-21T00:00:00Z",
+  "attempt": 1
+}

@@ -1,0 +1,180 @@
+```json
+{
+  "schema": "product-observation/2",
+  "phase": "discover",
+  "stop_reason": "coverage-completed",
+  "surfaces": [
+    {
+      "id": "S-01",
+      "name": "Theme setting CLI",
+      "importance": "material",
+      "modes": ["light", "dark"]
+    },
+    {
+      "id": "S-02",
+      "name": "Notes page CLI view",
+      "importance": "material",
+      "modes": ["persisted theme"]
+    },
+    {
+      "id": "S-03",
+      "name": "CLI help and input handling",
+      "importance": "peripheral",
+      "modes": ["valid", "invalid", "missing arguments"]
+    }
+  ],
+  "journeys": [
+    {
+      "id": "J-01",
+      "surface_ids": ["S-01", "S-02"],
+      "outcome": "failed",
+      "evidence_refs": [
+        "evidence/recheck-set-dark.txt",
+        "evidence/recheck-view-dark.txt"
+      ],
+      "notes": "Setting dark reports Saved OK, but a subsequent view still renders theme: light. Reproduced across repeated attempts."
+    },
+    {
+      "id": "J-02",
+      "surface_ids": ["S-01", "S-02"],
+      "outcome": "covered",
+      "evidence_refs": [
+        "evidence/recheck-set-light.txt",
+        "evidence/recheck-view-light.txt"
+      ]
+    },
+    {
+      "id": "J-03",
+      "surface_ids": ["S-03"],
+      "outcome": "covered",
+      "evidence_refs": [
+        "evidence/no-args.txt",
+        "evidence/set-invalid.txt"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-001",
+      "surface_ids": ["S-01", "S-02"],
+      "severity": "high",
+      "category": "functional",
+      "confidence": "observed",
+      "observed": "After `python app/app.py set-theme dark` returns `Saved OK`, `python app/app.py view` renders `theme: light`.",
+      "expected_basis": "The packet purpose requires a user to set a theme and see it applied when viewing the notes page; the README also promises that view renders the saved theme.",
+      "reproduction": "Run set-theme dark, then view. Repeat the sequence; the result remains light. Evidence: evidence/recheck-set-dark.txt and evidence/recheck-view-dark.txt.",
+      "evidence_refs": [
+        "evidence/set-dark.txt",
+        "evidence/view-dark.txt",
+        "evidence/recheck-set-dark.txt",
+        "evidence/recheck-view-dark.txt"
+      ],
+      "status": "confirmed"
+    },
+    {
+      "id": "F-002",
+      "surface_ids": ["S-03"],
+      "severity": "medium",
+      "category": "ux",
+      "confidence": "observed",
+      "observed": "The unsupported command `python app/app.py set-theme blue` exits successfully and prints `Saved OK`.",
+      "expected_basis": "The public usage documentation specifies `set-theme <light|dark>`; unsupported values should not be reported as successfully saved.",
+      "reproduction": "Run `python app/app.py set-theme blue`. Evidence: evidence/set-invalid.txt.",
+      "evidence_refs": ["evidence/set-invalid.txt"],
+      "status": "confirmed"
+    }
+  ],
+  "unobserved": [],
+  "capability_gaps": [],
+  "continuation": null,
+  "evidence_refs": [
+    "evidence/recheck-set-dark.txt",
+    "evidence/recheck-view-dark.txt",
+    "evidence/set-invalid.txt"
+  ],
+  "notes": "Material CLI surfaces were exercised through the delivered entry point. The core dark-theme journey is reproducibly broken."
+}
+```
+
+--stderr--
+[0m
+> po-observer · gpt-5.6-luna
+[0m
+[0m→ [0mSkill "product-observer"
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/discover.packet.json
+[0m✱ [0mGlob "app/README*"[90m 1 match[0m
+[0m→ [0mRead app/README.md
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/candidate.json
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence" --out "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/view-initial.txt" -- python app/app.py view
+captured argv=["python", "app/app.py", "view"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\view-initial.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\view-initial.txt.stderr.txt
+--stdout--
+rendering notes page with theme: light
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence" --out "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/set-dark.txt" -- python app/app.py set-theme dark
+captured argv=["python", "app/app.py", "set-theme", "dark"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\set-dark.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\set-dark.txt.stderr.txt
+--stdout--
+Saved OK
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence" --out "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/view-dark.txt" -- python app/app.py view
+captured argv=["python", "app/app.py", "view"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\view-dark.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\view-dark.txt.stderr.txt
+--stdout--
+rendering notes page with theme: light
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence" --out "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/set-light.txt" -- python app/app.py set-theme light
+captured argv=["python", "app/app.py", "set-theme", "light"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\set-light.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\set-light.txt.stderr.txt
+--stdout--
+Saved OK
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence" --out "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/set-invalid.txt" -- python app/app.py set-theme blue
+captured argv=["python", "app/app.py", "set-theme", "blue"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\set-invalid.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\set-invalid.txt.stderr.txt
+--stdout--
+Saved OK
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence" --out "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/cycle2-dark.txt" -- python app/app.py set-theme dark
+captured argv=["python", "app/app.py", "set-theme", "dark"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\cycle2-dark.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\cycle2-dark.txt.stderr.txt
+--stdout--
+Saved OK
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence" --out "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/cycle2-view.txt" -- python app/app.py view
+captured argv=["python", "app/app.py", "view"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\cycle2-view.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\cycle2-view.txt.stderr.txt
+--stdout--
+rendering notes page with theme: light
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence" --out "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/no-args.txt" -- python app/app.py
+captured argv=["python", "app/app.py"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\no-args.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\no-args.txt.stderr.txt
+--stdout--
+use: set-theme <light|dark> | view
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence" --out "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/confirmed-dark-view.txt" -- python app/app.py view
+captured argv=["python", "app/app.py", "view"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\confirmed-dark-view.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\confirmed-dark-view.txt.stderr.txt
+--stdout--
+rendering notes page with theme: light
+[0m
+[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/result-contract.md
+[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/finding-rules.md
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence" --out "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/recheck-set-light.txt" -- python app/app.py set-theme light
+captured argv=["python", "app/app.py", "set-theme", "light"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\recheck-set-light.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\recheck-set-light.txt.stderr.txt
+--stdout--
+Saved OK
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence" --out "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/recheck-view-light.txt" -- python app/app.py view
+captured argv=["python", "app/app.py", "view"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\recheck-view-light.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\recheck-view-light.txt.stderr.txt
+--stdout--
+rendering notes page with theme: light
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence" --out "C:/Users/24083/AppData/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/recheck-set-dark.txt" -- python app/app.py set-theme dark
+refusing to write outside the evidence root: C:\Users\24083\AppData\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\recheck-set-dark.txt
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence" --out "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/recheck-set-dark.txt" -- python app/app.py set-theme dark
+captured argv=["python", "app/app.py", "set-theme", "dark"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\recheck-set-dark.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\recheck-set-dark.txt.stderr.txt
+--stdout--
+Saved OK
+[0m
+[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence" --out "C:/Users/24083/AppData/Local/Temp/opencode/s20a-target/.opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/recheck-view-dark.txt" -- python app/app.py view
+captured argv=["python", "app/app.py", "view"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\recheck-view-dark.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\evidence\recheck-view-dark.txt.stderr.txt
+--stdout--
+rendering notes page with theme: light
+[0m
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/evidence

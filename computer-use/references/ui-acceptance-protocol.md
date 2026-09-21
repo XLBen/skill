@@ -107,11 +107,18 @@ implementation done -> automated/engine verification
      native/OS-dialog journeys via computer-use (observe -> act -> verify;
      one bounded journey per scenario, under the skill's hard budget)
   -> first ui-gate --bind records the artifact identity
+  -> product-observation phases (schema-2 goals): the observer holds the
+     exclusive UI lease over the delivered candidate; the controller pauses
+     planned UI runners for the audit window
   -> ACCEPTANCE_HANDOFF includes the sidecar summary
   -> fresh reviewer + PUA check UI evidence with the other acceptance items
   -> failures repaired and affected scenarios re-executed
   -> check.py ui-gate (with runtime policy) -> existing engine/owner gates
 ```
+
+Planned ui-acceptance scenarios stay controller-executed; the observer lease
+covers only the product-observation phases and never re-labels planned
+scenario evidence as observation evidence.
 
 `/fix` reproduces through the affected interface journey before editing and
 re-executes the same scenario after repair. `/resume` re-observes the current

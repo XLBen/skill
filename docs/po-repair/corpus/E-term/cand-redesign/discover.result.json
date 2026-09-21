@@ -1,0 +1,282 @@
+{
+  "schema": "product-observation/1",
+  "goal_id": "G-OBS",
+  "phase": "discover",
+  "status": "completed",
+  "candidate_id": "cand-redesign",
+  "candidate_manifest": ".opencode/mvp/observation/G-OBS/cand-redesign/candidate.json",
+  "candidate_manifest_sha256": "07b41c32316b7067519060d5394f8ea22a6895a6a2b93d12ee862ac5fabe8f09",
+  "identity_check": {
+    "app/app.py": "match (7D9D4F39...00EB0)",
+    "app/README.md": "match (41379F61...969714)"
+  },
+  "backend": {
+    "kind": "terminal",
+    "probe": "available",
+    "details": "Real public entry commands via powershell/cmd on Python 3.10.7; stdout/stderr captured to separate files and read by the observing model (perception confirmed); evidence persisted under the round evidence dir."
+  },
+  "ui_lease": {
+    "resource_id": "terminal-session:projects/E-term:python app/app.py",
+    "owner": "product-observer (this session)",
+    "candidate_id": "cand-redesign",
+    "acquired_at": "2026-09-21T03:39+08:00",
+    "status": "released"
+  },
+  "budget": {
+    "semantic_actions_used": 22,
+    "cap_per_surface_group": 40,
+    "max_observation_cycles_used_per_action": 2,
+    "cap_cycles": 2,
+    "wall_clock_minutes_approx": 12,
+    "cap_minutes": 30
+  },
+  "product_map": [
+    {
+      "id": "S1",
+      "surface": "list",
+      "behavior": "prints one line per task as '[ ] name' to stdout, exit 0; silently ignores stray extra arguments (j4-a19)",
+      "read_only": true
+    },
+    {
+      "id": "S2",
+      "surface": "add <task>",
+      "behavior": "echoes 'added: <task>' to stdout, exit 0; requires exactly one argv token — unquoted multi-word input hard-fails with argparse 'unrecognized arguments' exit 2 (j3-a12); quoted multi-word accepted (j3-a14); missing argument reports 'added: None' exit 0 (j3-a13); unicode task echoed correctly in UTF-8 (j3-a15b)"
+    },
+    {
+      "id": "S3",
+      "surface": "add→list persistence roundtrip",
+      "behavior": "BROKEN: no added task ever appears in a subsequent list; no data artifact appears or changes in app/ after adds (j2-a11 before/after dir snapshots)",
+      "read_only": false
+    },
+    {
+      "id": "S4",
+      "surface": "no-args usage",
+      "behavior": "prints 'use: list | add <task>' to stdout, exit 0 (j1-a2)"
+    },
+    {
+      "id": "S5",
+      "surface": "--help / -h",
+      "behavior": "not supported: argparse 'unrecognized arguments', usage line to stderr, exit 2 (j1-a3, j1-a3b)"
+    },
+    {
+      "id": "S6",
+      "surface": "--smoke",
+      "behavior": "health-check mode discovered from product usage line; prints 'SMOKE-OK', exit 0, zero state mutation (j1-a4 before/after)"
+    },
+    {
+      "id": "S7",
+      "surface": "unknown/case-mismatched command",
+      "behavior": "falls back to usage line on STDOUT with exit 0 ('frobnicate', 'LIST') (j4-a17, j4-a18)"
+    }
+  ],
+  "readme_conformance": {
+    "v2_checkbox_format": "verified: list renders '[ ] task' (j1-a1)",
+    "v2_add_confirmation_line": "verified present: 'added: <name>' (j2-a5)",
+    "core_purpose_add_then_list": "FAILS: see F-001"
+  },
+  "journeys": [
+    {
+      "id": "J1",
+      "name": "first-touch orientation",
+      "actions": [
+        "list fresh state",
+        "no args",
+        "--help",
+        "-h",
+        "--smoke with before/after list"
+      ],
+      "evidence": [
+        "j1-a1-list-fresh.out",
+        "j1-a2-noargs.out",
+        "j1-a3-help.err",
+        "j1-a3b-h.err",
+        "j1-a4-smoke.out",
+        "j1-a4-before.out",
+        "j1-a4-after.out"
+      ]
+    },
+    {
+      "id": "J2",
+      "name": "core add flow",
+      "actions": [
+        "add todo",
+        "list",
+        "add po-obs-probe-1",
+        "list",
+        "add todo again",
+        "list",
+        "add probe-mtime + dir snapshot before/after"
+      ],
+      "evidence": [
+        "j2-a5-add-todo.out",
+        "j2-a6-list-after-add.out",
+        "j2-a7-add-probe1.out",
+        "j2-a8-list-recheck.out",
+        "j2-a9-add-todo-again.out",
+        "j2-a10-list-final.out",
+        "j2-a11-add-mtime.out",
+        "j2-a11-dirtree-before.txt",
+        "j2-a11-dirtree-after.txt"
+      ]
+    },
+    {
+      "id": "J3",
+      "name": "add input handling",
+      "actions": [
+        "add buy milk (unquoted)",
+        "add (no arg)",
+        "add \"buy milk\" (quoted)",
+        "add 任务测试 (unicode, byte-exact decode)",
+        "add empty-string (2 harness-attempted cycles, inconclusive, covered by J2/A13 class)"
+      ],
+      "evidence": [
+        "j3-a12-add-multiword.err",
+        "j3-a13-add-noarg.out",
+        "j3-a14-add-quoted.out",
+        "j3-a15b-add-unicode.out"
+      ]
+    },
+    {
+      "id": "J4",
+      "name": "error paths and stream/exit contract",
+      "actions": [
+        "frobnicate",
+        "LIST",
+        "list extra"
+      ],
+      "evidence": [
+        "j4-a17-unknown.out",
+        "j4-a18-case.out",
+        "j4-a19-list-arg.out"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-001",
+      "surface_ids": [
+        "S2",
+        "S3"
+      ],
+      "severity": "critical",
+      "category": "functional",
+      "confidence": "observed",
+      "observed": "python app/app.py add todo → stdout 'added: todo', exit 0; subsequent python app/app.py list shows only the two pre-existing tasks ('buy milk', 'walk dog'). Reproduced 3/3 with 'todo', 'po-obs-probe-1', 'todo'; list output never changes (28B every time). Directory snapshot shows no data file created and no mtime change in app/ after an add.",
+      "expected_basis": "Product's own feedback contradicts its own observable state ('added: todo' vs list output); packet purpose: 'A user can list tasks and add one with the Tasks CLI'; README v2 documents both behaviors as current.",
+      "reproduction": "1) python app/app.py list  -> two tasks; 2) python app/app.py add todo -> 'added: todo' exit 0; 3) python app/app.py list -> 'todo' absent. Repeat with any name.",
+      "evidence_refs": [
+        "app/.opencode-absent/.opencode/mvp/observation/G-OBS/cand-redesign/evidence/j2-a5-add-todo.out",
+        ".opencode/mvp/observation/G-OBS/cand-redesign/evidence/j2-a6-list-after-add.out",
+        ".opencode/mvp/observation/G-OBS/cand-redesign/evidence/j2-a7-add-probe1.out",
+        ".opencode/mvp/observation/G-OBS/cand-redesign/evidence/j2-a8-list-recheck.out",
+        ".opencode/mvp/observation/G-OBS/cand-redesign/evidence/j2-a9-add-todo-again.out",
+        ".opencode/mvp/observation/G-OBS/cand-redesign/evidence/j2-a10-list-final.out",
+        ".opencode/mvp/observation/G-OBS/cand-redesign/evidence/j2-a11-dirtree-before.txt",
+        ".opencode/mvp/observation/G-OBS/cand-redesign/evidence/j2-a11-dirtree-after.txt"
+      ],
+      "status": "confirmed"
+    },
+    {
+      "id": "F-002",
+      "surface_ids": [
+        "S2"
+      ],
+      "severity": "medium",
+      "category": "ux",
+      "confidence": "observed",
+      "observed": "python app/app.py add (missing argument) → stdout 'added: None', exit 0, stderr empty.",
+      "expected_basis": "Product's own usage line says 'add <task>'; confirming a successful add of no task is false success feedback and would pollute task state if persistence worked.",
+      "reproduction": "python app/app.py add  → 'added: None', exit 0.",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-redesign/evidence/j3-a13-add-noarg.out"
+      ],
+      "status": "confirmed"
+    },
+    {
+      "id": "F-003",
+      "surface_ids": [
+        "S2"
+      ],
+      "severity": "medium",
+      "category": "ux",
+      "confidence": "observed",
+      "observed": "python app/app.py add buy milk → stderr 'app.py: error: unrecognized arguments: milk', exit 2. Quoted form works ('added: buy milk'). The seeded list itself contains the two-word task 'buy milk', which cannot be re-added unquoted.",
+      "expected_basis": "The product's own example data demonstrates multi-word task names as normal content, yet the natural unquoted input fails with an argparse usage dump.",
+      "reproduction": "python app/app.py add buy milk → exit 2 'unrecognized arguments: milk'; compare: python app/app.py add \"buy milk\" → exit 0.",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-redesign/evidence/j3-a12-add-multiword.err",
+        ".opencode/mvp/observation/G-OBS/cand-redesign/evidence/j3-a14-add-quoted.out"
+      ],
+      "status": "confirmed"
+    },
+    {
+      "id": "F-004",
+      "surface_ids": [
+        "S4",
+        "S7"
+      ],
+      "severity": "low",
+      "category": "ux",
+      "confidence": "observed",
+      "observed": "Unknown command ('frobnicate'), uppercase 'LIST', and bare invocation all print the usage line to STDOUT with exit 0, while bad flags (--help/-h) error to STDERR with exit 2. A script cannot detect a typo'd command via exit code.",
+      "expected_basis": "Internal inconsistency in the product's own error contract: argparse-level errors use exit 2/stderr; command-level errors use exit 0/stdout.",
+      "reproduction": "python app/app.py frobnicate → exit 0, usage on stdout; python app/app.py --help → exit 2, usage on stderr.",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-redesign/evidence/j4-a17-unknown.out",
+        ".opencode/mvp/observation/G-OBS/cand-redesign/evidence/j1-a3-help.err"
+      ],
+      "status": "confirmed"
+    },
+    {
+      "id": "F-005",
+      "surface_ids": [
+        "S5"
+      ],
+      "severity": "low",
+      "category": "ux",
+      "confidence": "observed",
+      "observed": "--help and -h are rejected: 'app.py: error: unrecognized arguments: --help', exit 2. The only usage discovery paths are bare invocation and error output.",
+      "expected_basis": "Convention for CLI products; product exposes no documented help surface (README documents only list/add; usage line surfaces only via errors).",
+      "reproduction": "python app/app.py --help → exit 2 'unrecognized arguments'.",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-redesign/evidence/j1-a3-help.err",
+        ".opencode/mvp/observation/G-OBS/cand-redesign/evidence/j1-a3b-h.err"
+      ],
+      "status": "confirmed"
+    },
+    {
+      "id": "F-006",
+      "surface_ids": [
+        "S1"
+      ],
+      "severity": "low",
+      "category": "functional",
+      "confidence": "observed",
+      "observed": "python app/app.py list extra → normal list output, exit 0; the stray argument is silently ignored, while add is argparse-strict about extra tokens.",
+      "expected_basis": "Inconsistent argument strictness between the product's two commands (compare F-003 behavior on add).",
+      "reproduction": "python app/app.py list extra → list renders, exit 0.",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-redesign/evidence/j4-a19-list-arg.out"
+      ],
+      "status": "confirmed"
+    }
+  ],
+  "unobserved_areas": [],
+  "capability_gaps": [],
+  "harness_notes": [
+    "Initial unicode 'mojibake' (j3-a15) was proven to be the observer harness's file decoding (PS 5.1 ANSI default), not product behavior: byte-exact UTF-8 read of the re-run shows correct 'added: 任务测试' (j3-a15b). No unicode finding recorded.",
+    "Two empty-string add attempts (j3-a16, j3-a16b) failed due to observer shell quoting (cmd quote collapse, then --% stop-parsing swallowing redirections). Observation-cycle cap reached for that action; the input class is covered by the missing-argument case (F-002). Evidence files intentionally absent.",
+    "PS 5.1 wraps native stderr as error records when redirected; stream separation for later runs was done via cmd /c for clean capture. PowerShell error-record noise in j1-a3*.err is harness rendering around genuine product stderr lines.",
+    "Source code (app/app.py) was never read; state probes used CLI output and directory metadata only."
+  ],
+  "continuation": null,
+  "stop_reason": "coverage-complete: every surface advertised by the product (README: list/add; product usage line: --smoke, usage/help, error paths) was exercised; critical finding F-001 remains unresolved and routes to the repair loop per finding-rules.",
+  "baseline": "none (discover phase; historical reconciliation reserved for compare)",
+  "evidence_dir": ".opencode/mvp/observation/G-OBS/cand-redesign/evidence",
+  "evidence_file_count": 46,
+  "packet_hash": "bf79abf63fb8a50c821927bf606c7150d6099e6a78d6d772f9f419a4795adce7",
+  "surfaces": [],
+  "unobserved": [],
+  "evidence_refs": [],
+  "observer_session_id": "ses_f3de28576ffe6q9RNPxoMeS8v1"
+}

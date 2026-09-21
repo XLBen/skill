@@ -1,0 +1,35 @@
+﻿(node:24964) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/MISC/%E4%BB%A3%E7%A0%81%E9%A1%B9%E7%9B%AE/skill/.opencode/plugins/workflow-visibility.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\MISC\代码项目\skill\.opencode\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ parseModelRef accepts exactly one slash with non-empty sides (4.0639ms)
+✔ resolveSelection prefers an explicit provider/model (4.3902ms)
+✔ resolveSelection rejects an invalid explicit model (4.7024ms)
+✔ resolveSelection reads selection for product-observer (5.5119ms)
+✔ resolveSelection reads reviewer_selection for reviewer (3.3398ms)
+✔ resolveSelection falls back to selection when reviewer_selection is absent (4.8953ms)
+✔ resolveSelection does not fall back when reviewer_selection is invalid (3.4564ms)
+✔ resolveSelection fails closed when the file is missing (1.4711ms)
+✔ resolveSelection fails closed for non-selected or missing fields (17.1879ms)
+✔ resolveSelection rejects unreadable settings and unknown roles (4.7962ms)
+✔ buildDispatchBody has the SDK prompt shape (0.4193ms)
+✔ extractOutput keeps text parts in order and tolerates gaps (0.2205ms)
+✔ AGENT_BY_ROLE maps both seats (0.125ms)
+✔ visibility_dispatch creates a child session and returns pinned metadata (7.5553ms)
+✔ visibility_dispatch falls back to the plugin directory when context has none (6.4775ms)
+✔ visibility_dispatch applies an explicit model override (1.8108ms)
+✔ visibility_dispatch resumes an existing session without creating one (5.4746ms)
+✔ visibility_dispatch fails closed without a selection and never calls the API (2.951ms)
+✔ visibility_dispatch surfaces host API failures (7.2163ms)
+✔ visibility_dispatch surfaces a returned SDK error result (5.5472ms)
+✔ visibility_status prints the configured selection as JSON (4.0618ms)
+✔ visibility_status reports reviewer_selection when asked (5.9732ms)
+✔ visibility_status does not throw when the file is missing (3.0942ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 397.0996

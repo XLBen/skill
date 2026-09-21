@@ -1,0 +1,54 @@
+{
+  "schema": "product-observation/2",
+  "phase": "discover",
+  "surfaces": [
+    {
+      "id": "S-01",
+      "name": "CLI mode A",
+      "importance": "material",
+      "modes": [
+        "mode-a"
+      ]
+    },
+    {
+      "id": "S-02",
+      "name": "CLI mode B",
+      "importance": "material",
+      "modes": [
+        "mode-b"
+      ]
+    }
+  ],
+  "journeys": [
+    {
+      "id": "J-01",
+      "surface_ids": [
+        "S-01"
+      ],
+      "outcome": "covered",
+      "evidence_refs": [
+        "evidence/mode-a.txt"
+      ]
+    },
+    {
+      "id": "J-02",
+      "surface_ids": [
+        "S-02"
+      ],
+      "outcome": "covered",
+      "evidence_refs": [
+        "evidence/mode-b.txt"
+      ]
+    }
+  ],
+  "findings": [],
+  "unobserved": [],
+  "capability_gaps": [],
+  "continuation": null,
+  "stop_reason": "coverage-completed",
+  "evidence_refs": [
+    "evidence/mode-a.txt",
+    "evidence/mode-b.txt"
+  ],
+  "notes": "Both delivered CLI modes completed their end-to-end demo flows successfully."
+}

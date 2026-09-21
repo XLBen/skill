@@ -36,7 +36,7 @@ python .opencode/workflow/scripts/workflow_packets.py handoff <goal.md> --dispat
 ```text
 DISPATCH
 task_id: <T-NN, 对应 dispatch record>
-role: research|worker|reviewer|test-author|step-executor
+role: research|worker|reviewer|test-author|step-executor|product-observer
 stage_id: <stage-routing.json 的 stage_id；无则 none>
 goal: <一句话目标与验收条件，可观察、可判定>
 inputs:
@@ -125,9 +125,10 @@ RESULT 当作所有角色的隐式父接口：
 | 角色 | 返回格式 | 必需字段（缺失按 needs_input 退回并指出字段） |
 |---|---|---|
 | research / worker | `TASK_RESULT` + `RESULT` payload | 外壳公共字段；completed 时 evidence 非空（纯调研报告 source 证据） |
-| reviewer | reviewer-protocol JSON | mode、issues、checked_scope、not_checked；review 模式每个 issue 带 classification；派发带 `pua_stage_id` 时 `pua_acceptance` 必填且 `stage_id` 必须与传入一致，未传时省略（见 reviewer-protocol.md Output） |
+| reviewer | reviewer-protocol JSON | mode、issues、checked_scope、not_checked；review 模式每个 issue 带 classification；派发带 `pua_stage_id` 时 `pua_acceptance` 必填且 `stage_id` 必须与传入一致，未传时省略（见 reviewer-protocol.md Output）；观察充分性评审返回 `product-observation-review/2`（hash 由控制器/引擎绑定） |
 | test-author | `TASK_RESULT` + `TEST_AUTHOR_HANDOFF` payload | 单轮 `phase: work` 即写测试、跑 pre-change、冻结 manifest；`test_author_id` 先写 `pending-binding`，主控返回后 `bind-test-author` 绑定真实 provenance；payload 要求 slice、spec_hash、manifest、protected_acceptance、expected_scenarios、pre_change_result |
 | step-executor | `TASK_RESULT` + `STEP_HANDBACK` payload | step、implementation_files、protected_unchanged、pending_v、deviations/blockers |
+| product-observer | `TASK_RESULT` + `product-observation/2` payload | 外壳公共字段；payload 为**恰好一个 fenced json 块**，只含 phase（discover/compare）、surfaces、journeys、findings、unobserved、capability_gaps、continuation、stop_reason、evidence_refs、notes；`goal_id`/`candidate_id`/`observer_session_id`/`model`/`packet_hash`/`received_at`/`attempt` 由 controller 采纳时并入，observer 不写结果或工作流文件；`completed` 仅表示阶段结束，绝非 audit accepted |
 
 合法的角色专用返回不得因不含旧 RESULT 字段而被退回。格式返工不是产品返工：
 不得通过重新生成测试、重跑 pre-change 或重放实现来“修复格式”；格式错误

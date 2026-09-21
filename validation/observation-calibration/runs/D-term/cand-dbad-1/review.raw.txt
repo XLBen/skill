@@ -1,0 +1,43 @@
+```json
+{
+  "schema": "product-observation-review/2",
+  "findings_validity": "sufficient",
+  "coverage_adequacy": "insufficient",
+  "verdict": "needs-observation",
+  "notes": "F-001 and F-002 have valid bases and reproducible evidence. Coverage omits the goal's required --smoke user-entry outcome and its SMOKE-OK assertion.",
+  "related_finding_ids": ["F-001", "F-002"]
+}
+```
+
+--stderr--
+[0m
+> po-reviewer · gpt-5.6-luna
+[0m
+[0m→ [0mSkill "reviewer"
+[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/observation-protocol.md
+[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/finding-rules.md
+[0m→ [0mRead E:/MISC/代码项目/skill/contract-review/references/reviewer-protocol.md
+[0m→ [0mRead .opencode/mvp/g-obs.md
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/discover/run-001/result.json
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/compare/run-001/result.json
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/evidence
+[0m✗ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/discover/run-001/packet.json failed
+[91m[1mError: [0mFile not found: C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\discover\run-001\packet.json
+[0m✗ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/compare/run-001/packet.json failed
+[91m[1mError: [0mFile not found: C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-dbad-1\compare\run-001\packet.json
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/candidate.json
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/recheck-set-dark.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/recheck-view-dark.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/set-invalid.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/recheck-set-light.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/compare-repro-view.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/compare-repro-set-dark.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/recheck-view-light.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/compare-light-view.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/compare-light-cycle.txt
+[0m→ [0mRead app/README.md
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/no-args.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/view-initial.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/recheck-set-dark.txt.meta.json
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/recheck-view-dark.txt.meta.json
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-dbad-1/evidence/set-invalid.txt.meta.json

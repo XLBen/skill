@@ -20,6 +20,8 @@ metadata:
 
 ```text
 理解目标 -> 选最薄可运行切片 -> 实现 -> 真实验证
+        -> 稳定候选的全产品观察（schema 2 目标：discover/compare）
+        -> 发现重大问题 -> 修复 -> 新候选 -> 重新观察
         -> 对照原始目标 -> 下一切片 -> ... -> 完成
 ```
 
@@ -44,10 +46,15 @@ semantic check owner、reviewer mode、`pua_stage_id` 与必读 skill，其他
 
 档位差异只改变仪式与席位，不降低证据要求：
 
-- **Normal**：单次、有界、无需跨会话恢复的任务可无卡执行（无 goal 卡、
-  无 dispatch record、无 verify-goal/finish-goal gate）；仍需真实验证和诚实
-  交付报告，且不得声称持久 `/resume` 支持。一旦需要跟踪、跨多个工作包、
-  跨会话、属于 Guarded/Audited 或用户要求建卡，就先建卡并校验再改产品。
+- **Normal**：不改变交付行为的任务（纯说明文档、用户不可观察的仓库内部
+  整理）可无卡执行；仍需真实验证和诚实交付报告，且不得声称持久
+  `/resume` 支持。**凡是会改变交付行为或用户体验的改动（产品代码、
+  资源、配置、依赖、影响使用的启动说明）一律建卡**（schema 2，默认
+  `product_observation.required: true`），走 verify-goal/finish-goal 与
+  product-audit gate；未完成的 schema 1 产品目标在下次改产品前显式迁移
+  到 schema 2（定义变化按既有规则使证据失效）。一旦需要跟踪、跨多个
+  工作包、跨会话、属于 Guarded/Audited 或用户要求建卡，就先建卡并
+  校验再改产品。
   相关测试与真实 demo 必需；worker 委派、独立 test-author、PUA 阶段卡、
   逐 slice reviewer 都不是必需；涉及独立正确性判断、验证盲区或用户要求时
   派 fresh reviewer。
@@ -246,6 +253,18 @@ owner 决定和外部阻塞保持区分。
 格式见 `references/delivery-finish.md`。核心边界：
 
 - 用新的 evidence 路径重新 `verify-goal`；完成卡/历史包不重开。
+- schema 2 且 `product_observation.required` 的目标，`finish-goal` 前必须
+  通过 `check.py product-audit-gate <goal>.md --trace .opencode/mvp/trace.json`
+  （必须带原生 trace）：独立 observer 的 discover 与 compare 结果由
+  controller 采纳（`product-observation/2`，采纳时校验并绑定身份、写入
+  不可变 result；observer 只回一个 json 围栏块、不写结果文件）并绑定当前
+  候选版本、phase packet 归档且 hash 匹配、reviewer 充分性结论
+  （`product-observation-review/2`，findings_validity/coverage_adequacy，
+  verdict `sufficient`，discover/compare hash 由 controller/引擎绑定）齐全、
+  无未解决 critical/high 发现、无未解决能力缺口。修复产生新候选并使旧
+  观察失效；观察后端缺失是 `blocked`，绝不转 not-applicable，也不得由
+  controller 复述冒充观察结果。协议见
+  `../product-observer/references/observation-protocol.md`。
 - 检查实际 diff，确认没有为跑绿而弱化测试、硬编码样例、吞错或未接通路径。
 - 新产品缺 README/quickstart 时创建，已有则更新可执行 setup 与依赖，并按
   声明产物在隔离环境复跑；借用全局依赖不算干净安装。

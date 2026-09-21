@@ -1,0 +1,19 @@
+{
+  "schema": "product-observation/2",
+  "phase": "discover",
+  "stop_reason": "blocked",
+  "surfaces": [],
+  "journeys": [],
+  "findings": [],
+  "unobserved": [],
+  "capability_gaps": [
+    {
+      "channel": "agent-browser",
+      "reason": "backend unavailable: no browser channel came up",
+      "evidence_refs": ["evidence/preflight.txt"]
+    }
+  ],
+  "continuation": null,
+  "evidence_refs": [],
+  "notes": "No surface could be reached; the backend never became available."
+}

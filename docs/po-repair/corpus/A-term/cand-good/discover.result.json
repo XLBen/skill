@@ -1,0 +1,137 @@
+{
+  "schema": "product-observation/1",
+  "goal_id": "G-OBS",
+  "candidate_id": "cand-good",
+  "phase": "discover",
+  "observer_session_id": "ses_f3ed8bd62ffefmmSOb22A766kI",
+  "packet_hash": "745b8a511ff0bc87d4d07a1a01f80645d83ec7fd5b41b8c5c6f780730bcdd988",
+  "stop_reason": "coverage-completed",
+  "surfaces": [
+    {
+      "id": "S1",
+      "name": "Mode A (classic) full session: self-playing transcript with lock/clear sound markers and final score",
+      "importance": "material",
+      "modes": [
+        "a"
+      ]
+    },
+    {
+      "id": "S2",
+      "name": "Mode B (versus) full session: adds screen-shake marker and attack sound marker on top of mode A behavior",
+      "importance": "material",
+      "modes": [
+        "b"
+      ]
+    },
+    {
+      "id": "S3",
+      "name": "CLI entry handling: --help, default mode without --mode, invalid mode value, exit codes",
+      "importance": "material",
+      "modes": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "S4",
+      "name": "--smoke self-check flag (alone and combined with --mode b)",
+      "importance": "peripheral",
+      "modes": [
+        "a",
+        "b"
+      ]
+    }
+  ],
+  "journeys": [
+    {
+      "id": "J1",
+      "surface_ids": [
+        "S1"
+      ],
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/mode-a-run1.txt",
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/probe-noargs.txt",
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/mode-a-empty-stdin.txt"
+      ]
+    },
+    {
+      "id": "J2",
+      "surface_ids": [
+        "S2"
+      ],
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/mode-b-run1.txt"
+      ]
+    },
+    {
+      "id": "J3",
+      "surface_ids": [
+        "S3"
+      ],
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/probe-help.txt",
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/probe-mode-c.txt",
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/probe-noargs.txt"
+      ]
+    },
+    {
+      "id": "J4",
+      "surface_ids": [
+        "S4"
+      ],
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/probe-smoke.txt",
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/probe-modeb-smoke.txt"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-001",
+      "surface_ids": [
+        "S1"
+      ],
+      "severity": "medium",
+      "category": "continuity",
+      "confidence": "observed",
+      "status": "confirmed",
+      "observed": "Mode A transcript contains 'move 6: attack' with no [sound:attack.wav] and no screen-shake. Mode B's 'move 6: attack' is followed by [sound:attack.wav]. Mode A is documented as single-player clearing; attack mechanics and attack sound effects are documented as mode B features.",
+      "expected_basis": "app/README.md: 'Mode A (classic): single-player clearing' vs 'Mode B (versus): player vs CPU attack mode ... mode B additionally plays attack sound effects'. Internal cross-mode contrast: the product itself marks attack as audible only in mode B, yet performs an attack move in single-player mode A.",
+      "reproduction": "From the project directory run: python app/app.py --mode a. Output line 'move 6: attack' appears before 'game over: score 1200'. Reproduced identically 3/3 times (probe-noargs.txt, mode-a-run1.txt, mode-a-empty-stdin.txt). Whether this is a defect or intended flavor requires goal reconciliation in compare.",
+      "evidence_refs": [
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/mode-a-run1.txt",
+        ".opencode/mvp/observation/G-OBS/cand-good/evidence/mode-b-run1.txt"
+      ]
+    }
+  ],
+  "unobserved": [],
+  "capability_gaps": [
+    {
+      "channel": "audio",
+      "detail": "README claims block-lock and line-clear sound effects in both modes plus attack sound effects in mode B. This backend observes stdout only; the [sound:*.wav] text markers were read, but actual audibility was never captured. No audio capture backend was declared in the packet."
+    },
+    {
+      "channel": "visual-motion",
+      "detail": "README claims a screen-shake flash on line clears in mode B. Only the [fx:screen-shake] stdout marker was observed; the visual flash itself is not capturable through the stdout-only backend."
+    }
+  ],
+  "continuation": null,
+  "evidence_refs": [
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/probe-noargs.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/probe-help.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/mode-a-run1.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/mode-b-run1.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/probe-smoke.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/probe-mode-c.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/mode-a-empty-stdin.txt",
+    ".opencode/mvp/observation/G-OBS/cand-good/evidence/probe-modeb-smoke.txt"
+  ],
+  "map_notes": "Identity verified before play: candidate.json sha256 fe4c5518..., app/app.py b9e399de..., app/README.md 3eb427a7... all match packet/manifest. Entry probe passed: both entry commands launch and stdout was actually read by the observer. Product map: the game is fully non-interactive on this candidate - sessions play out a fixed transcript with no stdin consumption (empty-stdin run byte-identical to inherited-stdin run) and end with 'game over: score 1200' in both modes. Output is deterministic across runs. Mode B exactly matches every documented effect marker (lock, clear, screen-shake, attack); mode A shows lock and clear markers plus an undocumented attack move (F-001). Invalid mode exits 2 with a clean argparse message; --smoke prints SMOKE-OK and suppresses the normal session. No crashes, no tracebacks, no hangs observed on any probed path. Lease: exclusive terminal session held by this observer for candidate cand-good, released at phase end.",
+  "lease": {
+    "resource": "A-term Duel Blocks terminal sessions (windows-local sandbox)",
+    "owner_session": "obs-a-term-20260921-discover",
+    "candidate_id": "cand-good",
+    "acquired_at": "2026-09-21T00:35:00+08:00",
+    "status": "released"
+  }
+}

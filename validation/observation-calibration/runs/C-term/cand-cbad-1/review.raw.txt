@@ -1,0 +1,36 @@
+```json
+{
+  "schema": "product-observation-review/2",
+  "findings_validity": "sufficient",
+  "coverage_adequacy": "sufficient",
+  "verdict": "sufficient",
+  "notes": "All documented sections were listed and opened successfully through the real CLI entry point. Evidence is replayable, exit codes are successful, and basic invalid, no-argument, and repeat behavior were covered. No material findings were reported.",
+  "related_finding_ids": []
+}
+```
+
+--stderr--
+[0m
+> po-reviewer · gpt-5.6-luna
+[0m
+[0m→ [0mSkill "reviewer"
+[0m→ [0mRead .opencode/mvp/g-obs.md
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-cbad-1/discover/run-001/result.json
+[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/finding-rules.md
+[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/observation-protocol.md
+[0m→ [0mRead E:/MISC/代码项目/skill/contract-review/references/reviewer-protocol.md
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-cbad-1/compare/run-001/result.json
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-cbad-1/evidence
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-cbad-1/evidence/menu.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-cbad-1/evidence/compare-menu.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-cbad-1/evidence/open-notes.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-cbad-1/evidence/open-home.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-cbad-1/evidence/open-stats.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-cbad-1/evidence/open-help.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-cbad-1/evidence/open-invalid.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-cbad-1/evidence/entry-noargs.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-cbad-1/evidence/open-home-repeat.txt
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-cbad-1/evidence/open-home.txt.meta.json
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-cbad-1/evidence/entry-noargs.txt.meta.json
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-cbad-1/evidence/menu.txt.meta.json
+[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-cbad-1/evidence/open-invalid.txt.meta.json

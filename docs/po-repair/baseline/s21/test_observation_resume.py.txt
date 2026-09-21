@@ -1,0 +1,74 @@
+﻿python : test_module_docstring_pins_the_resume_rules (test_observation_resume.DocstringTests) ... ok
+所在位置 行:1 字符: 304
++ ... in $tests){ python -m unittest discover -s tests -p $t -v 2>&1 | Out- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_module_doc...ngTests) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+test_active_fresh_registered_lease_has_no_problems (test_observation_resume.LeaseProblemsTests) ... ok
+test_age_equal_to_max_is_not_stale (test_observation_resume.LeaseProblemsTests) ... ok
+test_epoch_seconds_are_accepted_for_now (test_observation_resume.LeaseProblemsTests) ... ok
+test_invalid_max_age_falls_back_to_default (test_observation_resume.LeaseProblemsTests) ... ok
+test_missing_owner_session_is_reported (test_observation_resume.LeaseProblemsTests) ... ok
+test_never_raises_on_garbage (test_observation_resume.LeaseProblemsTests) ... ok
+test_non_active_status_is_not_held (test_observation_resume.LeaseProblemsTests) ... ok
+test_non_object_lease_returns_structure_problem (test_observation_resume.LeaseProblemsTests) ... ok
+test_resources_must_be_a_collection (test_observation_resume.LeaseProblemsTests) ... ok
+test_stale_lease_is_reported (test_observation_resume.LeaseProblemsTests) ... ok
+test_unparsable_acquired_at_is_stale (test_observation_resume.LeaseProblemsTests) ... ok
+test_unparsable_now_is_reported (test_observation_resume.LeaseProblemsTests) ... ok
+test_unregistered_resource_is_reported (test_observation_resume.LeaseProblemsTests) ... ok
+test_custom_status_and_note (test_observation_resume.LeaseRecordTests) ... ok
+test_default_record_shape (test_observation_resume.LeaseRecordTests) ... ok
+test_valid_record_validates_clean (test_observation_resume.LeaseRecordTests) ... ok
+test_validate_never_raises_on_malformed_input (test_observation_resume.LeaseRecordTests) ... ok
+test_validate_note_type (test_observation_resume.LeaseRecordTests) ... ok
+test_validate_rejects_wrong_schema (test_observation_resume.LeaseRecordTests) ... ok
+test_validate_reports_each_missing_field (test_observation_resume.LeaseRecordTests) ... ok
+test_media_and_read_only_activities_need_no_lease (test_observation_resume.LeaseRequiredTests) ... ok
+test_ui_activities_require_a_lease (test_observation_resume.LeaseRequiredTests) ... ok
+test_unknown_or_malformed_activity_requires_a_lease (test_observation_resume.LeaseRequiredTests) ... ok
+test_covered_journey_marks_surface_and_merges_evidence (test_observation_resume.MergeCoverageTests) ... ok
+test_duplicate_findings_are_deduplicated (test_observation_resume.MergeCoverageTests) ... ok
+test_empty_evidence_refs_do_not_cover (test_observation_resume.MergeCoverageTests) ... ok
+test_failed_journey_with_evidence_does_not_cover (test_observation_resume.MergeCoverageTests) ... ok
+test_finding_goes_to_finding_refs_only (test_observation_resume.MergeCoverageTests) ... ok
+test_importance_union_across_results (test_observation_resume.MergeCoverageTests) ... ok
+test_malformed_results_never_raise (test_observation_resume.MergeCoverageTests) ... ok
+test_material_and_uncovered_lists_exclude_peripheral (test_observation_resume.MergeCoverageTests) ... ok
+test_multiple_results_union_evidence_and_dedup (test_observation_resume.MergeCoverageTests) ... ok
+test_non_list_input_returns_empty_shape (test_observation_resume.MergeCoverageTests) ... ok
+test_non_string_refs_and_ids_are_ignored (test_observation_resume.MergeCoverageTests) ... ok
+test_partial_journey_counts_as_covered (test_observation_resume.MergeCoverageTests) ... ok
+test_unknown_surface_references_are_ignored (test_observation_resume.MergeCoverageTests) ... ok
+test_a_different_signature_resets_the_count (test_observation_resume.NoProgressBreakerTests) ... ok
+test_custom_max_same (test_observation_resume.NoProgressBreakerTests) ... ok
+test_empty_and_malformed_input_do_not_stop_or_raise (test_observation_resume.NoProgressBreakerTests) ... ok
+test_invalid_max_same_falls_back_and_zero_clamps (test_observation_resume.NoProgressBreakerTests) ... ok
+test_only_the_trailing_run_matters (test_observation_resume.NoProgressBreakerTests) ... ok
+test_structured_signatures_compare_by_value (test_observation_resume.NoProgressBreakerTests) ... ok
+test_three_same_signatures_stop (test_observation_resume.NoProgressBreakerTests) ... ok
+test_trailing_run_longer_than_limit_reports_full_count (test_observation_resume.NoProgressBreakerTests) ... ok
+test_two_same_signatures_do_not_stop (test_observation_resume.NoProgressBreakerTests) ... ok
+test_candidate_change_is_new_round (test_observation_resume.ResumePlanTests) ... ok
+test_environment_change_is_new_run (test_observation_resume.ResumePlanTests) ... ok
+test_every_branch_carries_a_reasons_list (test_observation_resume.ResumePlanTests) ... ok
+test_invalid_candidate_argument_is_rejected (test_observation_resume.ResumePlanTests) ... ok
+test_invalid_phase_argument_is_rejected (test_observation_resume.ResumePlanTests) ... ok
+test_matching_everything_resumes (test_observation_resume.ResumePlanTests) ... ok
+test_missing_or_malformed_continuation_is_rejected (test_observation_resume.ResumePlanTests) ... ok
+test_missing_previous_candidate_is_new_round (test_observation_resume.ResumePlanTests) ... ok
+test_missing_recorded_model_and_environment_only_match_none (test_observation_resume.ResumePlanTests) ... ok
+test_model_and_environment_changes_report_both_reasons (test_observation_resume.ResumePlanTests) ... ok
+test_model_change_is_new_run (test_observation_resume.ResumePlanTests) ... ok
+test_non_budget_stop_reason_is_rejected (test_observation_resume.ResumePlanTests) ... ok
+test_non_object_previous_is_rejected (test_observation_resume.ResumePlanTests) ... ok
+test_phase_is_checked_before_candidate (test_observation_resume.ResumePlanTests) ... ok
+test_phase_mismatch_is_rejected (test_observation_resume.ResumePlanTests) ... ok
+test_recorded_model_change_to_missing_is_new_run (test_observation_resume.ResumePlanTests) ... ok
+test_weird_previous_values_never_raise (test_observation_resume.ResumePlanTests) ... ok
+
+----------------------------------------------------------------------
+Ran 63 tests in 0.005s
+
+OK

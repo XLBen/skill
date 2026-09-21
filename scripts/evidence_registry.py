@@ -55,6 +55,7 @@ BINDING_FIELDS = (
 IDENTITY_FIELDS = (
     "goal_id",
     "goal_definition_hash",
+    "runtime_state_policy",
     "step_id",
     "v_id",
     "contract_hash",

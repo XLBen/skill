@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -46,8 +47,55 @@ try:
 except ImportError:  # pragma: no cover - engine copied without check.py
     _check = None
 
+try:
+    import product_observation as _observation
+except ImportError:  # pragma: no cover - engine copied without product_observation
+    _observation = None
+
+try:
+    import observation_contract as _contract
+except ImportError:  # pragma: no cover - engine copied without the frozen contract
+    _contract = None
+
 STAGE_PACKET_SCHEMA = "workflow-stage-packet/1"
 HANDOFF_PACKET_SCHEMA = "workflow-handoff-packet/1"
+OBSERVER_PACKET_SCHEMA = "workflow-observer-packet/2"
+PREFLIGHT_SCHEMA = "observation-preflight/1"
+OBSERVER_REPAIR_REFERENCE = "product-observer/references/format-repair.md"
+OBSERVER_FORBIDDEN_FIELDS = (
+    "diff",
+    "tests",
+    "test_results",
+    "acceptance",
+    "handoff",
+    "implementation_notes",
+    "known_defects",
+    "outcomes",
+    "evidence",
+)
+OBSERVER_RULES_TEXT = (
+    "观察规则（盲态优先）：1) 停止原因与派生状态 stop_reason -> state: "
+    "'coverage-completed' -> completed（允许同时存在阻断 finding，但需在 notes 说明未修复项）；"
+    "'budget-exhausted' -> incomplete（必须给出 continuation）；"
+    "'blocked'/'no-backend'/'lease-lost' -> blocked（零接触轮允许 surfaces 为空，"
+    "但必须用 notes 或 capability_gaps 说明为何无法观察）。"
+    "无历史基线（baseline: none）是预期结果、不是 capability gap，不得写入 capability_gaps。"
+    "2) 证据引用只能是候选目录内的相对路径，位于 evidence_dir 之下且文件真实存在；"
+    "禁止绝对路径、'..'、编造文件。"
+    "2b) CLI/API 产品证据：禁止 shell 重定向（宿主权限会拒绝），改用证据捕获助手落盘："
+    "python .opencode/workflow/scripts/observation_capture.py --evidence-root <evidence_dir> "
+    "--out <evidence_dir>/<name>.txt -- <入口命令...>，并在 journeys/findings/顶层 "
+    "evidence_refs 中引用生成的文件（必须真实存在）。"
+    "3) 所有权：goal_id、candidate_id、observer_session_id、"
+    "model、packet_hash、received_at、attempt 均由 controller 补充，observer 不得猜测或填写。"
+    "4) 盲态禁令：不得读取 goal 卡或 .opencode/mvp/**（packet 明确给出的 candidate manifest "
+    "与 evidence_dir 除外），不得读取 diff、测试、验收场景或实现者笔记。"
+    "4b) 候选内的公开使用文档（如 app/README.md）是允许输入：探索前先读，把文档承诺"
+    "作为 expected_basis；文档声明与实际行为不一致属于可报告缺陷（compare 必须据此核对）。"
+    "5) 输出：只输出一个 ```json 围栏块（product-observation/2）；需要修格式时按 "
+    "product-observer/references/format-repair.md 处理，不得改变含义或新增事实。"
+)
+_HASH64_RE = re.compile(r"^[0-9a-f]{64}$")
 
 ROLE_TO_SEAT = {
     "controller": "controller",
@@ -55,6 +103,7 @@ ROLE_TO_SEAT = {
     "reviewer": "reviewer-subagent",
     "test-author": "test-author-subagent",
     "step-executor": "step-executor-subagent",
+    "product-observer": "product-observer-subagent",
 }
 MODE_FILES = {
     "final-audit": "../reviewer/references/modes/final-audit.md",
@@ -73,7 +122,7 @@ def _utf8() -> None:
 def _sha256(path: Path) -> str | None:
     try:
         return hashlib.sha256(path.read_bytes()).hexdigest()
-    except OSError:
+    except (OSError, ValueError):
         return None
 
 
@@ -487,7 +536,330 @@ def build_handoff_packet(
     return packet
 
 
-def validate_packet(packet_path: Path) -> list[str]:
+def _posix(raw: str | Path) -> str:
+    return str(raw).replace("\\", "/")
+
+
+def _project_root(goal_path: Path) -> Path:
+    """The project root that owns ``<root>/.opencode/mvp/<goal>.md``."""
+
+    return goal_path.parent.parent.parent
+
+
+def _project_relative_posix(path: Path, root: Path) -> str:
+    try:
+        resolved = path.resolve()
+    except (OSError, ValueError):  # pragma: no cover - invalid path shapes
+        resolved = path
+    try:
+        return resolved.relative_to(root.resolve()).as_posix()
+    except (OSError, ValueError):
+        return resolved.as_posix()
+
+
+def _parse_model(model: str) -> dict[str, Any]:
+    if not isinstance(model, str) or "/" not in model:
+        raise ValueError("model must be given as 'provider/model'")
+    provider_id, model_id = model.split("/", 1)
+    if not provider_id.strip() or not model_id.strip():
+        raise ValueError("model must be given as 'provider/model' with non-empty parts")
+    return {"provider_id": provider_id, "model_id": model_id}
+
+
+def _load_preflight(preflight_file: Path, model: str | None) -> tuple[dict[str, Any], str]:
+    """Load and validate an ``observation-preflight/1`` file (fail closed)."""
+
+    try:
+        raw = preflight_file.read_bytes()
+    except OSError as exc:
+        raise ValueError(f"preflight file unreadable ({preflight_file}): {exc}") from exc
+    digest = hashlib.sha256(raw).hexdigest()
+    try:
+        payload = json.loads(raw.decode("utf-8-sig"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"preflight file is not valid JSON: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("preflight file must contain a JSON object")
+    if payload.get("schema") != PREFLIGHT_SCHEMA:
+        raise ValueError(f"preflight.schema must be {PREFLIGHT_SCHEMA}")
+    for field in ("performed_at", "performed_by"):
+        value = payload.get(field)
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"preflight.{field} must be a non-empty string")
+    covers = payload.get("covers")
+    if not isinstance(covers, dict):
+        raise ValueError("preflight.covers must be an object")
+    for key in ("host", "model", "candidate", "session"):
+        entry = covers.get(key)
+        if not isinstance(entry, dict):
+            raise ValueError(f"preflight.covers.{key} must be an object")
+        status = entry.get("status")
+        if not isinstance(status, str) or not status.strip():
+            raise ValueError(f"preflight.covers.{key}.status must be a non-empty string")
+    model_cover = covers["model"]
+    if model_cover.get("status") == "passed":
+        if model is None:
+            raise ValueError(
+                "preflight covers.model is passed but no model was supplied; "
+                "the probe cannot be bound to the observing model"
+            )
+        parsed = _parse_model(model)
+        if (
+            model_cover.get("provider_id") != parsed["provider_id"]
+            or model_cover.get("model_id") != parsed["model_id"]
+        ):
+            raise ValueError(
+                "preflight model does not match the requested model: "
+                f"{model_cover.get('provider_id')}/{model_cover.get('model_id')} "
+                f"!= {parsed['provider_id']}/{parsed['model_id']}"
+            )
+    return payload, digest
+
+
+def build_observer_packet(
+    goal_path: Path,
+    phase: str,
+    generated_at: str | None = None,
+    model: str | None = None,
+    preflight_path: str | Path | None = None,
+) -> dict[str, Any]:
+    """Build the blind (discover) or reconciliation (compare) observer packet.
+
+    Whitelist-generated: only the fields below are ever included, so the
+    observer never receives diffs, tests, acceptance scenarios or
+    implementer notes through the packet. Context isolation, not a sandbox:
+    dispatch bodies are archived and the controller must not smuggle hints.
+    """
+
+    if phase not in ("discover", "compare"):
+        raise ValueError(f"unknown observer phase {phase!r}")
+    if _observation is None:
+        raise RuntimeError("product_observation module unavailable")
+    if _contract is None:
+        raise RuntimeError("observation_contract module unavailable")
+    model_binding = _parse_model(model) if model is not None else None
+    goal_path = goal_path.resolve()
+    if not goal_path.is_file():
+        raise ValueError(f"goal artifact not found: {goal_path}")
+    meta, goal = _load_goal(goal_path)
+    if goal.get("schema_version") != 2:
+        raise ValueError("observer packets require a schema_version 2 goal card")
+    spec = goal.get("product_observation") or {}
+    if spec.get("required") is not True:
+        raise ValueError("goal.product_observation.required must be true")
+
+    sidecar_file = _observation.audit_sidecar_path(goal_path)
+    try:
+        sidecar = json.loads(sidecar_file.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"product-audit sidecar unreadable ({sidecar_file.name}): {exc}") from exc
+    sidecar_problems = _observation.validate_audit_sidecar(sidecar)
+    if sidecar_problems:
+        raise ValueError("product-audit sidecar invalid: " + "; ".join(sidecar_problems))
+    candidate_id = sidecar.get("current_candidate")
+    round_entry = None
+    for item in sidecar.get("rounds", []):
+        if isinstance(item, dict) and item.get("candidate_id") == candidate_id:
+            round_entry = item
+    if round_entry is None:
+        raise ValueError(f"sidecar.current_candidate {candidate_id!r} has no round entry")
+
+    cdir = _observation.candidate_dir(goal_path, str(goal.get("id")), str(candidate_id))
+    manifest_file = cdir / "candidate.json"
+    try:
+        manifest = json.loads(manifest_file.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"candidate manifest unreadable: {exc}") from exc
+    manifest_problems = _observation.validate_candidate_manifest(manifest)
+    if manifest_problems:
+        raise ValueError("candidate manifest invalid: " + "; ".join(manifest_problems))
+
+    root = _project_root(goal_path)
+    source = goal.get("source") if isinstance(goal.get("source"), dict) else {}
+    packet: dict[str, Any] = {
+        "schema": OBSERVER_PACKET_SCHEMA,
+        "phase": phase,
+        "goal_id": goal.get("id"),
+        "generated_at": generated_at,
+        "brief": {
+            "purpose": goal.get("goal"),
+            "demo": goal.get("demo"),
+            "first_slice": goal.get("first_slice"),
+            "raw_request": source.get("raw_request"),
+        },
+        "goal_binding": {"goal_card_sha256": _sha256(goal_path)},
+        "candidate": {
+            "id": candidate_id,
+            "manifest_path": _posix(manifest_file),
+            "manifest_sha256": _sha256(manifest_file),
+            "entry": manifest.get("entry"),
+            "environment": manifest.get("environment"),
+            "backend": manifest.get("backend"),
+            "channels": manifest.get("channels") or [],
+            "test_data": manifest.get("test_data") or [],
+            "runtime_state": manifest.get("runtime_state") or [],
+            "delivered_roots": manifest.get("delivered_roots") or [],
+        },
+        "evidence_dir": _posix(cdir / "evidence"),
+        "budget": {
+            "semantic_actions_per_surface_group": 40,
+            "observation_cycles_per_action": 2,
+            "wall_clock_minutes": 30,
+        },
+        "output": {
+            "schema": "product-observation/2",
+            "template": _contract.result_template(phase),
+            "rules": OBSERVER_RULES_TEXT,
+            "repair_reference": OBSERVER_REPAIR_REFERENCE,
+        },
+        "model": model_binding,
+        "preflight": None,
+    }
+
+    resolved_preflight: Path | None = None
+    if preflight_path is not None:
+        resolved_preflight = Path(preflight_path)
+        if not resolved_preflight.is_absolute():
+            resolved_preflight = root / resolved_preflight
+    else:
+        default_preflight = cdir / "preflight.json"
+        if default_preflight.is_file():
+            resolved_preflight = default_preflight
+    if resolved_preflight is not None:
+        preflight, preflight_sha = _load_preflight(resolved_preflight, model)
+        packet["preflight"] = {
+            "path": _project_relative_posix(resolved_preflight, root),
+            "sha256": preflight_sha,
+            "performed_at": preflight["performed_at"],
+            "performed_by": preflight["performed_by"],
+            "covers": {
+                key: preflight["covers"][key]
+                for key in ("host", "model", "candidate", "session")
+            },
+        }
+
+    if phase == "compare":
+        discover_ref = round_entry.get("discover_ref")
+        if not isinstance(discover_ref, str) or not discover_ref.strip():
+            raise ValueError(
+                "sidecar current round has no discover_ref to bind the compare packet"
+            )
+        relative = Path(discover_ref)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ValueError(f"discover_ref must stay project-relative: {discover_ref!r}")
+        discover_file = root / discover_ref
+        if not discover_file.is_file():
+            raise ValueError(f"discover result not found at discover_ref: {discover_ref}")
+        try:
+            discover = json.loads(discover_file.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValueError(
+                f"compare requires a saved discover result bound to this candidate: {exc}"
+            ) from exc
+        if not isinstance(discover, dict):
+            raise ValueError("discover result must be a JSON object")
+        result_problems = _contract.validate_result_payload(discover, "discover")
+        if result_problems:
+            raise ValueError("discover result invalid: " + "; ".join(result_problems))
+        if discover.get("phase") != "discover":
+            raise ValueError("discover result has the wrong phase")
+        if discover.get("candidate_id") != candidate_id:
+            raise ValueError("discover result is bound to a different candidate")
+        original: dict[str, Any] = {
+            "goal": goal.get("goal"),
+            "demo": goal.get("demo"),
+            "first_slice": goal.get("first_slice"),
+            "raw_request": source.get("raw_request"),
+            "baselines": manifest.get("baseline") or {"kind": "none", "refs": []},
+            "discover_result": {
+                "path": _posix(discover_ref),
+                "sha256": _sha256(discover_file),
+            },
+        }
+        if round_entry.get("approved_changes"):
+            original["approved_changes"] = round_entry["approved_changes"]
+        packet["original"] = original
+    return packet
+
+
+def _packet_project_root(packet: dict[str, Any], goal_path: Path | None) -> Path | None:
+    """Best-effort project root for resolving project-relative bindings."""
+
+    if goal_path is not None:
+        try:
+            return goal_path.resolve().parents[2]
+        except (OSError, ValueError, IndexError):
+            return None
+    manifest = (packet.get("candidate") or {}).get("manifest_path")
+    if isinstance(manifest, str) and manifest.strip():
+        try:
+            return Path(manifest).parents[5]
+        except IndexError:
+            return None
+    return None
+
+
+def _preflight_packet_problems(
+    preflight: Any, packet: dict[str, Any], root: Path | None
+) -> list[str]:
+    problems: list[str] = []
+    if not isinstance(preflight, dict):
+        return ["packet preflight must be an object when present"]
+    for field in ("performed_at", "performed_by"):
+        value = preflight.get(field)
+        if not isinstance(value, str) or not value.strip():
+            problems.append(f"packet preflight.{field} must be a non-empty string")
+    stored_path = preflight.get("path")
+    if not isinstance(stored_path, str) or not stored_path.strip():
+        problems.append("packet preflight.path must be a non-empty string")
+    else:
+        target = Path(stored_path)
+        if not target.is_absolute():
+            if root is None:
+                problems.append("packet preflight.path cannot be resolved without --goal")
+                target = None
+            else:
+                target = root / stored_path
+        if target is not None:
+            if not target.is_file():
+                problems.append(f"preflight file is missing: {stored_path}")
+            else:
+                current = _sha256(target)
+                if current is None:
+                    problems.append("preflight file is unreadable")
+                elif preflight.get("sha256") != current:
+                    problems.append(
+                        "stale packet: preflight file changed; regenerate before reuse"
+                    )
+    covers = preflight.get("covers")
+    if not isinstance(covers, dict):
+        problems.append("packet preflight.covers must be an object")
+        return problems
+    for key in ("host", "model", "candidate", "session"):
+        entry = covers.get(key)
+        if not isinstance(entry, dict):
+            problems.append(f"packet preflight.covers.{key} must be an object")
+            continue
+        status = entry.get("status")
+        if not isinstance(status, str) or not status.strip():
+            problems.append(f"packet preflight.covers.{key}.status must be a non-empty string")
+    model_cover = covers.get("model")
+    if isinstance(model_cover, dict) and model_cover.get("status") == "passed":
+        model = packet.get("model")
+        if not isinstance(model, dict):
+            problems.append(
+                "preflight covers.model is passed but packet model is null; "
+                "the probe cannot be bound to the observing model"
+            )
+        elif (
+            model.get("provider_id") != model_cover.get("provider_id")
+            or model.get("model_id") != model_cover.get("model_id")
+        ):
+            problems.append("packet model does not match the passed preflight model cover")
+    return problems
+
+
+def validate_packet(packet_path: Path, goal_path: str | Path | None = None) -> list[str]:
     problems: list[str] = []
     try:
         packet = json.loads(packet_path.read_text(encoding="utf-8-sig"))
@@ -495,6 +867,7 @@ def validate_packet(packet_path: Path) -> list[str]:
         return [f"packet unreadable: {exc}"]
     if not isinstance(packet, dict):
         return ["packet is not a JSON object"]
+    goal_file = Path(goal_path) if goal_path is not None else None
     schema = packet.get("schema")
     if schema == STAGE_PACKET_SCHEMA:
         routing = packet.get("routing") or {}
@@ -525,6 +898,150 @@ def validate_packet(packet_path: Path) -> list[str]:
                 problems.append(f"evidence file is missing: {entry['path']}")
             elif entry.get("sha256") != current:
                 problems.append(f"stale evidence binding: {entry['path']}")
+    elif schema == OBSERVER_PACKET_SCHEMA:
+        if _observation is None:
+            problems.append("product_observation module unavailable; cannot validate observer packets")
+            return problems
+        phase = packet.get("phase")
+        if phase not in ("discover", "compare"):
+            problems.append("observer packet phase must be discover or compare")
+        goal_id = packet.get("goal_id")
+        if not isinstance(goal_id, str) or not goal_id.strip():
+            problems.append("observer packet goal_id must be a non-empty string")
+
+        binding = packet.get("goal_binding")
+        digest = binding.get("goal_card_sha256") if isinstance(binding, dict) else None
+        if not isinstance(digest, str) or not _HASH64_RE.fullmatch(digest):
+            problems.append(
+                "packet goal_binding.goal_card_sha256 must be a 64-character "
+                "lowercase sha256 hex digest"
+            )
+            digest = None
+        if goal_file is not None:
+            current = _sha256(goal_file)
+            if current is None:
+                problems.append("goal card is missing or unreadable")
+            elif digest is not None and digest != current:
+                problems.append("stale packet: goal card changed; regenerate before reuse")
+        elif phase == "discover":
+            problems.append(
+                "discover packet goal binding cannot be verified without --goal"
+            )
+
+        candidate = packet.get("candidate")
+        if not isinstance(candidate, dict):
+            problems.append("observer packet candidate block is required")
+        else:
+            candidate_id = candidate.get("id")
+            if not isinstance(candidate_id, str) or not candidate_id.strip():
+                problems.append("packet candidate.id must be a non-empty string")
+            manifest_path = candidate.get("manifest_path")
+            if not isinstance(manifest_path, str) or not manifest_path.strip():
+                problems.append("packet candidate.manifest_path is required")
+            else:
+                current = _sha256(Path(manifest_path))
+                if current is None:
+                    problems.append("candidate manifest is missing or unreadable")
+                elif candidate.get("manifest_sha256") != current:
+                    problems.append(
+                        "stale packet: candidate manifest changed; regenerate before reuse"
+                    )
+
+        output = packet.get("output")
+        if not isinstance(output, dict):
+            problems.append("observer packet output block is required")
+        else:
+            if output.get("schema") != "product-observation/2":
+                problems.append("packet output.schema must be product-observation/2")
+            rules = output.get("rules")
+            if not isinstance(rules, str) or not rules.strip():
+                problems.append("packet output.rules must be a non-empty string")
+            reference = output.get("repair_reference")
+            if not isinstance(reference, str) or not reference.strip():
+                problems.append("packet output.repair_reference must be a non-empty string")
+            template = output.get("template")
+            if _contract is None:
+                problems.append(
+                    "observation_contract module unavailable; cannot validate output.template"
+                )
+            elif phase in ("discover", "compare"):
+                for item in _contract.validate_result_payload(template, phase):
+                    problems.append(f"output.template: {item}")
+            else:
+                for item in _contract.validate_result_payload(template):
+                    problems.append(f"output.template: {item}")
+
+        for field in OBSERVER_FORBIDDEN_FIELDS:
+            if field in packet:
+                problems.append(
+                    f"observer packet carries forbidden field {field!r}; "
+                    "observer inputs must stay blind to implementation context"
+                )
+        if "original" in packet and phase != "compare":
+            problems.append("discover packets must not carry goal-history material")
+
+        root = _packet_project_root(packet, goal_file)
+        if "preflight" in packet and packet.get("preflight") is not None:
+            problems.extend(_preflight_packet_problems(packet["preflight"], packet, root))
+
+        if phase == "compare":
+            original = packet.get("original")
+            if not isinstance(original, dict):
+                problems.append("compare packets must carry the original block")
+            else:
+                discover = original.get("discover_result")
+                if (
+                    not isinstance(discover, dict)
+                    or not isinstance(discover.get("path"), str)
+                    or not discover["path"].strip()
+                ):
+                    problems.append(
+                        "compare packets must reference the bound discover result"
+                    )
+                else:
+                    target = Path(discover["path"])
+                    if not target.is_absolute():
+                        if root is None:
+                            problems.append(
+                                "bound discover result path cannot be resolved without --goal"
+                            )
+                            target = None
+                        else:
+                            target = root / discover["path"]
+                    if target is not None:
+                        if not target.is_file():
+                            problems.append("bound discover result is missing or unreadable")
+                        else:
+                            current = _sha256(target)
+                            if current is None:
+                                problems.append(
+                                    "bound discover result is missing or unreadable"
+                                )
+                            elif discover.get("sha256") != current:
+                                problems.append(
+                                    "stale packet: discover result changed; regenerate"
+                                )
+                            if _contract is None:
+                                problems.append(
+                                    "observation_contract module unavailable; "
+                                    "cannot validate the bound discover result"
+                                )
+                            else:
+                                try:
+                                    payload = json.loads(
+                                        target.read_text(encoding="utf-8-sig")
+                                    )
+                                except (OSError, json.JSONDecodeError) as exc:
+                                    problems.append(
+                                        f"bound discover result is unreadable: {exc}"
+                                    )
+                                else:
+                                    for item in _contract.validate_result_payload(
+                                        payload, "discover"
+                                    ):
+                                        problems.append(
+                                            f"original.discover_result: {item}"
+                                        )
     else:
         problems.append(f"unknown packet schema {schema!r}")
     return problems
@@ -566,6 +1083,15 @@ def main(argv: list[str] | None = None) -> int:
 
     validate = sub.add_parser("validate", help="validate a packet against current hashes")
     validate.add_argument("packet", help="packet JSON path")
+    validate.add_argument("--goal", help="goal card for recomputing the goal binding")
+
+    observer = sub.add_parser("observer", help="build a blind product-observer phase packet")
+    observer.add_argument("goal", help="goal card markdown path")
+    observer.add_argument("--phase", required=True, choices=("discover", "compare"))
+    observer.add_argument("--model", help="observing model as provider/model")
+    observer.add_argument("--preflight", help="observation-preflight/1 JSON path")
+    observer.add_argument("--generated-at", help="optional timestamp to embed")
+    observer.add_argument("--out", required=True)
 
     args = parser.parse_args(argv)
     known_errors: tuple[type[BaseException], ...] = (RuntimeError, ValueError, KeyError)
@@ -615,7 +1141,28 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
 
-    problems = validate_packet(Path(args.packet))
+    if args.cmd == "observer":
+        try:
+            packet = build_observer_packet(
+                Path(args.goal),
+                args.phase,
+                generated_at=args.generated_at,
+                model=args.model,
+                preflight_path=args.preflight,
+            )
+        except (RuntimeError, ValueError) as exc:
+            print(f"INVALID: {exc}", file=sys.stderr)
+            return 2
+        _write(packet, Path(args.out))
+        print(
+            f"observer packet written: {args.out} (phase={args.phase}, "
+            f"candidate={packet['candidate']['id']})"
+        )
+        return 0
+
+    problems = validate_packet(
+        Path(args.packet), Path(args.goal) if args.goal else None
+    )
     if problems:
         print(f"FAIL ({len(problems)}):")
         for problem in problems:

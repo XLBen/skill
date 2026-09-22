@@ -460,7 +460,7 @@ def static_doctor(project: Path, fetch_schema: bool) -> dict[str, Any]:
             for key, expected in sorted(files.items()):
                 if not isinstance(expected, str):
                     continue
-                if key.startswith(("commands/", "agents/")):
+                if key.startswith(("commands/", "agents/", "plugins/")):
                     target = project / ".opencode" / key
                 else:
                     target = project / ".opencode" / "workflow" / key

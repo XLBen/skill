@@ -3,8 +3,12 @@
 [English](README.en.md) · 简体中文
 
 这套 OpenCode workflow 把设计和施工分开：**grill 问清需求，plan 设计完整的软件，
-build 按具体任务实现与实测**。把关键工程判断前移，减少较弱实现模型的临场猜测、
-上下文负担和返工。结构校验只是辅助；最终目标仍是用户真正可用的运行结果。
+build 按具体任务实现与实测**。关键工程判断（架构、接口、依赖顺序、验收标准）
+全部前移到 plan；build 只消费一个有界任务包，不重新设计系统。
+
+这样做的直接收益：plan 阶段可以用更擅长设计的模型，build 阶段切换到
+DeepSeek / GLM 等较省的模型也能少猜、少返工、少读无关上下文。结构校验只是
+辅助工具；最终目标始终是用户真正可用的运行结果。
 
 ## 总思维链
 
@@ -12,106 +16,134 @@ build 按具体任务实现与实测**。把关键工程判断前移，减少较
 想法
  ↓  我说得清吗？——说不清 → /grill（拷问）
  ↓  十二维覆盖表全关 + 用户确认 → docs/brief.md
- ↓  /plan：综合需求 → 查证技术 → 组件/接口/数据流 → 全部详细任务 → 设计走查
- ↓  /build：当前任务包 → 实现 → 本层验证 → 观察反馈
- ↓  组件 → 实际边界 → 集成里程碑（按计划推进）；设计假设失败 → 返回 plan
- ↓  对照原始结果清单：还有差距吗？——有 → 下一任务（循环）
- ↓                                ——无 → 验收：证据呢？
+ ↓  /plan：综合需求 → 查证技术 → 组件/接口/数据流 → 全部施工级任务 → 设计走查 → 发布
+ ↓  /build：next-step 任务包 → 实现 → 本层验证 → 读实际输出 → observe 反馈
+ ↓  组件 → 实际边界 → 集成里程碑（按计划依赖推进）
+ ↓    实现错误 → retry（修本步）  缺环境 → blocked  设计假设被证伪 → replan（回 plan）
+ ↓  集成里程碑回看原始结果清单——有差距 → 下一任务（循环）
+ ↓                          ——无差距 → 验收：证据呢？
  ↓  验收通过 → 交付前完整产品黑盒观察（product-observer，观察模型由 /visibility 选择）
  ↓  观察 gate：v2 报告 + 原生 trace —— 有阻断缺陷 → /fix → 新候选全量重观察
  ↓                                        —— 无阻断缺陷 → delivery
  ↘  出 bug → /fix：复现→隔离→假设→验证
- ↘  会话断了 → /resume：delivery-log → goal 卡 → 代码
+ ↘  会话断了 → /resume：next-step 任务包 → 目标卡 → 代码
 ```
 
-每一跳的判断依据都持久化在文件里（brief、目标卡、dispatch record、
+每一跳的判断依据都持久化在文件里（brief、工程设计、目标卡、cycle 回执、
 delivery-log），不依赖聊天记录。下面逐段展开这条链。
+
+## 职责分界
+
+| 阶段 | 回答的问题 | 不做的事 |
+|---|---|---|
+| grill | 要什么、为什么、什么算成功 | 不决定怎么做 |
+| plan | 系统怎么组成、任务怎么排、每步怎么验证 | 不写产品代码 |
+| build | 当前任务实现、实际输出观察、反馈分类 | 不重新设计接口/架构 |
 
 ## 第一步：grill —— “我说得清吗？”
 
 `/grill <idea>` 只做一件事：把模糊想法问成双方都能复述一致的需求简报。
 
-它的思维链：
-
-1. **画决策树，只问 frontier**。前置问题已确定的才问；答案解锁后续问题，
-   不按问卷顺序机械遍历。
-2. **每轮 5–10 题，按维度分组**。一轮抛出后先吸收答案、分析它们改变了什么，
-   再推导下一轮；绝不一次倒出所有问题。每一轮都必须是**真实交互**：优先
-   用 OpenCode 的 `question` 工具发出，否则以问题结束回合并等待回复；
-   禁止同一回合自问自答——只有用户真实给出的回答才能写进 brief。
-3. **十二维覆盖表收口**：用户与场景、公开入口、运行环境、代表性输入、
-   输出与获取、**错误与边界**、数据与状态、权限与隐私、非功能、集成、
-   成功信号、非目标。每个维度要么有 item、要么显式不适用；全维关闭且
-   一轮无新信息才终止。用户说“你决定”= 记录为 owner 决定，不是跳过。
+1. **画决策树，只问 frontier**。前置问题已确定的才问；答案解锁后续问题。
+2. **每轮 5–10 题，按维度分组**；先吸收答案、分析变化，再推导下一轮。每一轮
+   都必须是**真实交互**：优先用 `question` 工具发出，否则以问题结束回合等待
+   回复；禁止同一回合自问自答。
+3. **十二维覆盖表收口**：用户与场景、公开入口、运行环境、代表性输入、输出与
+   获取、**错误与边界**、数据与状态、权限与隐私、非功能、集成、成功信号、
+   非目标。每个维度要么有 item、要么显式不适用；全维关闭且一轮无新信息才终止。
 4. **事实归 agent**。能从仓库、代码、一手文档查到的不问用户；外部事实按
-   research skill 分级（官方文档/源码为 A 级，社区问答只作线索），带引用
-   和时效记录。
-5. **定稿三问**：这份 summary 是用户说的还是我替用户补的？每个维度都关闭
-   了吗？有没有为了闭环偷偷缩小范围、把可选愿望标成必需？
-6. 方案形态存在实质分叉（2+ 架构、build-vs-buy）时，先经 brainstorming
-   探索替代方案再收敛，被否方案也记一行理由。
+   research skill 分级，带引用和时效。
+5. **定稿三问**：这份 summary 是用户说的还是我替用户补的？每个维度都关闭了
+   吗？有没有偷偷缩小范围、把可选愿望标成必需？
 
 产出：经确认冻结的 `docs/brief.md`。下一步 `/plan docs/brief.md`。
 
-## 第二步：plan —— “整体怎么组成，每步怎么验证？”
+## 第二步：plan —— “整个软件怎么组成，每个任务怎么施工？”
 
-`/plan` 的思维链：
+`/plan` 是工程设计者，不是访谈纪要整理器。它的产出是一份可独立阅读的
+工程设计（默认 `docs/plan.md`，用户可指定任意项目内路径），思维链：
 
-1. **综合需求，不续写问答**。从确认的 grill 得到完整用户工作流、必需能力、状态和
-   失败路径。读取仓库/真实依赖与一手文档，消除会推翻路线的技术未知。
-2. **完整软件设计**：默认 `docs/plan.md`，或用户指定任意项目内路径。独立呈现组件
-   职责、数据模型、统一接口、实际库调用依据、数据/状态流图、实施依赖图。
-   每个跨组件合同有唯一生产者，消费者依赖它；不是每个任务各自猜接口。
-3. **按实际副作用判风险档**，不按主题词：
-   - Normal：可逆的工作区内改动；
-   - Guarded：外部边界、较高返工风险 → 加探针、验收测试、一次独立 review；
-   - Audited：资金、隐私、安全、迁移、不可逆 → 契约、PLAN、独立测试作者、
-     reconcile gate。
-4. **全部任务都达到施工精度**：目的、最少必读文件、改动范围、精确输入/输出合同、
-   有顺序的实现动作、关键代码骨架、边界行为、分层检查、失败分支。后续任务不能
-   只是标题，也不能留给 build 重新设计。当前任务不需要读取整个历史工程。
-5. **发布前设计走查**：正常/失败输入如何穿过系统？后续任务能否单独交给执行者？
-   有无断开的接口、虚构 API、未声明前提、过早依赖完整 UI 的组件测试？
-   工具 `prepare-plan` 自动处理版本绑定和 UI 义务，`next-step` 预览真正交给 build
-   的小任务包。通过结构检查不等于设计正确；走查负责内容质量。
+1. **综合需求，不续写问答**。把 grill 条目重组成用户工作流：前置状态 →
+   输入/动作 → 状态变化 → 输出取得 → 失败恢复。每条必需结果对应到工作流。
+2. **消除最贵的技术不确定性**。先查一手文档、已安装 API、真实代码，确认
+   库能否完成目标操作、权限/平台约束是什么。可做只读探查；必须操作真实
+   目标才能查明的能力，安排**靠前的有预算验证任务**，后续步骤给出完整的
+   条件性设计。不为“方案完整”编造 API。
+3. **完整软件设计**：组件职责与状态归属、数据模型、跨组件共享接口（每个
+   接口唯一生产者，消费者依赖它）、目录布局、数据流/依赖图。互斥的产品
+   分叉问用户；普通工程选型自己给结论和依据。
+4. **全部任务达到施工精度**——不只第一片。每个任务带：目的、依赖、最少
+   必读文件、改动范围、消费/产出接口、有顺序的实现动作、关键代码骨架、
+   边界行为、分层检查、失败分支（实现错怎么修/缺什么环境/什么证据意味着
+   退回设计）、回退。后续任务不能只是标题。
+5. **分层验证设计**：
 
-完整例子：[工程计划示例](writing-plans/references/engineering-plan-example.md)。
-完整组织：[设计模板与任务字段](writing-plans/references/design-template.md)。
-发布工具自动生成完整可读计划（逐步标题、独立代码块、命令和失败处理），不要求
-用户阅读 JSON；同一权威索引同时供 build 提取当前任务，避免两份规格漂移。
-简短聊天摘要必须附完整设计链接；简短显示不等于简化计划。
+   | 层 | 时机 | 证明什么 |
+   |---|---|---|
+   | component | 组件就绪 | 组件行为；不要求完整应用已建成 |
+   | boundary | 适配器就绪、扩张上层前 | 真实接触目标文件/设备/窗口/API 并回读 |
+   | journey | 阶段接通后 | 经交付公开入口完成用户动作 |
+   | final | 完整候选 | 全部承诺 + 独立产品观察 |
 
-## 第三步：build —— “实现一片，真验一片”
+   负向对照只放在有意义的故障点，不强制每个组件配非零退出码脚本。
+6. **发布与自动记账**：
 
-`/build` 的思维链：
+   ```powershell
+   python .opencode/workflow/scripts/check.py prepare-plan <goal> <design-path>
+   python .opencode/workflow/scripts/check.py next-step <goal>
+   ```
 
-1. **核实最少运行前提**：工作目录、OS/shell、运行时、依赖锁文件、配置
-    变量名、服务、启动方式。缺依赖不是行为 red，不能用 mock 冒充。
-   schema 3 的 `begin-cycle` 先运行当前步声明的外部边界探针，失败就阻塞。
-2. **按计划执行**：`next-step` 返回当前任务、必要合同/全局约定、文件和检查；
-   build 不重新划分模块、不换接口/技术栈。设计冲突带真实证据返回 plan。
-3. Guarded 实质任务派 worker；Normal 可主控直做；Audited 按严格席位表执行。
-   委派给当前任务包，不给整个会话历史。集成里程碑再做相应独立验收。
-4. **失败思维**：先读错误修根因；失败签名（V+命令+断言+稳定错误摘要）
-   跨 seat/resume 累计，同签名三次无新证据 = no-progress blocker，向用户
-   升级而不是机械重试；第二次同签名就必须换本质不同的方法。
-5. **里程碑回看原始清单**：列出仍阻止用户达成目标的差距，沿计划依赖推进，
-   重新判风险再选执行方式。MVP 是交付顺序，
-   不是永久缩水。
-6. **边际思维**：每步带 Bounds；reviewer 把“边界条件是否被考虑/测试”当作
-    独立检查维度；未测边界是 finding，不是静默通过。
-7. **分层验证、观察后推进**：`verify-cycle` 运行当前组件检查/实际边界检查，或阶段
-   旅程；组件不必等待完整应用建好。先接真实目标再扩张上层。工具捕获原始输出，
-   模型读结果后 `observe-cycle --decision ... --interpretation ...`，无需手写观察 JSON。
-   负向对照只针对有意义的故障，普通组件不强制非零退出码。失败不能 advance；
-   设计冲突选 replan，旧设计不能继续；固定样例之外还需变体和状态检查。
-   `cycle-gate` 检查所有步骤及版本绑定，接入 finish-goal/check-current。
-   这不替代 UI/独立产品观察，也不声称能从文本自动证明测试语义正确。
+   `prepare-plan` 自动算 hash 绑定、从 browser/desktop 旅程推导 UI 验收义务、
+   使过期证据失效，并生成完整**可读计划** `<design>.readable.md`（逐步标题、
+   独立代码块、命令、失败处理，保留逻辑图）——用户不用读转义 JSON，也不维护
+   两份规格。`next-step` 预览 build 实际收到的任务包。
+7. **发布前设计走查**：拿一个正常输入和一个失败输入逐步模拟施工——输入穿过
+   哪些文件/接口/边界？后续任务单独交给无历史会话能否开工？有无断开的调用、
+   虚构 API、组件测试过早依赖完整 UI？通过结构检查 ≠ 设计正确；走查负责内容。
+
+完整参考：[设计模板与任务字段](writing-plans/references/design-template.md) ·
+[工程计划示例](writing-plans/references/engineering-plan-example.md)。
+
+## 第三步：build —— “实现当前任务，实测后推进”
+
+`/build` 是有界执行者。核心循环只有五个命令：
+
+```text
+python .opencode/workflow/scripts/check.py next-step   <goal>   # 当前任务包
+python .opencode/workflow/scripts/check.py begin-cycle <goal>   # 只探测本步前提
+#   按 implementation/change 实现本步；不改共享接口，不提前做后续任务
+python .opencode/workflow/scripts/check.py verify-cycle <goal>  # 运行本步检查
+#   读 observed 里的真实 stdout/stderr/退出码（截断时展开原始回执）
+python .opencode/workflow/scripts/check.py observe-cycle <goal> --decision <d> --interpretation "<实际 vs 预期>"
+#   再 next-step：工具自动选择下一个依赖就绪任务
+```
+
+- **任务包**：当前步骤 + 必要全局约定 + 本步消费/产出的合同 + read_files +
+  检查。未来任务、无关合同、全部历史默认不进入上下文。
+- **原始输出自动捕获**：observe-cycle 附带本尝试的真实回执；模型只写解释和
+  决定，不手填 actual JSON，也不能用预测文本替代。
+- **失败分流**（先归因再行动）：
+
+  | 证据 | 决定 |
+  |---|---|
+  | 本步实现不满足既定接口/断言 | `retry`：最小修复本步后新尝试 |
+  | 缺设备/驱动/服务/权限 | `blocked`：报具体前提；不换 mock 通过 |
+  | 接口、状态模型、驱动能力等设计假设被证伪 | `replan`：带证据回 plan；旧设计锁定，修订发布后才能继续 |
+
+- **分层执行**：组件检查不要求未建成的完整应用；真实边界检查先于依赖它的
+  集成里程碑；`cycle-gate` 检查全部步骤及版本绑定，接入 `finish-goal`/
+  `check-current`。固定样例的检查之外还需变化输入与状态回读——校准实验中，
+  一个能通过固定正/负样例的假实现仍被随机内容检查拒绝。
+- **席位**：Guarded 实质任务派 worker（一次一个任务包，不给整个会话历史）；
+  Normal 可主控直做；Audited 按严格席位表。独立 review 放集成里程碑/验收点，
+  不为每个组件测试造评审仪式。
+- **失败预算**：同一失败签名第二次必须换证伪方法；三次无新证据 = no-progress
+  blocker，向用户升级而不是机械重试。新 task/session 不清零失败历史。
 
 执行协议：[任务包与分层反馈](mvp-delivery/references/engineering-delivery.md)。
-新项目直接使用新设计格式；旧工程迁移不是主流程。可以用更擅长设计的模型做 plan，
-再切换 DeepSeek/GLM 等模型 build；工具不替你虚构/自动切换模型。
-**成本和稳定性改善需要真实模型任务评估，不能从引擎单元测试数推导。**校准范围见
+可以用更擅长设计的模型做 plan，再切换 DeepSeek/GLM 等模型 build；工具不替你
+虚构或自动切换模型。**成本与稳定性改善需要真实模型任务评估，不能从引擎单元
+测试数推导**；已做的确定性校准范围见
 [验证说明](validation/engineering-delivery/README.md)。
 
 ## 验收的思维链 —— “证据呢？”
@@ -123,56 +155,37 @@ delivery-log），不依赖聊天记录。下面逐段展开这条链。
 - **事实驱动**：说“可能是环境/权限/网络问题”之前，先用工具读错误、查源码、
   跑最小探针。未经验证的归因是甩锅。
 - **穷尽但不盲目**：说“无法解决”前，确认换过本质不同的方案、检查过同一
-  根因的同类调用点（冰山法则）；真实缺授权/缺工具时证据化升级是正确动作。
+  根因的同类调用点（冰山法则）。
 - 五种偷懒模式自查：暴力重试、甩锅用户或环境、闲置工具、假忙、被动等待。
 
-界面验收的路由思维：Web-only 旅程 → webapp-testing（断言式浏览器脚本）；
-原生应用/OS 对话框 → computer-use（每场景硬预算：≤15 动作、每动作 ≤2 轮
-观察、10 分钟；期望连续 2 次不可观测 = failed 交回修复循环，不原地打转）。
-截图不是验收通过。
+最终报告分开列出：单元/mock 检查、真实边界、公开入口旅程、未验证/阻塞项。
+不用测试总数概括产品可用性。界面验收路由：Web-only 旅程 → webapp-testing；
+原生应用/OS 对话框 → computer-use（每场景硬预算：≤15 动作、每动作 ≤2 轮观察、
+10 分钟）。截图不是验收通过。
 
 ## 产品观察的思维链 —— “完整产品真用过了吗？”
 
-实现和引擎验证只证明“命令能跑”；交付前还要有人第一次接触产品那样把
-完整产品真用一遍。`/build` 在固定候选版本后派发 `mvp-product-observer`
-独立席位，它拿到的不是 diff/测试/实现说明，而是公开简报与真实入口。
+实现和引擎验证只证明“命令能跑”；交付前还要有人第一次接触产品那样把完整
+产品真用一遍。`/build` 在固定候选版本后派发 `mvp-product-observer` 独立席位，
+它拿到的是公开简报与真实入口——不是 diff、测试或实现说明。
 
-1. **两个阶段**：`discover` 盲态独立探索（产品用途、公开使用说明、候选
-   入口、测试数据、预算、后端）；`compare` 才对照原始目标、历史产品地图
-   与基线行为，专门找“消失了、退化了、只在某些模式里活着”的能力。
-2. **观察模型怎么选（视觉模型指令）**：`/visibility [模型名]`。
-   默认 `gpt 5.6 luna`；名称从当前 OpenCode 的真实模型目录解析；输入的是
-   家族名（如 `/visibility deepseek`）时列出真实候选由你选，不虚构型号、
-   不静默回落；找不到就展示可用清单。选择写入项目内
-   `.opencode/mvp/visibility.json`——只作用于本项目的观察派发，不改你的
-   主聊天模型与全局配置；取消/失败保留旧值。派发由插件工具
-   `visibility_dispatch` 完成（目标项目 `.opencode` 需能解析
-   `@opencode-ai/plugin`，见“安装”），插件生效需重启 OpenCode。
-   模型本身支持图片时，截图直接交给它读（`image_read`）；不支持时按
-   capability gap 记录，绝不假装看过。
-3. **只观察，不修复**：observer 不写产品代码、goal、gate 或其他阶段证据；
-   宿主权限两层兜底（`edit: deny` + bash 拒绝重定向/写文件命令）。
-   有状态产品正常写盘不算篡改：候选声明 `runtime_state`，另配
-   `.opencode/mvp/<goal>.runtime-state.json` 策略，验证与 finish 用同一
-   排除表。
-4. **输出与采纳**：observer 最终回复只含**一个** ```json 围栏块
-   （schema `product-observation/2`），不写结果文件；controller 校验后绑定
-   真实 session/模型/packet hash，写不可变 `result.json`（重复只幂等、冲突
-   必拒绝）。格式不合格最多纠偏两次，纠偏只修格式、不重跑产品。
-5. **证据**：CLI/Web 命令输出用 `observation_capture.py` 落盘（含 meta 与
-   sha256），截图/快照写进本轮证据目录；引用必须真实存在。抽帧不等于连续
-   覆盖，录屏文件存在不等于有声音（音频先跑控制探针）。
-6. **门禁**：`check.py product-audit-gate <goal> --trace <trace>`。
-   `coverage-completed` 允许同时带阻断发现；critical/high 未解决、未解释的
-   capability gap、无原生 trace 都阻断 `finish-goal`。独立 reviewer 分别
-   判断 `findings_validity` 与 `coverage_adequacy`：证据/覆盖不足 →
-   `needs-observation`，报告可信但有严重缺陷 → `needs-repair`，存在开放
-   阻断缺陷时不得判 `sufficient`。
-7. **修复循环**：阻断发现路由 `/fix`；修复产生新候选后必须全量重跑
-   discover+compare（旧证据按候选 id 失效，不覆盖、不改写）。
+1. **两个阶段**：`discover` 盲态独立探索；`compare` 对照原始目标、历史产品
+   地图与基线，专门找“消失了、退化了、只在某些模式里活着”的能力。
+2. **观察模型**：`/visibility [模型名]` 选择，默认 `gpt 5.6 luna`；写入项目内
+   `.opencode/mvp/visibility.json`，只作用于本项目观察派发，不改主聊天模型。
+   派发由插件工具 `visibility_dispatch` 完成（需重启 OpenCode）。模型不支持
+   图片时按 capability gap 记录，绝不假装看过。
+3. **只观察，不修复**：observer 不写产品代码/goal/gate；宿主双层权限兜底。
+   有状态产品正常写盘由 `.opencode/mvp/<goal>.runtime-state.json` 策略排除。
+4. **输出与采纳**：observer 只回一个 ```json 围栏块（`product-observation/2`）；
+   controller 校验后绑定真实 session/模型/packet hash 写不可变 `result.json`。
+5. **门禁**：`check.py product-audit-gate <goal> --trace <trace>`。critical/high
+   未解决、未解释的 capability gap、无原生 trace 都阻断 `finish-goal`。独立
+   reviewer 分别判断 `findings_validity` 与 `coverage_adequacy`。
+6. **修复循环**：阻断发现路由 `/fix`；修复产生新候选后必须全量重跑
+   discover+compare，旧证据按候选 id 失效，不覆盖不改写。
 
-真实模型校准结果（干净对照 0 误报、CLI 种子 5/6 检出、Web 案例检出与
-未运行项）见 [docs/po-repair/CALIBRATION.md](docs/po-repair/CALIBRATION.md)。
+真实模型校准结果见 [docs/po-repair/CALIBRATION.md](docs/po-repair/CALIBRATION.md)。
 
 ## fix 的思维链 —— 四阶段根因
 
@@ -184,19 +197,21 @@ delivery-log），不依赖聊天记录。下面逐段展开这条链。
 → 验证（原复现转绿 + 受影响回归 + 边界抽查，回归测试固化根因）
 ```
 
-禁止：无证据甩锅环境、同签名暴力重试、一次改多处“看看好了没”（shotgun）。
-契约与现实冲突走 CR，不绕。
+通过受影响旅程复现，用 next-step 拿到任务和 failure_routes：实现错误局部修，
+先跑本层检查再跑受影响边界/里程碑；接口/架构假设被证伪走 replan 修订计划，
+不让执行模型边猜边打补丁。只跑 mock 的回归测试不能关闭在真实边界观察到的
+缺陷。禁止：无证据甩锅环境、同签名暴力重试、shotgun 式一次改多处。
 
 ## resume 的思维链 —— 不猜进度
 
-`/resume` 的读取顺序：`docs/delivery-log.md` → 当前 active 目标卡 → 代码。
-**已完成的 brief/PLAN/包全文停止默认加载**，需要核对具体结论时再按
-delivery-log 里的证据指针展开。会话被 OpenCode 自动压缩后，delivery-log
-同样是首选重入点。
+`/resume` 先运行 `check.py next-step <goal>`：它重放 cycle 历史，返回当前
+任务包和 implement/observe/retry/blocked/replan/final-acceptance 动作，不需要
+重读全部历史计划。有未观察尝试时先读回执再 observe；中断的运行只能
+retry/blocked，不能补记成功。replan 交回规划者，修订并重新 prepare-plan 后
+旧证据失效；已正确实现的代码复验即可，不因恢复或切模型而重写。多个候选
+目标关系不明时问用户，不按 mtime 猜。
 
 ## 什么时候停下来问用户
-
-只有这些情况：
 
 1. 两个互斥的产品选择会明显改变结果，且仓库和输入都无法裁决；
 2. 将执行不可逆或破坏性操作；
@@ -204,51 +219,48 @@ delivery-log 里的证据指针展开。会话被 OpenCode 自动压缩后，del
 4. Audited gate 需要 owner 实际验收；
 5. 技术上不可达、每条路只能猜，或连续尝试没有新证据。
 
-其余不确定性由 agent 作最小、可逆、符合现有模式的决定，记录在假设清单和
-交付报告中并继续。
+其余不确定性由 agent 作最小、可逆、符合现有模式的决定，记录后继续。
 
 ## 上下文怎么不被撑爆
 
-每个 goal 完成后向 `docs/delivery-log.md` 追加一条 commit 式条目（变更/
-关键决定/验证摘要/证据指针/剩余限制）。文件本体保留——引擎按路径绑定
-hash（brief 冻结、证据、artifact identity），被引用的文件不删除；只有确认
-未被引用的 draft/中间工件可移入 `docs/archive/`。压缩的是“进入会话的
-内容”，不是磁盘上的证据。
+build 每次只读当前任务包；不默认加载全部历史计划、dispatch archive 或
+findings。每个 goal 完成后向 `docs/delivery-log.md` 追加 commit 式条目。
+文件本体保留——引擎按路径绑定 hash；压缩的是“进入会话的内容”，不是磁盘
+上的证据。会话被 OpenCode 自动压缩后，delivery-log 同样是首选重入点。
 
 ## 命令速查
 
 | 命令 | 什么时候用 | 结果 |
 |---|---|---|
 | `/grill <idea>` | 想法模糊，需要问清 | 经确认的 `docs/brief.md` |
-| `/plan <goal-or-brief>` | 先看完整设计，不写代码 | 工程设计（组件/接口/逻辑图/代码骨架/依赖步骤）+ schema-3 目标卡；高风险另有编译 PLAN |
-| `/build [goal]` | 开始交付 | 可运行、真实验证、持续补齐的结果 |
-| `/fix <problem>` | 报错、行为错误、契约冲突 | 根因修复 + 回归验证 |
-| `/resume` | 上次中断 | 从持久状态继续到原始目标完成 |
-| `/visibility [模型名]` | 选/看本项目的观察模型（默认 gpt 5.6 luna） | 写入 `.opencode/mvp/visibility.json`；观察派发按它选模型 |
+| `/plan <goal-or-brief>` | 先看完整设计，不写代码 | 全目标工程设计 + 可读计划 + schema-3 目标卡；高风险另有编译 PLAN |
+| `/build [goal]` | 开始交付 | 按任务包推进、实测观察、直到原始结果 verified |
+| `/fix <problem>` | 报错、行为错误 | 根因修复 + 分层复验 |
+| `/resume` | 上次中断 | next-step 任务包恢复到原始目标完成 |
+| `/visibility [模型名]` | 选/看本项目观察模型 | 写入 `.opencode/mvp/visibility.json` |
 
-推荐路径：明确 → `/build`；先看计划 → `/plan` → `/build`；模糊 →
-`/grill` → `/plan` → `/build`；bug → `/fix`；中断 → `/resume`；
-观察模型 → `/visibility`（不改主聊天模型）。
+推荐路径：模糊 → `/grill` → `/plan` → `/build`；明确 → `/plan` → `/build`；
+bug → `/fix`；中断 → `/resume`。
 
 ## 内部 skills 速查
 
 | Skill | 思维链角色 |
 |---|---|
-| `mvp-delivery` | 总控制器：切片循环、风险判档、收敛到原始目标 |
+| `writing-plans` | 工程设计者：综合需求 → 组件/接口/数据流 → 全部施工级任务 → 设计走查 |
+| `mvp-delivery` | 施工控制器：任务包循环、分层验证、失败分流、收敛到原始目标 |
 | `grill` | 需求拷问：决策树 + 十二维覆盖表 |
 | `research` | 外部事实查证：来源分级、引用、时效 |
 | `brainstorming` | 方案分叉：替代探索与收敛 |
-| `writing-plans` | 计划即 prompt：六字段 step brief + 边界清单 |
 | `systematic-debugging` | 根因四阶段：复现/隔离/假设/验证 |
 | `contract-review` | Audited 契约评审与 PLAN 编译 |
 | `construction` | Audited PLAN 施工与 CR 恢复 |
-| `task-worker` | 有界实现工作包（fresh subagent） |
+| `task-worker` | 有界实现工作包（fresh subagent，消费 implementation-packet） |
 | `test-author` | 独立生成并冻结验收测试 |
-| `reviewer` | 只读评审；边界覆盖是独立维度 |
+| `reviewer` | 只读评审：设计走查验收、入口/断言语义、边界覆盖 |
 | `step-executor` | 隔离执行单个严格 PLAN 步骤 |
 | `webapp-testing` | Web 旅程：断言式浏览器自动化 |
 | `computer-use` | 桌面旅程：硬预算 GUI 操作与验证 |
-| `product-observer` | 全产品黑盒观察：独立探索 + 目标/历史查漏，交付前强制 gate；观察模型由 `/visibility` 选择 |
+| `product-observer` | 全产品黑盒观察：discover + compare，交付前强制 gate；模型由 `/visibility` 选择 |
 | `pua` | 验收质询：闭环/事实驱动/穷尽不盲目 |
 | `i-have-adhd` | 用户沟通：短视图，不删完整事实 |
 | `security-assurance` | 条件型：信任边界/认证/隐私/密钥的安全保证与威胁建模 |
@@ -269,54 +281,51 @@ fresh 子代理提供真实独立 session，加载 skill 本身不创造独立�
 python scripts/install.py "E:/path/to/target-project"
 ```
 
-安装器复制 command wrapper、子代理定义、校验引擎与运行时工具
-（`check.py`、`runtime_trace.py`、`check_runtime.py`、
-`workflow_protocol.py`、`worktree_tasks.py`）及 `stage-routing.json`，在
-manifest 记录指纹供 doctor 检测漂移，并在 `opencode.json` 注册本仓库顶层
-skill 目录。安装或修改 skill 后必须重启 OpenCode。桌面验证为可选：不自动
-安装 MCP、不改全局权限，接入见
+安装器复制 command wrapper、子代理定义、校验引擎与运行时工具（`check.py`、
+`engineering_delivery.py`、`runtime_trace.py`、`workflow_protocol.py` 等）及
+`stage-routing.json`，在 manifest 记录指纹供 doctor 检测漂移，并在
+`opencode.json` 注册本仓库顶层 skill 目录。安装或修改 skill 后必须重启
+OpenCode。桌面验证为可选：不自动安装 MCP、不改全局权限，接入见
 [computer-use/README.md](computer-use/README.md)。
 
 如需 `/visibility` 的动态观察模型派发：目标项目 `.opencode` 需能解析
-`@opencode-ai/plugin`（安装器检测缺失时会提示，在该目录执行
-`npm install`），重启 OpenCode 后由插件提供 `visibility_dispatch` /
-`visibility_status`。安装器不会覆盖项目已有的
-`.opencode/mvp/visibility.json`，也不会替你自动安装模型依赖。
+`@opencode-ai/plugin`（安装器检测缺失时会提示，在该目录执行 `npm install`），
+重启 OpenCode 后由插件提供 `visibility_dispatch` / `visibility_status`。
 
 ## 验证
 
 ```powershell
 python scripts/check.py --selftest
 python -B -m unittest discover -s tests -p "test_*.py"
-python scripts/check.py hash <file> [<file> ...]   # 记录哈希；禁止手工计算
+python validation/engineering-delivery/run_calibration.py --out <新目录>   # 安装后三阶段实测校准
+python .opencode/workflow/scripts/check.py engineering-plan .opencode/mvp/<goal>.md
+python .opencode/workflow/scripts/check.py next-step .opencode/mvp/<goal>.md
+python .opencode/workflow/scripts/check.py cycle-gate .opencode/mvp/<goal>.md
 python scripts/check_runtime.py doctor <target-project> [--strict [--strict-freshness]]
 python scripts/runtime_trace.py export <target-project> --out trace.json
-python scripts/workflow_metrics.py export <target-project> --out metrics.json
-python scripts/workflow_packets.py stage <stage> --role <role> --out packet.json
-python scripts/workflow_packets.py observer .opencode/mvp/<goal>.md --phase discover --model <provider/model> --out <cand>/discover.packet.json
-python scripts/observation_capture.py --evidence-root <cand>/evidence --out <cand>/evidence/<name>.txt -- <entry command>
 python .opencode/workflow/scripts/check.py product-audit-gate .opencode/mvp/<goal>.md --trace trace.json
-python scripts/assurance_policy.py check <slice-package>
-python scripts/package_seal.py seal <slice-package> [--parent <base-seal.json>]
-python scripts/verification_runner.py run --command "<cmd>" --mode host|container
 python .opencode/workflow/scripts/check.py check-current .opencode/mvp/<goal>.md
 ```
 
-运行时门禁（可选）：目标项目写 `.opencode/mvp/runtime-policy.json` 为
-`{"schema": "runtime-policy/1", "goals": "all"}` 后，`finish-goal` 要求先过
-`check.py runtime-gate`——用原生会话证据（真实子会话、完成的 skill 加载、
-父子 provenance）核验 dispatch 声明；手写/导入 trace 一律拒绝。
-UI 门禁：`check.py ui-gate ... --bind` 核验场景状态、真实
-computer-use/webapp-testing 加载、原生调用与产物身份绑定；产物变化必须
-重跑重绑，`--bind` 不给旧结果贴新构建。
-观察门禁：schema-2 目标在 `finish-goal` 前必须过
-`check.py product-audit-gate <goal> --trace <trace>`——只认严格 v2 报告、
-真实存在的证据文件与原生 trace；有状态产品声明的 `runtime_state` 写盘由
-`.opencode/mvp/<slug>.runtime-state.json` 策略排除，不算产品被改动。
+运行时门禁（可选）：`runtime-policy.json` 启用后 `finish-goal` 要求先过
+`runtime-gate`——用原生会话证据核验 dispatch 声明；手写/导入 trace 一律拒绝。
+UI 门禁：`ui-gate ... --bind` 核验场景状态、真实工具加载、原生调用与产物
+身份绑定；产物变化必须重跑重绑。观察门禁：schema-2/3 目标在 `finish-goal`
+前必须过 `product-audit-gate`（必须带原生 trace）。
 
-引擎检查结构、绑定、退出/超时与断言；快照排除 VCS/`.opencode/**`/缓存/
-生成目录；hash 检测“验证后被改动”，不证明语义正确，更不是沙箱。完整规则
-见各 skill 的 `SKILL.md` 与 `references/`。
+引擎检查结构、绑定、退出/超时与断言；hash 检测“验证后被改动”，不证明语义
+正确，更不是沙箱。完整规则见各 skill 的 `SKILL.md` 与 `references/`。
+
+## 能力边界（如实）
+
+- 引擎只在**调用它的命令时**强制顺序，不能阻止模型在计划外先写一百个文件；
+  这部分靠 reviewer 与原生 trace 核验。
+- observe-cycle 校验观察字段与结果绑定，不判断文字是否诚实；负向对照只排除
+  特定假成功，不能普遍证明实现没有伪造。
+- 校准实验覆盖 CLI/文件系统边界；**未在桌面游戏、浏览器或真实模型上验证**。
+  炉石类项目仍需 Airtest/computer-use 等真实后端，且后端能力必须实测。
+- 旧 schema 1/2 完成历史保持可读；新项目直接使用 engineering-plan/2，旧工程
+  迁移不是主流程。
 
 ## 设计参考
 

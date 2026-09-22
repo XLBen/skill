@@ -1,40 +1,17 @@
 # MVP delivery skills
 
-## Complete design, bounded execution, layered feedback
-
-New product goals bind a standalone design (default `docs/plan.md`, user paths allowed)
-with component responsibilities/interfaces, data/state-flow diagrams,
-dependency-ordered steps, critical code sketches, and real public-entry journeys.
-Whole-system design precedes thin-slice implementation; the plan is not a
-reformatting of the requirements interview. `check.py engineering-plan <goal>`
-validates bindings, references, dependencies and outcome/journey coverage.
-
-The planner fully specifies **every task**, including shared contracts, ordered
-implementation guidance, code sketches and failure routes. `prepare-plan` derives
-hash/UI bookkeeping; `next-step` gives build only its current task and needed
-contracts. Each task uses `begin-cycle` (only its prerequisites), `verify-cycle`
-(component checks, real-boundary checks, or integration milestone journeys) and
-`observe-cycle` (captured actual output plus interpretation). Negative controls
-are selected for meaningful failures, not mandatory on every component. Design
-conflicts return `replan` rather than forcing build to redesign. An unobserved or failed attempt
-cannot advance; `cycle-gate` is enforced at finish/current-state checks. This
-does not replace UI/native-trace or independent product-observation acceptance,
-and a structural gate cannot certify semantic test quality. Existing regression
-suites may still run in batches. The primary workflow is for new projects, not
-legacy migrations. Complete product observation runs at the final candidate,
-not after every component. Model quality/cost claims require real model trials;
-engine tests alone cannot establish DeepSeek/GLM delivery stability.
-
-See [the protocol](mvp-delivery/references/engineering-delivery.md) and
-[the worked engineering plan](writing-plans/references/engineering-plan-example.md).
-
 English · [简体中文](README.md)
 
-This OpenCode workflow has a single goal: turn ideas into **really-verified,
-running results** — not an agent that asks great questions and leaves a pile
-of planning artifacts behind. This README is organized around the suite's
-chain of thought: what the agent thinks at each node, how it decides, and
-when it stops to ask you.
+This OpenCode workflow separates design from execution: **grill interrogates the
+requirements, plan designs the complete software, build implements and tests one
+bounded task at a time**. Every key engineering judgment — architecture,
+interfaces, dependency order, acceptance criteria — moves up into plan; build
+consumes a bounded task packet and never redesigns the system.
+
+The direct payoff: use a design-strong model for `/plan`, then switch to a
+cheaper model (DeepSeek, GLM, ...) for `/build` with fewer guesses, less rework
+and less irrelevant context. Structural validation is tooling, not the goal;
+the goal is always a really-verified, user-usable result.
 
 ## The overall chain of thought
 
@@ -42,133 +19,193 @@ when it stops to ask you.
 idea
  ↓  Can I state it clearly? — no → /grill (interrogate)
  ↓  twelve-dimension coverage closed + user confirmation → docs/brief.md
- ↓  Whole-system design + fully specified tasks + design walkthrough → /plan
- ↓  Current task packet → implement → component / boundary / milestone check → observe
- ↓  compare against the original outcome list: gaps left? — yes → next slice (loop)
- ↓                                                     — no  → acceptance: where is the evidence?
- ↓  accepted → before delivery, use the whole product black-box (product-observer; model chosen by /visibility)
- ↓  observation gate: v2 report + native trace — blocking finding → /fix → full re-observation on a new candidate
+ ↓  /plan: synthesize → verify technology → components/interfaces/flows →
+ ↓        fully specified tasks → design walkthrough → publish
+ ↓  /build: next-step packet → implement → this layer's checks →
+ ↓         read actual output → observe feedback
+ ↓  component → real boundary → integration milestone (planned dependency order)
+ ↓    implementation error → retry   missing environment → blocked
+ ↓    falsified design assumption → replan (back to plan)
+ ↓  at milestones, compare against the original outcomes — gaps? → next task (loop)
+ ↓                                —— no gaps → acceptance: where is the evidence?
+ ↓  accepted → whole-product black-box observation before delivery
+ ↓            (product-observer; model chosen by /visibility)
+ ↓  observation gate: v2 report + native trace — blocking finding → /fix → full re-observation
  ↓                                              — no blocking finding → delivery
  ↘  bug → /fix: reproduce → isolate → hypothesize → verify
- ↘  session broke → /resume: delivery-log → goal card → code
+ ↘  session broke → /resume: next-step packet → goal card → code
 ```
 
-Every hop's decision basis is persisted in files (brief, goal card, dispatch
-record, delivery-log) — never in chat history. The chain unfolds below.
+Every hop's decision basis is persisted in files (brief, engineering design,
+goal card, cycle receipts, delivery-log) — never in chat history.
+
+## Division of labor
+
+| Stage | Answers | Never does |
+|---|---|---|
+| grill | what, why, what counts as success | does not decide how |
+| plan | how the system composes, task order, per-task verification | writes no product code |
+| build | implement the current task, observe actual output, classify feedback | never redesigns interfaces/architecture |
 
 ## Step 1: grill — "Can I state it clearly?"
 
 `/grill <idea>` does exactly one thing: interrogate a vague idea into a
 requirement brief both sides can repeat back identically.
 
-Its chain of thought:
-
-1. **Draw a decision tree; ask only the frontier.** Questions whose
-   prerequisites are already settled; answers unlock later questions — no
-   mechanical questionnaire traversal.
+1. **Draw a decision tree; ask only the frontier.** Settled prerequisites
+   unlock later questions — no mechanical questionnaire traversal.
 2. **Five to ten questions per round, grouped by dimension.** Absorb the
-   answers, analyze what they changed, and only then derive the next round;
-   never dump every question at once. Every round must be a **real
-   interaction**: asked via OpenCode's `question` tool when available, or by
-   ending the turn and waiting for the reply — never asked and answered in
-   the same turn; only answers the user actually gave enter the brief.
-3. **Close against a twelve-dimension coverage table**: user and scenario,
-   public interface, environment, representative input, output and
-   retrieval, **errors and boundaries**, data and state, authority and
-   privacy, non-functional, integrations, success signals, non-goals. Each
-   dimension is either covered by an item or explicitly not-applicable;
-   termination requires all dimensions closed plus one round with no new
-   information. A "you decide" answer is recorded as an owner decision —
-   not skipped.
+   answers, analyze what changed, only then derive the next round. Every round
+   is a **real interaction**: asked via the `question` tool when available, or
+   by ending the turn and waiting; asking and answering in one turn is
+   forbidden.
+3. **Close the twelve-dimension coverage table**: user & scenario, public
+   entry, environment, representative input, output & retrieval, **errors &
+   boundaries**, data & state, authority & privacy, non-functional,
+   integrations, success signals, non-goals. Every dimension is covered or
+   explicitly not-applicable; termination requires all closed plus one round
+   with no new information.
 4. **Facts are the agent's job.** Anything answerable from the repository,
-   code or primary sources is never asked of the user; external facts
-   follow the research skill's grading (official docs/source = grade A;
-   community answers are leads only), with citations and freshness.
-5. **Three finalization questions**: did the user actually say this, or did
-   I fill it in? Is every dimension closed? Did anything get quietly
-   narrowed, or an optional wish promoted to required success?
-6. When solution shapes materially diverge (2+ architectures,
-   build-vs-buy), explore alternatives via brainstorming first — rejected
-   alternatives get a one-line rationale too.
+   code or primary sources is never asked of the user; external facts follow
+   the research skill's source grading with citations and freshness.
+5. **Three finalization questions**: did the user actually say this, or did I
+   fill it in? Is every dimension closed? Was anything quietly narrowed, or an
+   optional wish promoted to required?
 
 Output: a confirmed, frozen `docs/brief.md`. Next: `/plan docs/brief.md`.
 
-## Step 2: plan — "How does the whole system fit together?"
+## Step 2: plan — "How does the whole system compose, and how is every task built?"
 
-`/plan`'s chain of thought:
+`/plan` is the engineering designer, not an interview-notes formatter. Its
+deliverable is a standalone engineering design (default `docs/plan.md`, any
+project-relative path the user chooses):
 
-1. **Read the repository before asking.** Code, config, error output and
-   primary docs answer most questions.
-2. **Design the whole goal, then pick the thinnest runnable slice**: components,
-   interfaces, flow/dependency diagrams, code sketches and real-boundary journeys
-   live in `docs/plan.md` or the user's chosen path. One concrete input crossing the
-   necessary layers to a real output or persistent state; demonstrable
-   with one command / browser action / API call; no mock success standing
-   in for a declared real boundary.
-3. **Grade risk by actual side effects, not keywords**:
-   - Normal: reversible in-workspace changes;
-   - Guarded: external boundaries, higher rework risk → probes,
-     acceptance tests, one independent review;
-   - Audited: money, privacy, security, migration, irreversibility →
-     contract, PLAN, independent test author, reconcile gate.
-4. Every task, including later tasks, specifies purpose, dependencies, minimal
-   read files, write scope, consumed/produced contracts, ordered implementation,
-   critical code, bounds, layered checks, failure routes and rollback.
-5. Walk through normal/failure inputs and check inter-task consistency before
-   publication. `prepare-plan` derives bindings and UI obligations. `next-step`
-   previews the exact bounded package build receives. Product UI actions remain
-   in build; read-only technical investigation belongs in planning.
+1. **Synthesize, don't transcribe.** Rebuild the brief as user workflows:
+   precondition → input/action → state change → output retrieval → failure
+   recovery. Map every required outcome onto a workflow.
+2. **Kill the most expensive unknowns first.** Check primary docs, installed
+   APIs and real code: can the library actually perform the target operation;
+   what are the permission/platform constraints? Read-only investigation is
+   allowed; capabilities that need the real target get an early, budgeted
+   verification task with fully specified conditional follow-ups. Never invent
+   an API to make the design look complete.
+3. **Design the whole system**: component responsibilities and state
+   ownership, data models, cross-component contracts (each interface has
+   exactly one producer; consumers depend on it), layout, data-flow and
+   dependency diagrams. Mutually exclusive product forks go to the user;
+   ordinary engineering choices get a decision, a reason and evidence.
+4. **Every task reaches construction grade** — not just the first slice. Each
+   carries: purpose, dependencies, minimal read files, write scope,
+   consumed/produced contracts, ordered implementation actions, key code
+   sketches, boundary behavior, layered checks, failure routes (local repair /
+   missing environment / evidence that means back-to-design) and rollback.
+   Later tasks are never just headings.
+5. **Design layered verification**:
 
-## Step 3: build — "Implement one slice, verify one slice for real"
+   | Layer | When | Proves |
+   |---|---|---|
+   | component | component ready | component behavior; does not require the full app |
+   | boundary | adapter ready, before expanding upward | real contact with target file/device/window/API plus readback |
+   | journey | after a stage is wired | a user action through the delivered public entry |
+   | final | complete candidate | all promises + independent product observation |
 
-`/build`'s chain of thought:
+   Negative controls go only where a failure is meaningful; no mandatory
+   nonzero-exit script per component.
+6. **Publish with automatic bookkeeping**:
 
-1. **Verify minimal runtime prerequisites**: working directory, OS/shell,
-   runtime, dependency lockfiles, config variable names, services, startup.
-   A missing dependency is not behavior-red; mocks cannot stand in.
-2. **Execute the plan**: consume the next-step packet, not the entire history.
-   Do not redesign shared interfaces. Return a contradicted design assumption
-   to the planner with actual evidence and the affected contract/task.
-3. Guarded substantive tasks use workers; Normal may stay in-session; Audited
-   resolves its strict seat. Workers receive one bounded task package.
-4. **Failure thinking**: read the error and fix the root cause first;
-   failure signatures (V + command + assertion + stable error summary)
-   accumulate across seats/resumes — three same-signature failures with no
-   new evidence is a no-progress blocker escalated to the user, and the
-   second same-signature failure already demands a genuinely different
-   method.
-5. **At integration milestones, look back at the original list**: enumerate
-   gaps still blocking the goal and continue the planned dependency route,
-   re-grading actual risk before choosing execution.
-   MVP is a delivery order, not a permanent scope cut.
-6. **Edge thinking**: every step carries Bounds; the reviewer treats
-   "were boundary conditions considered/tested" as its own dimension; an
-   untested boundary is a finding, never a silent pass.
+   ```powershell
+   python .opencode/workflow/scripts/check.py prepare-plan <goal> <design-path>
+   python .opencode/workflow/scripts/check.py next-step <goal>
+   ```
+
+   `prepare-plan` computes the hash binding, derives UI acceptance obligations
+   from browser/desktop journeys, invalidates stale evidence, and generates a
+   complete **readable plan** `<design>.readable.md` (per-step headings,
+   standalone code blocks, commands, failure handling, diagrams preserved) —
+   the user never reads escaped JSON, and nobody maintains two specs.
+   `next-step` previews the exact packet build will receive.
+7. **Design walkthrough before publishing**: take one normal input and one
+   failure input and simulate construction — which files/interfaces/boundaries
+   does the input traverse? Could a later task be handed to a session with no
+   history? Any disconnected calls, invented APIs, component tests that
+   prematurely need the full UI? Passing structural checks ≠ a correct design;
+   the walkthrough owns content quality.
+
+Full references: [design template & task fields](writing-plans/references/design-template.md) ·
+[worked engineering plan](writing-plans/references/engineering-plan-example.md).
+
+## Step 3: build — "Implement the current task; advance after observing"
+
+`/build` is the bounded executor. The core loop is five commands:
+
+```text
+python .opencode/workflow/scripts/check.py next-step   <goal>   # current task packet
+python .opencode/workflow/scripts/check.py begin-cycle <goal>   # probe only this step's prerequisites
+#   implement this step per implementation/change; shared interfaces stay fixed; no future tasks
+python .opencode/workflow/scripts/check.py verify-cycle <goal>  # run this step's checks
+#   read the real stdout/stderr/exit codes in `observed` (expand raw receipts when truncated)
+python .opencode/workflow/scripts/check.py observe-cycle <goal> --decision <d> --interpretation "<actual vs expected>"
+#   next-step again: the tool picks the next dependency-ready task
+```
+
+- **The packet**: current step + necessary global invariants + this step's
+  consumed/produced contracts + read_files + checks. Future tasks, unrelated
+  contracts and full history stay out of context by default.
+- **Actual output is captured automatically**: observe-cycle attaches this
+  attempt's real receipts; the model writes only the interpretation and the
+  decision — never a hand-written "actual" replacing observation.
+- **Failure classification** (attribute first, then act):
+
+  | Evidence | Decision |
+  |---|---|
+  | this step's implementation misses the agreed interface/assertion | `retry`: minimal local repair, new attempt |
+  | missing device/driver/service/permission | `blocked`: name the prerequisite; no mock substitution |
+  | a design assumption (interface, state model, driver capability) is falsified | `replan`: back to plan with evidence; the old design is locked until revised and republished |
+
+- **Layered execution**: component checks never require the unbuilt full app;
+  real-boundary checks precede the integration milestones that depend on them;
+  `cycle-gate` verifies all steps and version bindings and is enforced by
+  `finish-goal`/`check-current`. Beyond fixed samples, checks need varied
+  inputs and state readback — in calibration, a fake that passed the fixed
+  positive and negative samples was still rejected by a random-content check.
+- **Seats**: Guarded substantive tasks dispatch a worker (one task packet at a
+  time, never the whole session history); Normal may stay in-session; Audited
+  follows the strict seat table. Independent review happens at integration
+  milestones and acceptance points, not per component test.
+- **Failure budget**: the second same-signature failure must change method;
+  three with no new evidence is a no-progress blocker escalated to the user.
+  A new task/session does not reset the count.
+
+Protocol: [task packets and layered feedback](mvp-delivery/references/engineering-delivery.md).
+Use a design-strong model for plan, then switch to DeepSeek/GLM for build; the
+tooling never invents or auto-switches models for you. **Cost and stability
+improvements require evaluation on real model runs and cannot be derived from
+engine unit-test counts**; the deterministic calibration that was run is scoped
+in [the validation notes](validation/engineering-delivery/README.md).
 
 ## The acceptance chain — "Where is the evidence?"
 
 The self-interrogation at every material handoff (PUA discipline; cards for
 Guarded/Audited, direct questions for Normal):
 
-- **Closure**: claimed done? Evidence? Without verification output bound
-  to the current version, "complete" cannot enter the report. A written
-  command is not an executed command.
-- **Fact-driven**: before saying "maybe environment/permissions/network",
-  read the error with tools, check the source, run a minimal probe.
-  Unverified attribution is blame-shifting.
-- **Exhaustive but not blind**: before saying "unsolvable", confirm a
-  genuinely different method was tried and the same root cause's sibling
-  call sites were checked (iceberg rule); escalating with evidence when
-  authorization/tools are genuinely missing is the correct action.
+- **Closure**: claimed done? Evidence? Without verification output bound to
+  the current version, "complete" cannot enter the report. A written command
+  is not an executed command.
+- **Fact-driven**: before saying "maybe environment/permissions/network", read
+  the error with tools, check the source, run a minimal probe. Unverified
+  attribution is blame-shifting.
+- **Exhaustive but not blind**: before saying "unsolvable", confirm a genuinely
+  different method was tried and the same root cause's sibling call sites were
+  checked (iceberg rule).
 - Self-check the five laziness patterns: brute-force retry, blaming user or
   environment, idle tooling, fake busyness, passive waiting.
 
-UI acceptance routing: web-only journeys → webapp-testing (assertion-first
-browser scripts); native apps/OS dialogs → computer-use (per-scenario hard
-budget: ≤15 actions, ≤2 observation cycles per action, 10 minutes; an
-expectation unobservable after two consecutive attempts is failed and
-returned to the repair loop — no spinning in place). A screenshot is not
-an acceptance pass.
+Final reports list separately: unit/mock checks, real boundaries, public-entry
+journeys, unverified/blocked items — never a total test count as a usability
+claim. UI acceptance routing: web-only journeys → webapp-testing; native
+apps/OS dialogs → computer-use (per-scenario hard budget: ≤15 actions, ≤2
+observation cycles per action, 10 minutes). A screenshot is not an acceptance
+pass.
 
 ## The product-observation chain — "Was the whole product actually used?"
 
@@ -178,54 +215,31 @@ would. `/build` freezes the candidate and dispatches the independent
 `mvp-product-observer` seat, which receives a public brief and the real entry
 point — never diffs, tests or implementation notes.
 
-1. **Two phases**: `discover` explores blind (purpose, public usage docs,
-   candidate entry, test data, budget, backend); `compare` reconciles against
-   the original goal, historical product maps and baselines, hunting for
+1. **Two phases**: `discover` explores blind; `compare` reconciles against the
+   original goal, historical product maps and baselines, hunting for
    capabilities that disappeared, degraded, or only survive in some modes.
-2. **Choosing the observation model (vision instruction)**: `/visibility
-   [model name]`. The default is `gpt 5.6 luna`; names resolve against the
-   live OpenCode model catalog; a family name (e.g. `/visibility deepseek`)
-   lists the real candidates for you to choose — no invented ids, no silent
-   fallback, no fake capability. The choice is stored in the project's
-   `.opencode/mvp/visibility.json` and affects only this project's observation
-   dispatch; your main chat model and global config are untouched. Cancel or
-   failure keeps the previous value. Dispatch uses the plugin tool
-   `visibility_dispatch` (the target `.opencode` must resolve
-   `@opencode-ai/plugin`; see Installation) and the plugin takes effect after
-   an OpenCode restart. When the model accepts images, screenshots go straight
-   to it (`image_read`); otherwise the gap is recorded — never pretended.
-3. **Observe, never repair**: the observer writes no product code, goal, gate
-   or other phase's evidence; two permission layers enforce it (`edit: deny`
-   plus bash patterns that deny redirection and file-writing commands).
-   Normal state writes by a stateful product are not tampering: the candidate
-   declares `runtime_state` and a
-   `.opencode/mvp/<goal>.runtime-state.json` policy keeps verification and
-   finish on the same exclusion list.
-4. **Output and adoption**: the final reply contains exactly ONE ```json
-   fenced block (schema `product-observation/2`) and no result files; the
-   controller validates it, binds the real session/model/packet hash, and
-   writes an immutable `result.json` (idempotent on repeats, conflicts
-   rejected). At most two format repairs, which fix formatting only and never
-   re-run the product.
-5. **Evidence**: CLI/Web command output is captured with
-   `observation_capture.py` (meta + sha256), screenshots/snapshots land in the
-   round evidence directory, and every reference must really exist. Sampled
-   frames are not continuous coverage; a video file with no verified audio
-   track is not "sound present" (audio runs a control probe first).
-6. **The gate**: `check.py product-audit-gate <goal> --trace <trace>`.
-   `coverage-completed` may carry blocking findings; unresolved
-   critical/high findings, unexplained capability gaps and missing native
-   traces all block `finish-goal`. The independent reviewer judges
-   `findings_validity` and `coverage_adequacy` separately: weak evidence or
-   coverage → `needs-observation`; a credible report with severe defects →
-   `needs-repair`; `sufficient` is refused while a blocking finding is open.
-7. **Repair loop**: blocking findings route to `/fix`; a repaired build is a
+2. **Observation model**: chosen with `/visibility [model name]`, default
+   `gpt 5.6 luna`; stored in the project's `.opencode/mvp/visibility.json`,
+   affecting only this project's observation dispatch — never your main chat
+   model. Dispatch uses the plugin tool `visibility_dispatch` (requires an
+   OpenCode restart). When the model cannot read images, the gap is recorded,
+   never pretended away.
+3. **Observe, never repair**: the observer writes no product code, goal or
+   gate; two host permission layers enforce it. Normal state writes by a
+   stateful product are excluded via `.opencode/mvp/<goal>.runtime-state.json`.
+4. **Output and adoption**: the final reply contains exactly one ```json
+   fenced block (`product-observation/2`); the controller validates it, binds
+   the real session/model/packet hash and writes an immutable `result.json`.
+5. **The gate**: `check.py product-audit-gate <goal> --trace <trace>`.
+   Unresolved critical/high findings, unexplained capability gaps and missing
+   native traces all block `finish-goal`. The independent reviewer judges
+   `findings_validity` and `coverage_adequacy` separately.
+6. **Repair loop**: blocking findings route to `/fix`; a repaired build is a
    NEW candidate and must re-run the full discover+compare sweep — old
-   evidence is invalidated by candidate id, never overwritten or rewritten.
+   evidence is invalidated by candidate id, never overwritten.
 
-Real-model calibration results (clean control with zero false positives, 5/6
-seeded CLI defects detected, one Web case detected, and the still-unrun items)
-live in [docs/po-repair/CALIBRATION.md](docs/po-repair/CALIBRATION.md).
+Real-model calibration results live in
+[docs/po-repair/CALIBRATION.md](docs/po-repair/CALIBRATION.md).
 
 ## The fix chain — four-phase root cause
 
@@ -234,24 +248,30 @@ live in [docs/po-repair/CALIBRATION.md](docs/po-repair/CALIBRATION.md).
 ```text
 reproduce (minimal reproducing command) → isolate (bisect, read real code and logs)
 → hypothesize (≥2 distinguishable hypotheses; run the falsifying probe before editing)
-→ verify (original repro turns green + affected regression + boundary spot checks; regression test freezes the root cause)
+→ verify (original repro turns green + affected regression + boundary spot checks)
 ```
 
-Forbidden: evidence-free environment blaming, same-signature brute-force
-retries, shotgun edits ("change N places and see if it works"). Contract vs
-reality conflicts go through CR — never around it.
+Reproduce through the affected journey; use next-step for the bounded task and
+its failure_routes: local implementation errors get local repair (this layer's
+checks first, then affected boundary/milestone); a falsified interface or
+architecture assumption goes to replan — the executor never patches a wrong
+design by guessing. A mock-only regression test cannot close a defect observed
+at a real boundary. Forbidden: evidence-free environment blaming,
+same-signature brute-force retries, shotgun edits.
 
 ## The resume chain — no guessing from chat
 
-`/resume` loads in order: `docs/delivery-log.md` → the active goal card →
-code. **Completed brief/PLAN/package full text stops being loaded by
-default**; expand only via the evidence pointers in the delivery-log when a
-specific conclusion needs checking. After OpenCode auto-compaction, the
-delivery-log is likewise the primary re-entry point.
+`/resume` first runs `check.py next-step <goal>`: it replays cycle history and
+returns the current task packet plus the next action
+(implement/observe/retry/blocked/replan/final-acceptance) without rereading
+all historical plans. With an unobserved attempt, read its receipts before
+observing; an interrupted run can only be retried or blocked, never backfilled
+as passed. replan goes back to the planner; after revision and prepare-plan,
+stale evidence is invalidated — code that already satisfies the new plan is
+verified and retained, not rewritten because of a restart or model switch.
+When multiple unrelated candidates exist, ask; never guess by mtime.
 
 ## When it stops to ask you
-
-Only these cases:
 
 1. Two mutually exclusive product choices materially change the result and
    neither the repository nor the input can arbitrate;
@@ -263,67 +283,63 @@ Only these cases:
    attempts produce no new evidence.
 
 Everything else is decided by the agent — minimally, reversibly, following
-existing patterns — recorded in the assumption list and delivery report,
-then it continues.
+existing patterns — recorded and continued.
 
 ## How context stays small
 
-Each finished goal appends a commit-style entry to `docs/delivery-log.md`
-(changes / key decisions / verification summary / evidence pointers /
-remaining limits). The files themselves stay — the engine binds hashes by
-path (brief freeze, evidence, artifact identity); referenced files are
-never deleted; only drafts confirmed unreferenced may move to
-`docs/archive/`. What gets compacted is "what enters the session", not the
-evidence on disk.
+build reads only the current task packet each time; full historical plans,
+dispatch archives and findings are never loaded by default. Each finished goal
+appends a commit-style entry to `docs/delivery-log.md`. The files themselves
+stay — the engine binds hashes by path; what gets compacted is "what enters
+the session", not the evidence on disk. After OpenCode auto-compaction, the
+delivery-log remains the primary re-entry point.
 
 ## Command quick reference
 
 | Command | When | Result |
 |---|---|---|
 | `/grill <idea>` | idea is vague | a confirmed `docs/brief.md` |
-| `/plan <goal-or-brief>` | see the path first, no code | lightweight goal card; strict PLAN internally at high risk |
-| `/build [goal]` | start delivery | runnable, really-verified, continuously completed results |
-| `/fix <problem>` | errors, misbehavior, contract conflicts | root-cause repair + regression verification |
-| `/resume` | previous run interrupted | continue from persistent state to the original goal |
-| `/visibility [model name]` | choose/view this project's observation model (default `gpt 5.6 luna`) | writes `.opencode/mvp/visibility.json`; observation dispatch uses it |
+| `/plan <goal-or-brief>` | see the complete design first, no code | whole-goal engineering design + readable plan + schema-3 goal card; strict compiled PLAN at high risk |
+| `/build [goal]` | start delivery | task-packet-driven, observed execution until the original outcomes are verified |
+| `/fix <problem>` | errors, misbehavior | root-cause repair + layered reverification |
+| `/resume` | previous run interrupted | resume from the next-step packet to the original goal |
+| `/visibility [model name]` | choose/view this project's observation model | writes `.opencode/mvp/visibility.json` |
 
-Recommended paths: clear → `/build`; plan first → `/plan` → `/build`;
-vague → `/grill` → `/plan` → `/build`; bug → `/fix`; interrupted →
-`/resume`; observation model → `/visibility` (your main chat model is not
-changed).
+Recommended paths: vague → `/grill` → `/plan` → `/build`; clear → `/plan` →
+`/build`; bug → `/fix`; interrupted → `/resume`.
 
 ## Internal skills quick reference
 
 | Skill | Role in the chain of thought |
 |---|---|
-| `mvp-delivery` | master controller: slice loop, risk grading, converging to the original goal |
+| `writing-plans` | engineering designer: synthesize → components/interfaces/flows → fully specified tasks → walkthrough |
+| `mvp-delivery` | execution controller: task-packet loop, layered verification, failure routing, convergence to the original goal |
 | `grill` | requirements interrogation: decision tree + twelve-dimension coverage |
 | `research` | external fact-finding: source grading, citation, freshness |
 | `brainstorming` | solution forks: alternative exploration and convergence |
-| `writing-plans` | plans as prompts: six-field step briefs + boundary checklist |
 | `systematic-debugging` | four-phase root cause: reproduce/isolate/hypothesize/verify |
 | `contract-review` | Audited contract review and PLAN compilation |
 | `construction` | Audited PLAN execution and CR recovery |
-| `task-worker` | bounded implementation packages (fresh subagent) |
+| `task-worker` | bounded implementation packages (fresh subagent consuming an implementation-packet) |
 | `test-author` | independent acceptance-test generation and freezing |
-| `reviewer` | read-only review; boundary coverage is its own dimension |
+| `reviewer` | read-only review: design-walkthrough acceptance, entry/assertion semantics, boundary coverage |
 | `step-executor` | isolated execution of one strict PLAN step |
 | `webapp-testing` | web journeys: assertion-first browser automation |
 | `computer-use` | desktop journeys: hard-budgeted GUI operation and verification |
-| `product-observer` | whole-product black-box observation: blind discover + goal/history compare, mandatory pre-finish gate; its model is chosen by `/visibility` |
+| `product-observer` | whole-product black-box observation: discover + compare, mandatory pre-finish gate; its model is chosen by `/visibility` |
 | `pua` | acceptance interrogation: closure / fact-driven / exhaustive-not-blind |
 | `i-have-adhd` | user communication: short view, full facts preserved |
 | `security-assurance` | conditional: trust boundaries, auth, privacy, secrets; threat model and control mapping |
 | `production-readiness` | conditional: release, progressive rollout, rollback, operations handoff |
-| `incident-response` | conditional: active production impact - severity, containment, recovery |
+| `incident-response` | conditional: active production impact — severity, containment, recovery |
 | `outcome-learning` | conditional: user/business hypotheses, baselines, smallest experiment |
 
-The installer additionally deploys six project subagents —
-`mvp-researcher`, `mvp-worker`, `mvp-reviewer`, `mvp-test-author`,
-`mvp-step-executor`, `mvp-product-observer` — into `.opencode/agents/` with minimal permission
-boundaries (reviewer has no write; subagents may not dispatch further);
-fresh subagents provide real independent sessions — loading a skill alone
-creates no independence.
+The installer additionally deploys six project subagents — `mvp-researcher`,
+`mvp-worker`, `mvp-reviewer`, `mvp-test-author`, `mvp-step-executor`,
+`mvp-product-observer` — into `.opencode/agents/` with minimal permission
+boundaries (reviewer has no write; subagents may not dispatch further); fresh
+subagents provide real independent sessions — loading a skill alone creates no
+independence.
 
 ## Installation
 
@@ -334,72 +350,72 @@ python scripts/install.py "E:/path/to/target-project"
 ```
 
 The installer copies command wrappers, subagent definitions, the validation
-engine and runtime tools (`check.py`, `runtime_trace.py`,
-`check_runtime.py`, `workflow_protocol.py`, `worktree_tasks.py`) plus
-`stage-routing.json`, records fingerprints in a manifest for doctor drift
-detection, and registers this repository's top-level skill directories in
-`opencode.json`. OpenCode must be restarted after installing or modifying
-skills. Desktop verification is optional: no MCP is auto-installed and no
-global permissions change; see
-[computer-use/README.md](computer-use/README.md) for wiring.
+engine and runtime tools (`check.py`, `engineering_delivery.py`,
+`runtime_trace.py`, `workflow_protocol.py`, ...) plus `stage-routing.json`,
+records fingerprints in a manifest for doctor drift detection, and registers
+this repository's top-level skill directories in `opencode.json`. OpenCode
+must be restarted after installing or modifying skills. Desktop verification
+is optional: no MCP is auto-installed and no global permissions change; see
+[computer-use/README.md](computer-use/README.md).
 
-For `/visibility` dynamic observation-model dispatch, the target
-`.opencode` must resolve `@opencode-ai/plugin` (the installer prints a hint
-when it is missing — run `npm install` in that directory), and the plugin
-provides `visibility_dispatch` / `visibility_status` after an OpenCode
-restart. The installer never overwrites an existing
-`.opencode/mvp/visibility.json` and never installs model dependencies for
-you.
+For `/visibility` dynamic observation-model dispatch, the target `.opencode`
+must resolve `@opencode-ai/plugin` (the installer prints a hint when it is
+missing — run `npm install` in that directory); the plugin provides
+`visibility_dispatch` / `visibility_status` after an OpenCode restart.
 
 ## Verification
 
 ```powershell
 python scripts/check.py --selftest
 python -B -m unittest discover -s tests -p "test_*.py"
-python scripts/check.py hash <file> [<file> ...]   # record digests; never hand-compute
+python validation/engineering-delivery/run_calibration.py --out <new-dir>   # installed 3-stage real calibration
+python .opencode/workflow/scripts/check.py engineering-plan .opencode/mvp/<goal>.md
+python .opencode/workflow/scripts/check.py next-step .opencode/mvp/<goal>.md
+python .opencode/workflow/scripts/check.py cycle-gate .opencode/mvp/<goal>.md
 python scripts/check_runtime.py doctor <target-project> [--strict [--strict-freshness]]
 python scripts/runtime_trace.py export <target-project> --out trace.json
-python scripts/workflow_packets.py observer .opencode/mvp/<goal>.md --phase discover --model <provider/model> --out <cand>/discover.packet.json
-python scripts/observation_capture.py --evidence-root <cand>/evidence --out <cand>/evidence/<name>.txt -- <entry command>
 python .opencode/workflow/scripts/check.py product-audit-gate .opencode/mvp/<goal>.md --trace trace.json
 python .opencode/workflow/scripts/check.py check-current .opencode/mvp/<goal>.md
 ```
 
-Runtime gate (optional): after writing
-`{"schema": "runtime-policy/1", "goals": "all"}` to the target project's
-`.opencode/mvp/runtime-policy.json`, `finish-goal` requires a passing
-`check.py runtime-gate` first — dispatch claims are verified against
-native session evidence (real subsessions, completed skill loads,
-parent/child provenance); handwritten/imported traces are rejected. UI
-gate: `check.py ui-gate ... --bind` verifies scenario statuses, a real
-computer-use/webapp-testing load, native calls and artifact-identity
-binding; changed artifacts must re-run and re-bind — `--bind` never
-relabels old results onto a new build.
-Observation gate: schema-2 goals must pass
-`check.py product-audit-gate <goal> --trace <trace>` before `finish-goal` —
-only strict v2 reports, evidence files that really exist, and native traces
-count; `runtime_state` writes declared by a stateful product are excluded by
-the `.opencode/mvp/<slug>.runtime-state.json` policy, so normal state writes
-are not product tampering.
+Runtime gate (optional): with `runtime-policy.json` enabled, `finish-goal`
+requires a passing `runtime-gate` first — dispatch claims are verified against
+native session evidence; handwritten/imported traces are rejected. UI gate:
+`ui-gate ... --bind` verifies scenario statuses, real tool loads, native calls
+and artifact-identity binding; changed artifacts must re-run and re-bind.
+Observation gate: schema-2/3 goals must pass `product-audit-gate` (with a
+native trace) before `finish-goal`.
 
-The engine checks structure, bindings, exit/timeout and assertions;
-snapshots exclude VCS/`.opencode/**`/caches/generated directories; hashes
+The engine checks structure, bindings, exit/timeout and assertions; hashes
 detect "modified after verification" — they prove neither semantics nor
 safety, and the engine is not a sandbox. Full rules live in each skill's
 `SKILL.md` and `references/`.
+
+## Capability boundaries (stated honestly)
+
+- The engine enforces ordering only **when its commands are used**; it cannot
+  stop a model from writing a hundred files outside the plan — reviewer and
+  native-trace checks cover that.
+- observe-cycle validates fields and result binding, not prose honesty; a
+  negative control rules out specific fake successes, not forgery in general.
+- Calibration covered a CLI/filesystem boundary; **no desktop game, browser
+  or live model has been validated**. Game-UI projects still need a real
+  backend (Airtest/computer-use), and backend capability must be probed live.
+- Historical schema 1/2 cards stay readable; new projects use
+  engineering-plan/2 directly — legacy migration is not the main path.
 
 ## Design references
 
 - [GitHub Spec Kit](https://github.com/github/spec-kit): independently
   verifiable MVP stories.
 - [OpenSpec](https://github.com/Fission-AI/OpenSpec): progressive rigor.
-- [Superpowers](https://github.com/obra/superpowers): continuous
-  execution, subagent isolation; methodology source of writing-plans /
+- [Superpowers](https://github.com/obra/superpowers): continuous execution,
+  subagent isolation; methodology source of writing-plans /
   systematic-debugging / brainstorming (see each UPSTREAM.md).
 - [Anthropic skills](https://github.com/anthropics/skills): methodology
   source of webapp-testing (see its UPSTREAM.md).
-- [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD): process
-  scaled to task size.
+- [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD): process scaled
+  to task size.
 
 ## License
 

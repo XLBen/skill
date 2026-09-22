@@ -5,6 +5,13 @@ Commands:
   check.py brief <docs/brief.md>
   check.py hash <file> [<file> ...]
   check.py goal <.opencode/mvp/goal.md>
+  check.py engineering-plan <.opencode/mvp/goal.md>
+  check.py prepare-plan <.opencode/mvp/goal.md> <project-relative-design.md>
+  check.py next-step <.opencode/mvp/goal.md>
+  check.py begin-cycle <.opencode/mvp/goal.md> <step-id>
+  check.py verify-cycle <.opencode/mvp/goal.md>
+  check.py observe-cycle <.opencode/mvp/goal.md> <observation.json>
+  check.py cycle-gate <.opencode/mvp/goal.md>
   check.py verify-goal <.opencode/mvp/goal.md> <O-NN> --evidence <path> [--recover-interrupted] [--reuse <equivalent-evidence>]
   check.py finish-goal <.opencode/mvp/goal.md>
   check.py check-current <.opencode/mvp/goal.md>
@@ -53,6 +60,11 @@ if hasattr(sys.stdout, "reconfigure"):
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent)
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
+
+try:
+    import engineering_delivery as _engineering_delivery
+except ImportError:  # old/incomplete installations must fail closed for schema 3
+    _engineering_delivery = None
 
 try:
     import runtime_trace as _runtime_trace
@@ -449,9 +461,9 @@ def validate_goal(goal):
     ), "goal", problems)
     if (
         type(goal.get("schema_version")) is not int
-        or goal.get("schema_version") not in (1, 2)
+        or goal.get("schema_version") not in (1, 2, 3)
     ):
-        problems.append("goal.schema_version must be 1 or 2")
+        problems.append("goal.schema_version must be 1, 2 or 3")
     if not isinstance(goal.get("id"), str) or not GOAL_ID_RE.fullmatch(goal.get("id", "")):
         problems.append("goal.id must match G-NAME")
     if not isinstance(goal.get("status"), str) or goal.get("status") not in GOAL_STATUS:
@@ -631,6 +643,11 @@ def validate_goal(goal):
                             problems.append(f"goal.ui.outcome_ids references unknown outcome {ref}")
     if _product_observation is not None:
         problems.extend(_product_observation.observation_spec_problems(goal))
+    if goal.get("schema_version") == 3:
+        if _engineering_delivery is None:
+            problems.append("engineering_delivery engine module unavailable; reinstall workflow")
+        else:
+            problems.extend(_engineering_delivery.goal_problems(goal))
     return problems
 
 
@@ -957,6 +974,11 @@ def validate_goal_artifact(path):
         project_root = None
     if meta.get("status") != goal.get("status"):
         problems.append("goal frontmatter status does not match JSON status")
+    if project_root and goal.get("schema_version") == 3:
+        try:
+            _engineering_delivery.load(path, goal, sys.modules[__name__])
+        except ValidationError as exc:
+            problems.append(str(exc))
 
     source = goal.get("source", {})
     if project_root and isinstance(source, dict) and source.get("type") == "brief":
@@ -2284,7 +2306,7 @@ def enforce_product_observation(goal_path, goal):
     """
 
     spec = goal.get("product_observation") if isinstance(goal, dict) else None
-    if goal.get("schema_version") != 2:
+    if goal.get("schema_version") not in (2, 3):
         return
     if not isinstance(spec, dict) or spec.get("required") is not True:
         return
@@ -2399,7 +2421,7 @@ def observation_state_policy_problems(goal_path, goal):
     binding, policy_problems = _load_state_policy(goal_path, goal.get("id"))
     if policy_problems:
         return policy_problems
-    if goal.get("schema_version") != 2:
+    if goal.get("schema_version") not in (2, 3):
         return []
     spec = goal.get("product_observation")
     if not isinstance(spec, dict) or spec.get("required") is not True:
@@ -2438,6 +2460,13 @@ def observation_state_policy_problems(goal_path, goal):
     return _state_policy.candidate_policy_alignment_problems(candidate_paths, binding)
 
 
+def enforce_delivery_cycles(goal_path, goal):
+    if goal.get("schema_version") == 3:
+        if _engineering_delivery is None:
+            raise ValidationError("engineering_delivery engine module unavailable")
+        return _engineering_delivery.Cycles(goal_path, goal, sys.modules[__name__]).gate()
+
+
 def finish_goal(goal_path):
     with file_lock(str(goal_path) + ".runtime"):
         meta, goal, problems = validate_goal_artifact(goal_path)
@@ -2447,6 +2476,7 @@ def finish_goal(goal_path):
             return goal
         if any(item.get("status") != "verified" for item in goal.get("outcomes", [])):
             raise ValidationError("finish-goal requires every outcome to have engine-verified evidence")
+        enforce_delivery_cycles(goal_path, goal)
         enforce_runtime_gate(goal_path, goal)
         enforce_ui_gate(goal_path, goal)
         enforce_product_observation(goal_path, goal)
@@ -2475,6 +2505,7 @@ def check_current(goal_path):
     if problems:
         raise ValidationError("goal is invalid:\n- " + "\n- ".join(problems))
     enforce_workspace_binding(goal_path, goal)
+    enforce_delivery_cycles(goal_path, goal)
     enforce_product_observation(goal_path, goal)
     return goal
 
@@ -5321,6 +5352,54 @@ def main(argv):
         if command == "goal":
             _, _, problems = validate_goal_artifact(argv[2])
             return report("goal", problems)
+        if command == "prepare-plan":
+            if len(argv) != 4 or _engineering_delivery is None:
+                raise ValidationError("prepare-plan requires a goal and project-relative design path; engine must be installed")
+            with file_lock(str(argv[2]) + ".runtime"):
+                result = _engineering_delivery.prepare(argv[2], argv[3], sys.modules[__name__])
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 0
+        if command in ("engineering-plan", "begin-cycle", "verify-cycle", "observe-cycle", "cycle-gate", "next-step"):
+            with file_lock(str(argv[2]) + ".runtime"):
+                _, goal, problems = validate_goal_artifact(argv[2])
+                if problems:
+                    return report("goal", problems)
+                if goal.get("schema_version") != 3:
+                    raise ValidationError("engineering delivery requires schema 3; explicitly migrate an unfinished goal")
+                if command == "engineering-plan":
+                    print("engineering plan PASS (structure only; review design and real-boundary semantics)")
+                    return 0
+                if command not in ("cycle-gate", "next-step") and goal.get("status") == "complete":
+                    raise ValidationError("completed goals are immutable; create a new repair goal")
+                cycles = _engineering_delivery.Cycles(argv[2], goal, sys.modules[__name__])
+                if command == "begin-cycle" and len(argv) not in (3, 4):
+                    raise ValidationError("begin-cycle accepts one optional step-id")
+                if command == "begin-cycle":
+                    packet = cycles.next_packet() if len(argv) == 3 else None
+                    if packet is not None and packet["action"] not in ("begin-cycle", "retry", "revalidate"):
+                        raise ValidationError("next-step action is " + packet["action"] + "; resolve it first")
+                    result = cycles.begin(argv[3] if len(argv) == 4 else packet["step"]["id"])
+                elif command == "verify-cycle":
+                    result = cycles.verify()
+                elif command == "observe-cycle":
+                    if len(argv) == 4:
+                        result = cycles.observe(argv[3])
+                    else:
+                        import argparse
+                        parser = argparse.ArgumentParser(prog="observe-cycle")
+                        parser.add_argument("--decision", choices=("advance", "retry", "blocked", "replan"), required=True)
+                        parser.add_argument("--interpretation", required=True)
+                        parser.add_argument("--next-action", dest="next_action", default="next-step")
+                        result = cycles.observe(vars(parser.parse_args(argv[3:])))
+                elif command == "cycle-gate":
+                    result = cycles.gate()
+                elif command == "next-step":
+                    result = cycles.next_packet()
+                print(json.dumps(result, ensure_ascii=False, indent=2))
+                if result.get("passed") is False:
+                    print("cycle failed; inspect receipts and record observation before retry")
+                    return 1
+                return 0
         if command == "verify-goal" and len(argv) >= 4:
             if "--evidence" not in argv:
                 raise ValidationError("verify-goal requires --evidence")
@@ -5362,7 +5441,7 @@ def main(argv):
             if goal_problems:
                 return report("goal", goal_problems)
             spec = goal.get("product_observation") or {}
-            if goal.get("schema_version") != 2 or spec.get("required") is not True:
+            if goal.get("schema_version") not in (2, 3) or spec.get("required") is not True:
                 print("product observation: not required for this goal (schema 1 or required=false)")
                 return 0
             if "--trace" not in argv:

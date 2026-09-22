@@ -34,10 +34,10 @@
     },
     {
       "stage_id": "goal-validation",
-      "entry": "lightweight plan / goal-definition handoff in /plan (Normal/Guarded)",
+      "entry": "whole-goal engineering design and executable task handoff in /plan (Normal/Guarded)",
       "rigors": ["normal", "guarded"],
       "required_skills": [
-        {"name": "mvp-delivery", "seat": "controller", "roles": ["controller"]},
+        {"name": "writing-plans", "seat": "controller", "roles": ["controller"]},
         {"name": "i-have-adhd", "seat": "controller", "roles": ["controller"]},
         {"name": "pua", "stage_card": "goal-validation", "seat": "controller", "roles": ["controller"], "applies_when": "guarded-or-audited"}
       ],
@@ -46,7 +46,7 @@
         "contract": false,
         "dispatch": "capability-available-mandatory-for-guarded-risk-triggered-for-normal",
         "condition": {"rigors": ["guarded"], "optional_rigors": ["normal"], "dispatch": true, "mandatory": true, "blocking": false, "normal_trigger": "risk-triggered"},
-        "scope": "goal card semantics, coverage and verification design; never demands contract/PLAN/manifest artifacts"
+        "scope": "whole engineering design, shared interface consistency, fully specified later tasks, component/boundary/milestone verification and goal coverage; never demands Audited contract/compiled PLAN/manifest artifacts"
       },
       "responsibilities": {
         "semantic_checks": [
@@ -54,7 +54,7 @@
           {"check": "goal-validation", "owner_seat": "controller", "card": "goal-validation", "kind": "pua"}
         ]
       },
-      "ui_acceptance": "design only: decide applicability from affected outcomes, author scenarios and prerequisites in the ui-acceptance sidecar; never operate UI in /plan",
+      "ui_acceptance": "design actual UI journeys from user workflows; prepare-plan derives applicability from boundary/journey mapping. Read-only feasibility investigation is allowed; product UI actions remain in build.",
       "domain_skills": "none expected; select only if the goal's verification itself depends on a specialized capability"
     },
     {
@@ -102,7 +102,7 @@
     },
     {
       "stage_id": "review-verdict",
-      "entry": "material Guarded/Audited slice acceptance handoff, or a Normal change that needs independent judgment or hits a verification blind spot",
+      "entry": "material Guarded/Audited integration milestone acceptance (not every component check), or a Normal change that needs independent judgment or hits a verification blind spot",
       "rigors": ["normal", "guarded", "audited"],
       "required_skills": [
         {"name": "reviewer", "seat": "reviewer-subagent", "roles": ["reviewer"]},
@@ -125,7 +125,7 @@
     },
     {
       "stage_id": "product-observation",
-      "entry": "stable candidate build after implementation, engine verification and planned UI acceptance; before review-verdict acceptance or goal-finish (schema-2 goals with product_observation.required)",
+      "entry": "stable candidate build after implementation, engine verification and planned UI acceptance; before review-verdict acceptance or goal-finish (schema-2/3 goals with product_observation.required)",
       "rigors": ["normal", "guarded", "audited"],
       "required_skills": [
         {"name": "product-observer", "seat": "product-observer-subagent", "roles": ["product-observer"]}

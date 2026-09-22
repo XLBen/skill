@@ -8,21 +8,29 @@
 
 ## Card Schema
 
+**New product goals use schema 3 with engineering-plan/2.** The planner authors
+the complete design and the source/outcomes of the goal. `prepare-plan <goal>
+<design-path>` derives `engineering_plan: {path, sha256}` and UI obligations from
+the design; the implementation model does not maintain them by hand. Any
+project-relative design path is valid. Read `engineering-delivery.md` for the
+task-packet loop and layered checks. Historical cards remain readable; new-project
+planning does not require legacy migration, and completed history is not rewritten.
+
 The card has matching `status` frontmatter and one authoritative `json goal`
 fence, using schema 1 from `tests/fixtures/goal-valid.md` and `check.py`:
 
 - Required top-level fields: `schema_version: 1`, `id: G-NAME`, `status`
   (`active|blocked|complete`), `source`, `goal`, `rigor` (`normal|guarded|audited`),
   `risk`, `first_slice`, `demo`, `constraints`, `deferred`, and nonempty `outcomes`.
-- **Schema 2**: new product-changing goals use `schema_version: 2`, which adds
+- **Schema 2/3**: `schema_version: 2` introduced (and 3 retains)
   the required `product_observation: {"required": true|false, "reason": "...",
   "basis": "..."}` field. New product goals default `required: true`.
   `required: false` is legal only for changes that cannot affect delivered
   behavior and needs a non-empty `reason` plus a concrete `basis` (how that
   was determined); the obligation cannot be dropped by deleting the audit
-  sidecar. Unfinished schema-1 product goals are explicitly migrated to
-  schema 2 before the next product change (a definition change: evidence
-  invalidation rules apply). Completed historical cards stay schema 1 and
+  sidecar. When an unfinished old goal is selected for the new workflow,
+  prepare-plan publishes its engineering design as schema 3 (a definition
+  change: evidence invalidation rules apply). Completed historical cards stay as-is and
   are never rewritten or claimed to have passed the observation gate.
 - `constraints` and `deferred` are string arrays. `risk` contains `factors` and
   a nonempty `rationale`. Factors: `none` alone, or `external-boundary`,
@@ -114,7 +122,7 @@ python .opencode/workflow/scripts/check.py product-audit-gate .opencode/mvp/<goa
 python .opencode/workflow/scripts/check.py finish-goal .opencode/mvp/<goal>.md
 ```
 
-Schema-2 goals with `product_observation.required: true` additionally
+Schema-2/3 goals with `product_observation.required: true` additionally
 require, before `finish-goal`: the product-audit sidecar
 (`.opencode/mvp/<goal>.product-audit.json`, schema `product-audit/2`; legacy
 `/1` stays readable), a candidate round under

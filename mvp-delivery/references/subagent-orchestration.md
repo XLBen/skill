@@ -13,6 +13,12 @@ owner）；本文件规定决策程序。
 
 ## Dispatch Trigger Matrix
 
+新主路径的粒度：plan 给全目标设计，worker 接 next-step 的一个实现任务包。
+组件/边界检查不是每次都进入独立验收；review 在集成里程碑/明确风险点进行，
+全产品观察在完整稳定候选进行。该粒度不豁免 Audited 契约中的逐步正式 V。
+不要为减少执行者猜测而把所有协议全部加载给它；由主控解析席位/权限，任务包
+带必要合同与当前检查。设计冲突返还规划者，worker 不自行换接口或技术路线。
+
 “实质任务”的判定条件（满足任一即实质）：改变产品行为、改变公开接口、
 修复缺陷、跨文件逻辑调整、或需要独立正确性判断。仅凭“主控自己做更快”、
 “改动只有几行”不构成跳过理由；行数少不等于机械小改。
@@ -50,7 +56,7 @@ step-executor。正常路由到主控（Normal 直接实现、Audited `direct`�
 | 多个可独立复现的故障 | 按问题域并行派 research/worker | 默认派发 |
 | Guarded/Audited 实质切片验收交接 | 派 fresh reviewer（见 SKILL.md 验收章节） | 能力可用即必须 |
 | Normal 验收（独立判断/盲区/用户要求） | 派 fresh reviewer | 按风险选择 |
-| 稳定候选版本的全产品观察（schema 2 且 `product_observation.required`） | 派 fresh product-observer（discover→compare 两阶段） | 必须且阻塞；无席位按 Failure Branches 阻塞并披露 |
+| 稳定候选版本的全产品观察（schema 2/3 且 `product_observation.required`） | 派 fresh product-observer（discover→compare 两阶段） | 必须且阻塞；无席位按 Failure Branches 阻塞并披露 |
 | 全目标 finish 检查 | 派 reviewer 复用 review 能力做 whole-goal 检查 | Guarded/Audited 能力可用即必须 |
 | Audited 测试冻结/评审 | test-author / reviewer 独立席位 | 必须且阻塞 |
 | Audited 步骤实现席位 | 按 Audited Execution Seat Selection 决策表 | 按决策表 |

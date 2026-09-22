@@ -51,7 +51,9 @@ and the whole-goal verdict as two separately scoped results; neither substitutes
 for the other and each feeds its own gate. Run `finish-goal` only after this
 check, all applicable Audited gates and actual owner acceptance.
 
-Schema-2 goals with `product_observation.required: true` must additionally
+Schema-3 goals must pass `check.py cycle-gate <goal>` (see `engineering-delivery.md`)
+as well as final outcome verification. Report actual boundaries/controls exercised,
+not only test counts. Schema-2/3 goals with `product_observation.required: true` must additionally
 pass `check.py product-audit-gate <goal>.md --trace .opencode/mvp/trace.json`
 before `finish-goal`; `--trace` is mandatory for required observation (a
 missing trace or non-native provenance fails the gate), and the engine

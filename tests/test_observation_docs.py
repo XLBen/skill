@@ -26,11 +26,16 @@ DOCS = (
     "mvp-delivery/references/subagent-templates.md",
     "mvp-delivery/references/subagent-orchestration.md",
     "mvp-delivery/SKILL.md",
+    "mvp-delivery/references/engineering-delivery.md",
+    "writing-plans/SKILL.md",
+    "writing-plans/references/design-template.md",
 )
 
 LEGACY_SCHEMAS = ("product-observation/1", "product-observation-review/1")
 CURRENT_SCHEMAS = ("product-observation/2", "product-observation-review/2")
 REQUIRED_CHECK_COMMANDS = (
+    "prepare-plan",
+    "next-step",
     "product-audit-gate",
     "finish-goal",
     "check-current",

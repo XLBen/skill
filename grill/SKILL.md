@@ -215,6 +215,10 @@ run the brief validator, take the printed hash and freeze the brief.
 
 ## Handoff
 
+grill 的定稿是“要什么”的权威输入。交给 plan 后，由 writing-plans 综合成完整
+软件设计（组件/共享接口/状态流/全部实施步骤/分层验证），不让 plan 继续按访谈
+题目逐条回应。实现模型应消费这个设计的当前任务，而不再次猜需求和架构。
+
 After the brief passes, tell the user to run `/plan <actual brief version
 path>` — the active version file, e.g. `docs/brief.md` or the next-versioned
 `docs/brief-vN.md` created under Brief Versioning, never an already-consumed

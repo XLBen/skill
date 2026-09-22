@@ -63,6 +63,7 @@ class InstallTests(unittest.TestCase):
             "observation_backend.py",
             "visibility_config.py",
             "runtime_state_policy.py",
+            "engineering_delivery.py",
         )
         self.sources = {
             ".opencode/commands/build.md": "command\n",

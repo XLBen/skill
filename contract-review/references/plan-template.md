@@ -94,8 +94,11 @@ recorded one of the following in the contract and review log:
 - a narrowly justified `not-needed` decision for a local, reversible direct
   change with no material external assumption.
 
-The generated PLAN must represent the first thin end-to-end slice, not every
-future story. Before confirmation, show the owner the declared and measured
+The generated PLAN represents the current thin end-to-end slice. It is an
+execution projection of the whole-goal engineering design at its declared path
+design, not a substitute for it. The design covers every required outcome,
+components/interfaces, flow diagrams and the dependent delivery route; only
+execution is sliced. Before confirmation, show the owner the declared and measured
 slice budget: active P/F/I/V counts, PLAN segment count, contract non-blank
 line count, and estimated product code increment. A budget exception is a
 scope/value decision, not a silent compiler adjustment.

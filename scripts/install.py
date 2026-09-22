@@ -245,6 +245,7 @@ def main():
             "observation_backend.py",
             "visibility_config.py",
             "runtime_state_policy.py",
+            "engineering_delivery.py",
         ):
             source_path = repo / "scripts" / script_name
             if not source_path.is_file():

@@ -33,6 +33,13 @@ python .opencode/workflow/scripts/workflow_packets.py handoff <goal.md> --dispat
 
 ## Dispatch Template
 
+对 engineering-plan/2 的实现任务，主控先运行 `check.py next-step <goal>`，将返回
+的 implementation-packet/1 作为 inputs 正文。write_scope = step.files，dependencies
+来自 completed_dependencies 和精确合同，verification 来自本步 checks；journey 若需
+共享 UI 则留给主控执行。不要再把整份设计/全部 skill/历史任务粘贴进去。worker
+不重新规划，不手填 goal/hash/UI 标记，设计冲突返回 waiting_controller + replan 证据。
+以下外壳继续用于权限/身份/派发记录；不要重复抄写任务包已经给出的实现细节。
+
 ```text
 DISPATCH
 task_id: <T-NN, 对应 dispatch record>

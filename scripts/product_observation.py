@@ -392,9 +392,9 @@ def observation_spec_problems(goal: dict[str, Any]) -> list[str]:
 
     problems: list[str] = []
     spec = goal.get("product_observation")
-    if goal.get("schema_version") == 2 and spec is None:
+    if goal.get("schema_version") in (2, 3) and spec is None:
         problems.append(
-            "goal.product_observation is required for schema_version 2 cards"
+            "goal.product_observation is required for schema_version 2 or 3 cards"
         )
         return problems
     if spec is None:
@@ -588,7 +588,7 @@ def collect_observation_problems(
     half passed. Schema-1 goals and required=false specs short-circuit.
     """
 
-    if not isinstance(goal, dict) or goal.get("schema_version") != 2:
+    if not isinstance(goal, dict) or goal.get("schema_version") not in (2, 3):
         return []
     spec = goal.get("product_observation")
     if not isinstance(spec, dict) or spec.get("required") is not True:

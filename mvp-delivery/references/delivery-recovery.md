@@ -1,11 +1,11 @@
 # Delivery Recovery Details
 
 > When to read: before `/resume`, before invalidating evidence after product
-> or definition changes, and before migrating unfinished schema-1 goals.
+> or definition changes. New projects enter directly through engineering-plan/2.
 
 ## Product Observation Recovery
 
-Schema-2 observation state is recovered from the product-audit sidecar and
+Schema-2/3 observation state is recovered from the product-audit sidecar and
 the current candidate directory, never guessed from chat history:
 
 ```text
@@ -24,9 +24,10 @@ goal card -> dispatch record -> product-audit sidecar
 - A missing observation backend stays `blocked` with the prerequisite
   named; it never becomes `not-applicable` and never converts into a
   controller-authored summary.
-- An unfinished schema-1 product goal is migrated to schema 2 (adding
-  `product_observation`) before its next product change; the definition
-  change resets outcome evidence per the standard invalidation rules.
+- If an unfinished old product goal is selected for the new execution workflow,
+  publish a complete engineering-plan/2 using prepare-plan; it adds the binding
+  and derived UI decision and resets outdated evidence. Do not migrate unrelated
+  history as part of a new-project task.
 
 > When to read: `/resume`, after an Audited slice finishes, when a completed
 > package needs a defect repair, or when scope/deferred questions arise.
@@ -48,9 +49,10 @@ goal card -> dispatch record -> product-audit sidecar
 询问用户，不按 mtime 或新旧猜测。从第一个 pending/blocked 结果继续；目标或
 基线不明确时先问。
 
-恢复时先读 `subagent-orchestration.md` 的最小恢复读取集，再按缺口展开；
-不得默认读取全部 dispatch archive 或全部历史 findings。重新派发前先核对
-dispatch record 与实际产物，规则见该文件。
+新工程恢复先读 `next-step` 当前任务包；派发子代理时再读
+`subagent-orchestration.md` 的最小恢复集。不得默认读取全部 dispatch archive、
+所有计划或历史 findings。replan 动作带受影响任务/合同/实际反馈回交规划者。
+重新派发前核对 dispatch record 与实际产物。
 
 ## Next Slice After An Audited Finish
 
@@ -96,9 +98,9 @@ pending/blocked，阻止 complete。可选愿望不应假装成 BS 后静默删�
 必须重新明确确认，冻结 brief/契约仍按 CR 或新包规则处理。MVP 是排序机制，
 不是永久的 scope cut。
 
-需求已明确时不提问，直接宣布首片并开始；不明确时只问使最终成功变得可观察
-所必需的问题，一次一个；一旦可以选择并验证首片就执行，不继续做完整需求
-访谈。若用户明确要求深度澄清，再加载 `grill`。
+需求已明确时不重复访谈；无工程计划先完成 writing-plans 的整体设计与全部任务，
+已有计划则按 next-step 继续。局部实现错直接修，设计假设冲突回规划者，产品
+范围不清才问用户/进入 grill。能做第一片不代表可以省略后续工程设计。
 
 ## Observation Resume 与 Lease
 

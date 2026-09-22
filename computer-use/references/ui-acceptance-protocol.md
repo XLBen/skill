@@ -13,10 +13,13 @@ existence of a sidecar file:
 - `goal.ui.required: true` means the goal's outcomes include interface
   journeys. The sidecar must declare executed scenarios, and deleting it or
   marking `applicability: none` blocks completion.
-- `goal.ui.required: false` (or no `goal.ui` field) means no interface journey
+- `goal.ui.required: false` (or no `goal.ui` field on legacy schema 1/2) means no interface journey
   is claimed. No sidecar is required; if one exists anyway, it must still pass
   the gate. `goal.ui.outcome_ids`, when present, lists the outcomes that need
   required-scenario coverage.
+- Schema 3 requires an explicit UI decision and reason; browser/desktop boundaries
+  in the engineering design require `required: true` and complete outcome mapping.
+  Absence is no longer a valid opt-out for new product goals.
 - `/plan` writes the goal-level decision and designs scenarios; only
   `/build`, `/fix` and `/resume` execute them.
 

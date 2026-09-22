@@ -21,6 +21,18 @@ not behavior-red; a mock must not impersonate the real boundary.
 
 ## Testing And Failure Budget
 
+For new plans, `engineering-delivery.md` is the required execution order:
+next-step (bounded task packet) → begin-cycle (only this step's prerequisites)
+→ one step's implementation → verify-cycle (component / boundary checks, or
+assigned milestone journeys; negative controls where justified) → inspect actual
+output → observe-cycle. A component does not need an unbuilt complete UI to pass.
+Real-boundary checks precede their dependent integration milestones. A design
+conflict returns `replan` with evidence instead of letting build redesign interfaces.
+Do not batch future new tests and implementation before feedback from this step.
+Existing regression suites may still run as a batch. A fake runner proves local
+logic only; never elevate it to real boundary coverage. Failure to find a backend
+blocks the journey rather than changing its target to a fixture.
+
 - Write one acceptance test that fails because the behavior is missing when the
   behavior is clear and automatable; tiny fixes may reuse existing tests. Do not
   force a separate manifest just for role ceremony.
@@ -81,7 +93,7 @@ rendering. Missing tools are reported as unverified.
 
 ## Whole-Product Observation Dispatch
 
-Schema-2 goals with `product_observation.required: true` dispatch the
+Schema-2/3 goals with `product_observation.required: true` dispatch the
 product-observer once a stable candidate exists (after implementation, engine
 verification and planned UI acceptance, before review-verdict/goal-finish):
 
@@ -146,8 +158,9 @@ mandatory; mechanical batch work is exempt; do not re-litigate cost. Loading a
 skill is not a new identity; never fabricate session IDs, author separation or
 audit evidence. Fallbacks and downgrades follow the Failure Branches.
 
-Normal/Guarded create no `contract.md`, `PLAN.md`, ledger, review log,
-observation report or ceremony ratio by default; the lightweight card is not a
+Normal/Guarded create no `contract.md`, compiled `PLAN.md`, ledger, review log,
+or ceremony ratio by default; schema-3 engineering designs/cycles and required
+product-observation records are mandatory. The lightweight card is not a
 process log. Follow project rules when they already require such artifacts.
 Audited slices borrow the strict gates without giving up this skill's
 continuous delivery control.

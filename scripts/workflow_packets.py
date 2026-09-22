@@ -642,8 +642,8 @@ def build_observer_packet(
     if not goal_path.is_file():
         raise ValueError(f"goal artifact not found: {goal_path}")
     meta, goal = _load_goal(goal_path)
-    if goal.get("schema_version") != 2:
-        raise ValueError("observer packets require a schema_version 2 goal card")
+    if goal.get("schema_version") not in (2, 3):
+        raise ValueError("observer packets require a schema_version 2 or 3 goal card")
     spec = goal.get("product_observation") or {}
     if spec.get("required") is not True:
         raise ValueError("goal.product_observation.required must be true")

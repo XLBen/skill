@@ -1,82 +1,150 @@
 ---
 name: writing-plans
-description: Use when compiling a PLAN, writing a lightweight goal card's first-slice brief, or drafting any step/task dispatch that another session or seat will execute. Turns plans from structural checklists into execution-grade prompts: every step carries context, exact paths, an implementation sketch, boundary conditions, verification, and rollback, so a context-free executor succeeds without guessing.
+description: Use for /plan after a confirmed grill brief, or before handing a multi-step implementation to another model. Acts as the engineering designer: resolves technical decisions, defines shared interfaces, designs the complete system, and writes every dependency-ordered task with implementation guidance and layered verification so build can execute without redesigning.
 license: MIT
 metadata:
   language: "zh-CN"
-  called-by: "contract-review, mvp-delivery, construction"
-  public-command: "none"
+  called-by: "mvp-delivery, contract-review, construction"
+  public-command: "plan"
 ---
 
-# Writing Plans (计划即 Prompt)
+# Plan：把需求设计成能施工的软件
 
-一份能被无上下文执行者正确完成的计划，必须写得像给一位热情但没有判断力、
-没有项目记忆、讨厌测试的 junior 工程师的 prompt。计划不是给人看的提纲，而是
-执行席位的直接输入。本 skill 适配自
-[obra/superpowers](https://github.com/obra/superpowers) 的 writing-plans 方法
-（见 `UPSTREAM.md`），嵌入本仓库的 PLAN 编译、目标卡与派发模板。
+你承担工程设计责任。输入是 grill 已确认的需求，输出是**完整的软件工程计划**。
+目标：即使 build 使用较弱模型，也不用重新选技术、猜接口、补架构或发明验收标准。
+判断计划质量的问题是：**执行者还需要自行做哪些跨模块决定？**不是字数或字段数。
 
-## When To Use
+## 职责分界
 
-- contract-review 编译/确认 Audited PLAN 的每一步规格；
-- mvp-delivery `/plan` 写轻量目标卡的首片执行 brief；
-- construction/step-executor 的单步派发正文；
-- task-worker 的工作包交接。
+| grill | plan（你） | build |
+|---|---|---|
+| 明确做什么、为什么、什么算成功 | 决定如何组成、如何连接、按什么顺序实现、如何验证 | 按当前任务实现、运行、读结果；反馈证据 |
 
-## Step Brief 格式
+- grill 的条目是需求来源，不能照抄为章节逐条回应；要重新综合成产品流程与系统设计。
+- 所有必需功能在本次计划里有去向；**所有实施步骤同等具体**，不只细化第一片。
+- 写清实现算法与关键代码骨架，不提前复制整套生产代码。局部变量/普通控制流交给
+  build；跨组件接口、状态归属、依赖版本、失败策略由你确定。
+- 计划不改变已确认需求。事实推翻设计时修订受影响设计；产品取舍才问用户。
+- 有完整计划后才交给 build。仅通过结构检查不得称“设计已验证可行”。
 
-每个步骤/任务的派发正文必须包含以下字段。缺任何一项，执行者就会自行假设——
-而假设就是边际问题的来源：
+## 工作顺序（必须产出新的工程判断）
+
+### 1. 重建完整产品模型
+
+读用户指定的实际 brief 版本，验证已确认。读仓库入口/依赖/相关代码和运行环境。
+按**用户工作流**整理：前置状态 → 输入/动作 → 状态变化 → 输出取得 → 失败恢复。
+将每条必需成功结果对应到工作流；约束附到受影响设计，不按访谈题目顺序排计划。
+明确哪些东西由本软件实现，哪些由已有工具/外部目标提供。
+
+### 2. 消除最贵的技术不确定性
+
+先列会让整条路线作废的假设，再查一手文档/已安装 API/代码：
+库能不能完成目标操作、实际接口/版本是什么、权限/平台约束是什么、怎样观测成功。
+复用成熟能力（例如 Web 的 Playwright、适用游戏的 Airtest），不要把一段 skill
+指导等同于已安装驱动；不要为了“方案完整”编造 API。
+
+可做只读调查和无产品写入的环境探查；不在 plan 阶段实施产品或操作真实账号。
+需要操作目标才能查明的能力，安排**靠前的有预算验证任务**，写明失败如何返还设计。
+后续步骤给出完整的条件性设计与接口，依赖该验证成功；不能让它们提前施工。
+互斥产品选择无法由需求裁决才问用户；普通工程选型由你给结论、依据和取舍。
+
+### 3. 先设计系统，再拆文件与任务
+
+依次确定：
+1. 组件职责与状态所有权：谁创建/修改/清理，哪些不变量跨步骤成立。
+2. 数据模型与共享接口：函数签名、参数/返回类型、错误与异步语义、坐标/单位/编码。
+   每个跨组件接口只有一个权威定义；后续任务按接口 ID 消费，不能各写一套。
+3. 组件连接：从用户入口追到实际外部边界，再追到结果回读；说明谁调用谁。
+4. 目录/文件职责：每个文件有明确归属；已有仓库遵循现有结构。
+5. 数据流/时序/状态图：至少给能解释实际调用的逻辑图和步骤依赖图；有复杂
+   异步/恢复时补状态图。图中的节点、接口和任务要相互对应。
+
+### 4. 把全目标拆成可执行任务
+
+每个任务是一个可拒绝/可验证的交付单元，不是“写一个函数”或“完成后端”这类极端。
+脚手架与安装合并到需要它的任务，不创建没有功能价值的十几层基础设施。
+
+先验证高风险外部接触能力，再扩张上层功能。组件 → 实际适配器 → 集成里程碑 →
+下一条功能链；不是全部组件写完才首次运行，也不是每个组件都必须跑完整产品。
+所有任务包含下面的施工卡。独立任务仍有确定的默认顺序，build 不重新排路线。
 
 ```text
-<step-id> <一句话目标>
-
-Context: 为什么做这一步；它服务于哪个结果/验收项；上下游步骤如何衔接。
-Files:   精确的文件路径列表（新增/修改/删除分开标注）；不许出现“相关文件”。
-Change:  实现草稿——关键函数签名、数据结构、要复用的既有工具；不确定处
-         写“调查后定”，并列出调查对象，而不是留空。
-Bounds:  边界条件清单（见下）。
-Verify:  可执行验证命令 + 预期输出/断言；先于实现写好。
-Rollback: 该步骤不成立时如何安全退回（删除的文件、可逆的迁移、开关）。
+S-NN 一句话成果
+Context / 需求映射：本步解决哪条需求，明确产出及不做什么。
+Depends：前置任务，以及本步需要它们已经提供的能力。
+Read：最少必读源码/文档（精确路径）；无现有文件明确 []。
+Files：新增/修改/测试文件，精确路径及职责。
+Consumes / Produces：权威接口 ID；输入示例 → 输出示例/错误。
+Implementation：有顺序的实现动作，给算法/状态转换与实际库调用依据。
+Change：本步关键代码块/伪代码，引用统一类型；不能写“实现相关逻辑”。
+Bounds：本步相关的空/错误/重复/中断/清理行为；避免每步复制整份清单。
+Verify：本步验证层级、确切命令/操作、断言、预期结果；需要时负向对照。
+Failure routes：局部实现错怎样修；环境缺什么；什么证据意味着需退回 plan。
+Rollback：本步错误时如何恢复。
 ```
 
-## 边界条件清单（Bounds）
+接口定义、示例、命令需逐步对齐。第二步用到的类/函数必须在前置步骤产出或属于
+已核实的现有依赖。build 不能为让测试绿而自行修改这个约定。
 
-编写每一步时逐项过一遍，适用的写入步骤，不适用的显式标注不适用：
+### 5. 设计分层验证与反馈点
 
-- 空输入 / 空结果（是否 semantic zero，还是失败）
-- 极端规模（大文件、大列表、长字符串）
-- 并发 / 重入 / 幂等（重复执行两次会怎样）
-- 编码与国际化（非 ASCII 路径与内容、时区、locale）
-- 失败中途（写到一半崩溃后，状态是否可恢复）
-- 清理（测试数据、临时进程、生成物谁负责删除）
-- 既有行为兼容（哪些旧路径不能被破坏）
+| 层级 | 什么时候 | 真正证明什么 |
+|---|---|---|
+| component | 组件就绪 | 组件的计算/数据/状态行为；允许局部替身，但不声称外部能力 |
+| boundary | 适配器就绪、上层扩张前 | 实际接触目标文件/设备/API/窗口，并回读结果；不以 fake 替代 |
+| journey | 阶段接通后 | 经交付入口完成用户动作并观察到结果；UI 还需对应实际后端 |
+| final | 全功能稳定后 | 最终版本的全部承诺、受影响回归与完整产品观察 |
 
-## 计划粒度
+每步先跑少量最相关测试再观察，不预写整个远期测试库。已有回归可批跑。
+负向对照放在关键边界/关键断言：切断真实输入或使用非法操作，观察**同一产品路径**
+的失败。普通纯函数不强制配一个非零退出码脚本。错误捕获后输出结构化失败、但
+测试程序退出 0 也合法：依据明确断言，不强迫产品改变错误协议。
+有 UI 的项目由设计者从用户工作流推导验证，不能把“提供 API”误当没有 UI 义务。
 
-- 每个步骤是一个可独立验证的工作单元；验证命令失败时能定位到唯一步骤。
-- 不为远期故事铺路；只计划当前切片（与本仓库“最薄切片”原则一致）。
-- 步骤顺序按依赖排列；无依赖的步骤标注可并行（供 worktree 派发）。
-- 计划里的代码草稿允许在执行中被更好实现替换，但接口、边界行为和验证
-  语义不可单方面变更——那要走 CR。
+### 6. 设计走查（发布前的主要质量关）
 
-## 反模式
+拿一个正常输入和一个重要失败输入，**逐步模拟执行者照此计划施工**：
+- 输入穿过哪些文件、接口、状态、真实边界，最终在哪里取得结果？是否有断开的箭头？
+- 任意后续任务单独交给无聊天历史的执行者，给全局约定与前置产物后能否开工？
+- 是否有未定义符号、接口重名不同义、缺初始化/配置/测试数据、未核实 API？
+- 每条需求能定位到实现任务及相应验证，而不是只有一个 outcome 标签？
+- 基础组件的检查是否不依赖尚未开发的完整 UI？危险假设是否在大量实现前验证？
+- 执行者还需要作什么跨模块决定？逐项消除；不能用“你决定”推给 build。
 
-- “实现用户模块”（无路径、无边界、无验证）；
-- “后续优化”（没有验证命令的步骤）；
-- 把整份契约原文粘贴进派发正文（执行者要的是本步的 Context 摘录，不是全部）；
-- 隐式假设环境（未声明运行前提、依赖版本、工作目录）。
+在计划中记录走查发现和已解决设计缺口；剩余项标为具体 blocker/条件。不要伪装成
+独立评审。高风险/独立判断按既有 reviewer 路由处理，普通设计不为每一段开评审会话。
 
-## 与既有工件的关系
+## 交付与交接
 
-本 skill 不新增工件类型：字段写进 PLAN 步骤规格、目标卡首片 brief 或派发
-模板的既有结构。引擎校验（structure hash、verify-step）不变；它提高的是
-prompt 质量，不替代任何 gate。
+完整文档的组织见 `references/design-template.md`；可执行例子见
+`references/engineering-plan-example.md`。默认 `docs/plan.md`，用户指定任意项目内
+路径都可；路径和 hash 是工具内部记账，不是计划质量目标。
 
-## References
+工程设计采用 `engineering-plan/2` 的执行索引，供工具提取任务包。**索引就是任务
+规格的权威内容**，正文负责解释架构、图、决策与走查；不要手写两份任务规格。
+goal 的原始需求/结果仍是需求权威，任务规格不能缩减它。
 
-| Need | Read |
-|---|---|
-| Audited PLAN 结构与确认 | `../contract-review/references/plan-template.md` |
-| 单步派发与验证 | `../construction/references/step-protocol.md` |
-| 上游来源与适配范围 | `UPSTREAM.md` |
+发布时按 `../mvp-delivery/references/goal-definition.md` 建立目标卡，然后运行：
+```text
+python .opencode/workflow/scripts/check.py prepare-plan <goal-card> <design-path>
+python .opencode/workflow/scripts/check.py engineering-plan <goal-card>
+python .opencode/workflow/scripts/check.py next-step <goal-card>
+```
+`prepare-plan` 自动计算绑定、推导 UI 验收义务、使过期证据失效；`next-step` 预览
+build 实际拿到的包。prepare-plan 同时生成 `<design-stem>.readable.md`：保留正文和
+逻辑图，将索引自动展开为逐步标题、实现清单、独立代码块和分层验证，用户不必阅读
+转义 JSON。这是工具生成视图，不是第二份手写规格；修订源设计后重新发布即可。
+检查首步与至少一个后续任务是否自足，不能只验证 JSON 可读。
+不在 plan 中跑产品验证，不把生成的预期写成实测结果。
+
+给用户：完整可读设计链接（prepare-plan 返回的 readable_plan）、核心架构、实施路线、已核实/待探测边界和设计走查结论，
+然后单一 `/build` 交接。`i-have-adhd` 只压缩聊天摘要，完整计划不删减。
+Audited 施工另用编译 PLAN 投影当前实施范围；不把审计 JSON 当作用户的工程设计。
+
+## 禁止的交付
+
+- 按 grill 问题顺序写“理解了/会实现”，没有综合设计。
+- 只给首步细节，后续写“依此类推/按需补齐/适当测试”。
+- 先铺全部测试和框架，最后才验证唯一关键外部能力。
+- 给每个 worker 全部技能/历史/完整大计划，让它再次拆解。
+- 把“结构 PASS”“生成了很多文件”报告为“弱模型交付稳定”。

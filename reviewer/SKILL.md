@@ -190,6 +190,29 @@ the other.
   not-applicable, or remain an untested limitation. An untested boundary is a
   finding (severity by risk), not a silent pass; do not invent boundaries the
   scope never claimed.
+- At planning handoff, judge the complete engineering design: the user's normal
+  and failure inputs traverse connected components, shared signatures have one
+  definition, every later task is executable rather than a heading, and technical
+  choices are backed by actual dependency/API evidence. Identify decisions the
+  implementation model would still have to invent. Structural completeness is
+  insufficient; report ambiguous steps and disconnected data/control paths.
+- For schema-3 goals, also read the bound engineering design
+  (at its declared project-relative path) and the cycle records under
+  `.opencode/mvp/cycles/<goal>/`, per
+  `../mvp-delivery/references/engineering-delivery.md`. Structural PASS from
+  `check.py engineering-plan` / `cycle-gate` is not your verdict. Judge: does
+  component checks can run without an unbuilt full application, real-boundary
+  checks precede their integration milestones, and design conflicts return to
+  planning instead of silently changing interfaces. Does each journey actually enter through the **delivered** product entry (not
+  through the acceptance tool operating the target directly); does the
+  chosen negative control disconnect the real boundary rather than run a different
+  program that merely prints a failure; do observations describe the actual
+  captured stdout/exit codes rather than restate the plan; were tests and
+  implementation for later steps written before this step's real feedback
+  (a finding, not a style note); are unit/mock passes reported separately
+  from real-boundary passes. A large count of green unit tests with a
+  disconnected or fake driver is a `high` finding against usability claims.
+
 - Never make an owner choice or lower a severity to help the contractor.
 
 ## PUA Acceptance (only when dispatched)

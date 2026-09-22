@@ -1,5 +1,33 @@
 # MVP delivery skills
 
+## Complete design, bounded execution, layered feedback
+
+New product goals bind a standalone design (default `docs/plan.md`, user paths allowed)
+with component responsibilities/interfaces, data/state-flow diagrams,
+dependency-ordered steps, critical code sketches, and real public-entry journeys.
+Whole-system design precedes thin-slice implementation; the plan is not a
+reformatting of the requirements interview. `check.py engineering-plan <goal>`
+validates bindings, references, dependencies and outcome/journey coverage.
+
+The planner fully specifies **every task**, including shared contracts, ordered
+implementation guidance, code sketches and failure routes. `prepare-plan` derives
+hash/UI bookkeeping; `next-step` gives build only its current task and needed
+contracts. Each task uses `begin-cycle` (only its prerequisites), `verify-cycle`
+(component checks, real-boundary checks, or integration milestone journeys) and
+`observe-cycle` (captured actual output plus interpretation). Negative controls
+are selected for meaningful failures, not mandatory on every component. Design
+conflicts return `replan` rather than forcing build to redesign. An unobserved or failed attempt
+cannot advance; `cycle-gate` is enforced at finish/current-state checks. This
+does not replace UI/native-trace or independent product-observation acceptance,
+and a structural gate cannot certify semantic test quality. Existing regression
+suites may still run in batches. The primary workflow is for new projects, not
+legacy migrations. Complete product observation runs at the final candidate,
+not after every component. Model quality/cost claims require real model trials;
+engine tests alone cannot establish DeepSeek/GLM delivery stability.
+
+See [the protocol](mvp-delivery/references/engineering-delivery.md) and
+[the worked engineering plan](writing-plans/references/engineering-plan-example.md).
+
 English · [简体中文](README.md)
 
 This OpenCode workflow has a single goal: turn ideas into **really-verified,
@@ -14,8 +42,8 @@ when it stops to ask you.
 idea
  ↓  Can I state it clearly? — no → /grill (interrogate)
  ↓  twelve-dimension coverage closed + user confirmation → docs/brief.md
- ↓  What is the thinnest real slice? How risky? → /plan
- ↓  first slice: assumption list → implement → verify for real
+ ↓  Whole-system design + fully specified tasks + design walkthrough → /plan
+ ↓  Current task packet → implement → component / boundary / milestone check → observe
  ↓  compare against the original outcome list: gaps left? — yes → next slice (loop)
  ↓                                                     — no  → acceptance: where is the evidence?
  ↓  accepted → before delivery, use the whole product black-box (product-observer; model chosen by /visibility)
@@ -65,13 +93,15 @@ Its chain of thought:
 
 Output: a confirmed, frozen `docs/brief.md`. Next: `/plan docs/brief.md`.
 
-## Step 2: plan — "What is the thinnest real slice?"
+## Step 2: plan — "How does the whole system fit together?"
 
 `/plan`'s chain of thought:
 
 1. **Read the repository before asking.** Code, config, error output and
    primary docs answer most questions.
-2. **Pick the thinnest runnable slice**: one concrete input crossing the
+2. **Design the whole goal, then pick the thinnest runnable slice**: components,
+   interfaces, flow/dependency diagrams, code sketches and real-boundary journeys
+   live in `docs/plan.md` or the user's chosen path. One concrete input crossing the
    necessary layers to a real output or persistent state; demonstrable
    with one command / browser action / API call; no mock success standing
    in for a declared real boundary.
@@ -81,12 +111,13 @@ Output: a confirmed, frozen `docs/brief.md`. Next: `/plan docs/brief.md`.
      acceptance tests, one independent review;
    - Audited: money, privacy, security, migration, irreversibility →
      contract, PLAN, independent test author, reconcile gate.
-4. The first-slice brief is written per **writing-plans** as an executable
-   prompt: Context (why), Files (exact paths), Change (implementation
-   sketch), **Bounds (boundary conditions: empty input / extreme scale /
-   concurrency-idempotency / encoding / mid-failure / cleanup /
-   compatibility)**, Verify (command + assertion), Rollback.
-5. Interface journeys are designed, never executed, in `/plan`.
+4. Every task, including later tasks, specifies purpose, dependencies, minimal
+   read files, write scope, consumed/produced contracts, ordered implementation,
+   critical code, bounds, layered checks, failure routes and rollback.
+5. Walk through normal/failure inputs and check inter-task consistency before
+   publication. `prepare-plan` derives bindings and UI obligations. `next-step`
+   previews the exact bounded package build receives. Product UI actions remain
+   in build; read-only technical investigation belongs in planning.
 
 ## Step 3: build — "Implement one slice, verify one slice for real"
 
@@ -95,20 +126,20 @@ Output: a confirmed, frozen `docs/brief.md`. Next: `/plan docs/brief.md`.
 1. **Verify minimal runtime prerequisites**: working directory, OS/shell,
    runtime, dependency lockfiles, config variable names, services, startup.
    A missing dependency is not behavior-red; mocks cannot stand in.
-2. **Assumption list**: before the first slice, surface every reversible
-   assumption the agent intends to make for one quick owner pass — not
-   item-by-item blocking; the list ships verbatim in the delivery report.
-3. Guarded/Audited substantive tasks dispatch worker subagents; Normal may
-   stay in-session; dispatch bodies follow the step-brief format above.
+2. **Execute the plan**: consume the next-step packet, not the entire history.
+   Do not redesign shared interfaces. Return a contradicted design assumption
+   to the planner with actual evidence and the affected contract/task.
+3. Guarded substantive tasks use workers; Normal may stay in-session; Audited
+   resolves its strict seat. Workers receive one bounded task package.
 4. **Failure thinking**: read the error and fix the root cause first;
    failure signatures (V + command + assertion + stable error summary)
    accumulate across seats/resumes — three same-signature failures with no
    new evidence is a no-progress blocker escalated to the user, and the
    second same-signature failure already demands a genuinely different
    method.
-5. **After each slice, look back at the original list**: enumerate the gaps
-   still blocking the user's original goal, pick the highest-value or
-   riskiest next thin slice, re-grade risk before choosing execution.
+5. **At integration milestones, look back at the original list**: enumerate
+   gaps still blocking the goal and continue the planned dependency route,
+   re-grading actual risk before choosing execution.
    MVP is a delivery order, not a permanent scope cut.
 6. **Edge thinking**: every step carries Bounds; the reviewer treats
    "were boundary conditions considered/tested" as its own dimension; an

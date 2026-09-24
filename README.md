@@ -40,12 +40,42 @@ delivery-log），不依赖聊天记录。下面逐段展开这条链。
 | plan | 系统怎么组成、任务怎么排、每步怎么验证 | 不写产品代码 |
 | build | 当前任务实现、实际输出观察、反馈分类 | 不重新设计接口/架构 |
 
+## 新增：有依据、有条件的规划
+
+新计划采用 `engineering-plan/3`（目标卡仍为 schema 3）。完整覆盖不等于提前冻结
+所有未知实现：关键未实测主张须关联条件，实际探测/用户可接受性/独立设计审查
+分别解除对应条件，未满足时仅阻塞相关任务及后继。
+
+- **grill**：说明交互方式、等待/校准/设备占用及失败损失，登记禁令保护对象。
+  对高影响陌生路线优先演示或具体场景说明；文字同意有效，但不能扩大确认范围。
+- **对话**：owner 以反问回复时先回答事实、再问真正待决点；question 选项简洁单行。
+  新 brief 用 topic key + supersedes 检查同一决策的跨轮冲突；最终摘要由
+  `brief-confirmation` 从当前 brief 重生成，semantic 编辑会使确认 snapshot 失效。
+  人工确认仍需真实交互；snapshot/hash 不认证说话人。若需把决定记录绑定到会话原文，
+  `runtime_trace export --include-conversation-text` 是显式隐私选项，只导出项目匹配会话，
+  文件应留本地并加入 gitignore；默认 trace 不含聊天正文。
+
+运行 `python .opencode/workflow/scripts/check.py brief-confirmation docs/brief.md`
+预览当前逐项范围；相同 decision_key 的历史选择需通过 `supersedes` 明确替代，
+跨 topic 的语义矛盾仍需人工/审查走查。确认 snapshot 绑定的是内容，不是答复者身份。
+- **plan**：证据必须支持当前主张，备用方案未验证不算风险关闭；探针脚本不能由
+  需要它的同一步才创建。Guarded/Audited 的正式实施受独立设计 review 条件约束。
+- **走查**：尝试找出自举循环、暂停生产者却等结果、重复副作用、混用参考帧、
+  回退缩水与不成立的长期预算，而不是再讲一遍正常路径。
+- **中途异议**：`request-decision` 持久暂停原尝试；`resolve-decision` 引用实际回复。
+  继续不等于测过，改方案返回 plan；回复版本保留。“算了”须澄清，不能自动批准。
+
+详见 [工程反例走查](writing-plans/references/engineering-challenges.md) 与
+[待决条件/决定协议](mvp-delivery/references/planning-readiness.md)。引用存在与 hash
+匹配不认证用户/评审身份；仍需真实宿主对话、派发和原生证据。模型盲测反例集见
+[skill 说明](README.en.md)，不把引擎结构检查当模型能力证明。弱模型实际效果尚未评估。
+
 ## 第一步：grill —— “我说得清吗？”
 
 `/grill <idea>` 只做一件事：把模糊想法问成双方都能复述一致的需求简报。
 
 1. **画决策树，只问 frontier**。前置问题已确定的才问；答案解锁后续问题。
-2. **每轮 5–10 题，按维度分组**；先吸收答案、分析变化，再推导下一轮。每一轮
+2. **每轮通常 3–5 个低风险问题；重大分叉一次问一个**，先吸收答案、分析变化，再推导下一轮。每一轮
    都必须是**真实交互**：优先用 `question` 工具发出，否则以问题结束回合等待
    回复；禁止同一回合自问自答。
 3. **十二维覆盖表收口**：用户与场景、公开入口、运行环境、代表性输入、输出与
@@ -55,6 +85,10 @@ delivery-log），不依赖聊天记录。下面逐段展开这条链。
    research skill 分级，带引用和时效。
 5. **定稿三问**：这份 summary 是用户说的还是我替用户补的？每个维度都关闭了
    吗？有没有偷偷缩小范围、把可选愿望标成必需？
+
+反问式回答是新信息，不是替前一个选项作答：先查证回答，再重问真正待决点。
+提问格式也影响答案质量：question 工具每题一个决定，选项短标签单行、说明短句；
+技术细节放前置 context，不塞多行选项。若客户端渲染乱，退回一条纯文本问题。
 
 产出：经确认冻结的 `docs/brief.md`。下一步 `/plan docs/brief.md`。
 
@@ -143,8 +177,8 @@ python .opencode/workflow/scripts/check.py observe-cycle <goal> --decision <d> -
 执行协议：[任务包与分层反馈](mvp-delivery/references/engineering-delivery.md)。
 可以用更擅长设计的模型做 plan，再切换 DeepSeek/GLM 等模型 build；工具不替你
 虚构或自动切换模型。**成本与稳定性改善需要真实模型任务评估，不能从引擎单元
-测试数推导**；已做的确定性校准范围见
-[验证说明](validation/engineering-delivery/README.md)。
+测试数推导**；此前曾做安装后确定性 CLI/file 校准，但测试脚本和报告依用户要求
+从仓库移除。真实 DeepSeek/GLM 端到端评估未做。
 
 ## 验收的思维链 —— “证据呢？”
 
@@ -297,7 +331,6 @@ OpenCode。桌面验证为可选：不自动安装 MCP、不改全局权限，�
 ```powershell
 python scripts/check.py --selftest
 python -B -m unittest discover -s tests -p "test_*.py"
-python validation/engineering-delivery/run_calibration.py --out <新目录>   # 安装后三阶段实测校准
 python .opencode/workflow/scripts/check.py engineering-plan .opencode/mvp/<goal>.md
 python .opencode/workflow/scripts/check.py next-step .opencode/mvp/<goal>.md
 python .opencode/workflow/scripts/check.py cycle-gate .opencode/mvp/<goal>.md
@@ -324,7 +357,7 @@ UI 门禁：`ui-gate ... --bind` 核验场景状态、真实工具加载、原�
   特定假成功，不能普遍证明实现没有伪造。
 - 校准实验覆盖 CLI/文件系统边界；**未在桌面游戏、浏览器或真实模型上验证**。
   炉石类项目仍需 Airtest/computer-use 等真实后端，且后端能力必须实测。
-- 旧 schema 1/2 完成历史保持可读；新项目直接使用 engineering-plan/2，旧工程
+- 旧 schema 1/2 完成历史保持可读；新项目直接使用 engineering-plan/3，旧工程
   迁移不是主流程。
 
 ## 设计参考

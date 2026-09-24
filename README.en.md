@@ -47,6 +47,36 @@ goal card, cycle receipts, delivery-log) — never in chat history.
 | plan | how the system composes, task order, per-task verification | writes no product code |
 | build | implement the current task, observe actual output, classify feedback | never redesigns interfaces/architecture |
 
+## Evidence-backed, conditional plans
+
+New designs use `engineering-plan/3` (goal cards remain schema 3). Complete scope
+does not mean freezing unverified implementation details. Critical unmeasured
+claims require conditions resolved by actual checks, owner decisions or independent
+design review. Dependent tasks stay blocked; bounded probes may establish evidence.
+
+Grill makes interaction costs and the protected intent of prohibitions concrete;
+a textual answer is valid but must not be stretched to undisclosed consequences.
+Counter-questions trigger an answer-then-reask loop; question-tool choices use
+compact labels. New briefs track decision topics and explicit supersession, and
+`brief-confirmation` regenerates the itemized current summary whose snapshot
+must match finalization. The snapshot does not authenticate who answered.
+If native decision attribution is needed, `runtime_trace.py export
+--include-conversation-text` is an explicit privacy opt-in, limited to matching
+project sessions; keep that trace local and git-ignored. Default traces contain
+no conversation body.
+Plan must justify evidence scope, probe bootstrap dependencies and fallback
+equivalence. Guarded/Audited implementation waits for independent design review.
+Challenge walkthroughs look for paused event producers, unknown-result retries,
+mixed coordinate frames, weakened acceptance and unsupported reliability budgets.
+
+For mid-build objections, `request-decision` pauses the original attempt and
+`resolve-decision` records the actual quoted reply. Continue never fabricates a
+test pass; revise returns to planning. Decision versions are retained. References
+are locally attributed, not authenticated identities; native provenance still matters.
+See [the protocol](mvp-delivery/references/planning-readiness.md) and
+[the design walkthrough](writing-plans/references/engineering-challenges.md).
+No live model blind evaluation has been run; engine checks are not model-quality evidence.
+
 ## Step 1: grill — "Can I state it clearly?"
 
 `/grill <idea>` does exactly one thing: interrogate a vague idea into a
@@ -54,7 +84,7 @@ requirement brief both sides can repeat back identically.
 
 1. **Draw a decision tree; ask only the frontier.** Settled prerequisites
    unlock later questions — no mechanical questionnaire traversal.
-2. **Five to ten questions per round, grouped by dimension.** Absorb the
+2. **Usually three to five low-risk questions per round; one material fork at a time.** Absorb the
    answers, analyze what changed, only then derive the next round. Every round
    is a **real interaction**: asked via the `question` tool when available, or
    by ending the turn and waiting; asking and answering in one turn is
@@ -69,8 +99,13 @@ requirement brief both sides can repeat back identically.
    code or primary sources is never asked of the user; external facts follow
    the research skill's source grading with citations and freshness.
 5. **Three finalization questions**: did the user actually say this, or did I
-   fill it in? Is every dimension closed? Was anything quietly narrowed, or an
-   optional wish promoted to required?
+    fill it in? Is every dimension closed? Was anything quietly narrowed, or an
+    optional wish promoted to required?
+
+A counter-question is new information, not an answer to the previous option:
+research/answer it, then ask the actual unresolved decision. Keep question-tool
+labels short and single-line, put context before choices, and fall back to one
+plain-text question if the client renders structured choices poorly.
 
 Output: a confirmed, frozen `docs/brief.md`. Next: `/plan docs/brief.md`.
 
@@ -180,8 +215,9 @@ Protocol: [task packets and layered feedback](mvp-delivery/references/engineerin
 Use a design-strong model for plan, then switch to DeepSeek/GLM for build; the
 tooling never invents or auto-switches models for you. **Cost and stability
 improvements require evaluation on real model runs and cannot be derived from
-engine unit-test counts**; the deterministic calibration that was run is scoped
-in [the validation notes](validation/engineering-delivery/README.md).
+engine unit-test counts**. An installed deterministic CLI/file calibration was
+previously run, but its test harness/report were removed from the repository at
+the user's request. No live DeepSeek/GLM end-to-end evaluation has been run.
 
 ## The acceptance chain — "Where is the evidence?"
 
@@ -368,7 +404,6 @@ missing — run `npm install` in that directory); the plugin provides
 ```powershell
 python scripts/check.py --selftest
 python -B -m unittest discover -s tests -p "test_*.py"
-python validation/engineering-delivery/run_calibration.py --out <new-dir>   # installed 3-stage real calibration
 python .opencode/workflow/scripts/check.py engineering-plan .opencode/mvp/<goal>.md
 python .opencode/workflow/scripts/check.py next-step .opencode/mvp/<goal>.md
 python .opencode/workflow/scripts/check.py cycle-gate .opencode/mvp/<goal>.md
@@ -402,7 +437,7 @@ safety, and the engine is not a sandbox. Full rules live in each skill's
   or live model has been validated**. Game-UI projects still need a real
   backend (Airtest/computer-use), and backend capability must be probed live.
 - Historical schema 1/2 cards stay readable; new projects use
-  engineering-plan/2 directly — legacy migration is not the main path.
+  engineering-plan/3 directly — legacy migration is not the main path.
 
 ## Design references
 

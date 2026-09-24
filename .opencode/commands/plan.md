@@ -15,6 +15,13 @@ failure handling; later tasks are not headings left for build to design.
 Perform the design walkthrough before publishing. Use the user's chosen path
 or docs/plan.md; the file location is a convention, not a quality gate.
 
+Use engineering-plan/3. Preserve complete scope but distinguish executable
+tasks from conditional designs. Check the empty-project bootstrap, timing/waits,
+unknown-result retries, acceptance equivalence and user acceptability via
+writing-plans/references/engineering-challenges.md. Critical unmeasured claims
+need conditions, not invented details; guarded/audited implementation waits
+for independent design review. A fallback proposal alone closes no risk.
+
 Use prepare-plan to derive bindings/UI obligations, and next-step to inspect
 the bounded task package build will consume. Product code stays read-only.
 Read mvp-delivery/references/goal-definition.md only for publication, and

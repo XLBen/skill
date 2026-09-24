@@ -6,7 +6,7 @@
 ## 规划产物与发布
 
 按 `writing-plans` 产出独立工程设计，默认 `docs/plan.md` 或用户指定的项目内路径。
-其中 `engineering-plan/2` 索引含统一合同、所有详细任务和分层验证。格式与例子见
+其中 `engineering-plan/3` 索引含统一合同、完整任务路线、分层验证和待决条件。格式与例子见
 `../../writing-plans/references/design-template.md`、`engineering-plan-example.md`。
 
 规划者建立包含原始来源/outcomes 的 goal（定义见 goal-definition.md），运行：
@@ -20,6 +20,8 @@ python .opencode/workflow/scripts/check.py next-step <goal>
 prepare-plan 自动算 hash、从 browser/desktop 旅程推导 UI 义务、绑定 schema-3 goal，
 变更定义时清除旧运行引用。原始证据不删除。路径可任意项目内文件，不是质量标准。
 结构检查覆盖全部任务细节、接口 producer/consumer 依赖、外部边界先于集成。
+新格式还核 preflight 工具提供者、关键未实测主张的条件、独立设计审查义务。
+未满足条件的任务不准开始；可以先发布有明确条件的完整路线，探测任务先行。
 工程合理性仍须规划者执行正常/失败路径走查；不以“JSON 完整”代替设计质量。
 prepare-plan 另生成同目录 `<design-stem>.readable.md` 完整可读计划：正文、图、
 所有步骤的代码块/检查都由同一索引展开。该视图不手工修改；未标记为工具生成的
@@ -47,6 +49,9 @@ read_files 和检查。未来任务/不相关合同/全部历史默认不进入�
 verify-cycle 自动捕获命令、stdout/stderr、退出码、超时、版本；observe-cycle 自动
 带入当前尝试的实际输出。执行者只写有依据的解释、选决定，不再手填 actual JSON。
 不要只看 passed 布尔值。机械记账由工具完成，观察和诊断仍是模型职责。
+用户中途提出路线异议用 request-decision 暂停，resolve-decision 记录真实答复。
+`blocked/replan` 已存在；此处补的是持久决定与恢复，不是把没测完的尝试伪装成
+失败。协议及信任边界见 [planning-readiness.md](planning-readiness.md)。
 
 ## 验证的四个层次
 
@@ -97,5 +102,5 @@ next-step 返回 final-acceptance 后，执行 cycle-gate、最终 verify-goal�
 真实游戏被操作过。reviewer 必须核实际入口、驱动、断言语义和操作时序；原生 UI
 trace/观察门禁保留。单元、边界、旅程、未验证项分别报告，不用总测试数代替结论。
 
-内部旧 engineering-plan/1 记录仍可读取，但新计划不照旧格式生成。无需为新项目
+内部旧 engineering-plan/1、/2 记录仍可读取，但新计划不照旧格式生成。无需为新项目
 迁移历史工程；未完成旧项目是否迁移由目标选择决定，不改完成历史。

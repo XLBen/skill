@@ -19,6 +19,7 @@ Short “this is what I heard” summary.
   "schema_version": 1,
   "revision": 1,
   "status": "draft",
+  "decision_ledger_version": 1,
   "summary": "Who has what problem and what outcome matters",
   "items": [
     {
@@ -34,7 +35,9 @@ Short “this is what I heard” summary.
       "question": "Decision the owner made",
       "choice": "Selected answer",
       "rationale": "Why",
-      "owner_confirmed": true
+      "owner_confirmed": true,
+      "decision_key": "execution.channel",
+      "supersedes": []
     },
     {
       "id": "BS-01",
@@ -68,3 +71,18 @@ calls count, without adding a GUI or deployment requirement. The dimension
 coverage table from `SKILL.md` is interviewing discipline for deciding what to
 ask next; it is not a separate artifact and adds no schema fields — the brief
 record stays this prose plus the `json brief` block.
+
+For new interviews, keep `decision_ledger_version: 1`. Give each owner decision a
+stable `decision_key` for the dimension it governs (e.g. `execution.channel`,
+`ux.runtime`, `rule.fairness`, `acceptance.milestone`) and `supersedes: []`. If the
+owner revises a topic in a later round, append a new BD-NN and point supersedes to
+the prior decision ID; never edit history in place. The validator rejects two
+current decisions with the same key. Keys catch same-topic conflict only; the
+final semantic pass still checks interactions between different keys.
+
+Before final owner confirmation, generate `brief-confirmation` and show the current
+active decisions/constraints/assumptions/success/non-goals, not a hand-maintained
+summary from a previous revision. After the user's actual confirmation, set
+`owner_confirmation.snapshot_hash` to that preview's hash. A semantic edit makes
+the snapshot stale and requires a fresh preview + confirmation. Historical briefs
+without `decision_ledger_version` remain readable under legacy validation.

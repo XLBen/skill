@@ -18,6 +18,12 @@ and observe the result before the next task. Missing environment -> blocked;
 invalid design assumption -> replan with evidence. Later tasks must not be
 implemented just to make a component's check pass.
 
+Respect pending_conditions and missing_preflight_files; do not convert blocked
+technical conditions into approval claims. Unknown action outcomes need readback
+before retries. For owner intervention, request-decision preserves the current
+attempt and pauses new operations; resolve-decision records the actual reply.
+An ambiguous "never mind" is not acceptance. See planning-readiness.md.
+
 `mvp-delivery/references/engineering-delivery.md` defines the small command loop.
 Expand `mvp-delivery/references/subagent-orchestration.md` only when delegating;
 give workers the current package rather than all skills/history. Load

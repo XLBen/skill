@@ -1,7 +1,7 @@
 # Delivery Recovery Details
 
 > When to read: before `/resume`, before invalidating evidence after product
-> or definition changes. New projects enter directly through engineering-plan/2.
+> or definition changes. New projects enter directly through engineering-plan/3.
 
 ## Product Observation Recovery
 
@@ -25,7 +25,7 @@ goal card -> dispatch record -> product-audit sidecar
   named; it never becomes `not-applicable` and never converts into a
   controller-authored summary.
 - If an unfinished old product goal is selected for the new execution workflow,
-  publish a complete engineering-plan/2 using prepare-plan; it adds the binding
+  publish a complete engineering-plan/3 using prepare-plan; it adds the binding
   and derived UI decision and resets outdated evidence. Do not migrate unrelated
   history as part of a new-project task.
 

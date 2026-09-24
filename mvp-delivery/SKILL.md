@@ -36,9 +36,11 @@ MVP 是交付顺序，不缩减原始目标。让规划阶段承担跨模块判�
 4. 正常/失败输入走查、跨任务接口一致性检查，消除留给 build 的架构决定。
 5. 发布完整设计和可执行任务索引；给用户设计链接，不仅是 grill 回答摘要。
 
-默认 `docs/plan.md`，用户指定项目内路径可直接用。新设计使用 engineering-plan/2；
+默认 `docs/plan.md`，用户指定项目内路径可直接用。新设计使用 engineering-plan/3；
 `prepare-plan` 自动绑定目标、推导 UI 义务和版本信息。无需用户或 build 手填 hash。
 计划本身不执行产品实现。探测发现设计条件不成立时，修订设计后再交接。
+新计划采用 engineering-plan/3：只放行条件成立的步骤；探针前提不允许依赖本步
+新建脚本。完整路线可以条件性发布，不代表架构可行性与用户可接受性都已通过。
 
 ## Build Mode：有界执行者
 
@@ -69,6 +71,8 @@ next-step 选择下一依赖就绪任务，直到 final-acceptance
   observe-cycle 的原始观察由工具附加，模型只写预期/实际的解释和决策。
 - 缺设备/驱动/服务就是 blocked；不能换成 mock 后通过。截图、点击成功、测试
   文件数量都不能单独证明用户目标成立。UI 的可见变化/持久结果才是成功信号。
+- 未知结果不等于动作失败：外部写入后回读失败，先核对是否已生效再决定重试。
+  不能把“发送无异常”当成功或把“标签未找到”直接归因为输入注入失败。
 
 ### 失败分类（先归因再行动）
 
@@ -86,6 +90,15 @@ replan 可以由同一会话切回设计职责完成，但必须完成影响分�
 同一失败签名第二次必须换证伪方法；三次无新证据停止机械重试，执行
 `../pua/references/recovery-protocol.md`。新 task/session 不清零失败历史。
 
+### 用户中途改变判断
+
+用 request-decision 记录问题/影响并暂停新操作，保留当前 attempt；明确答复后
+resolve-decision 引用实际原话与演示/审查证据。accept 恢复原任务，不冒充测试
+通过；revise 回 plan；reject 保持阻塞。含糊回答不能擅自解释，价值决定不能只
+埋在 lessons 文档。已有 blocked/replan 足以表示技术阻塞，新增的是决定记录
+与恢复路径；细节见 `references/planning-readiness.md`。不因缺 result 就宣称
+技术失败；active 且未验证可能只是中断。复盘区分执行回执、转述和未知。
+
 ## 风险、席位与上下文成本
 
 风险按实际副作用判，不以主题词决定设计深度。组件复杂度决定计划细度；资金、
@@ -96,6 +109,8 @@ replan 可以由同一会话切回设计职责完成，但必须完成影响分�
   正式验证。一次独立 review 放在有意义的集成/验收点，同版本同范围不重复。
 - **Audited** 用 contract-review/construction；按 seat table 选择 controller 或
   step-executor，**从不派 task-worker**。独立 test-author/编译 PLAN/CR 保留。
+- Guarded/Audited 新计划在 implementation 开始前还需解除独立设计 review 条件；
+  未就绪时允许最小 probe 采集证据，不能靠结构 PASS 提前施工。
 - Guarded/Audited 实质验收独立 review 能力可用即必须；不可用按
   capability-unavailable 披露/阻塞，不能拿本会话自审冒充独立判断。
 - mechanical-batch 豁免和具体权限按 `references/stage-routing.json` 与
@@ -147,6 +162,7 @@ ACCEPTANCE_HANDOFF 含原始目标、完成声明、版本、分层验证、真�
 |---|---|
 | 设计流程、模板、走查 | `../writing-plans/SKILL.md` |
 | 任务包、分层检查、自动记账命令 | `references/engineering-delivery.md` |
+| 条件性设计、前置工具、设计审查、用户中途决定 | `references/planning-readiness.md` |
 | goal/brief 定义、来源与覆盖 | `references/goal-definition.md` |
 | 运行前提和失败预算细节 | `references/delivery-execution.md` |
 | 最终验收与交付记录 | `references/delivery-finish.md` |

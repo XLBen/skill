@@ -36,6 +36,11 @@ manifest 和精确 V 命令）。
 
 ## Procedure
 
+如果任务包仍有 pending_conditions/missing_preflight_files，返回 blocked 请求主控
+解决，不自行批准或改成已满足。用户在施工中提出路线异议时停止新副作用并交回
+主控记录 request-decision。不要把“能发出输入”推成“目标接受”、把未知结果
+直接重发非幂等动作。角色的设计证据不来自自己的自信描述。
+
 收到 implementation-packet/1 时，它是本步工程规格：先读 shared_context、
 contracts 与 step.read_files，按 implementation/change 实现 files 内的任务。
 不再拆架构、不读整套历史计划、不换接口。已有代码满足任务时验证即可，不重写。

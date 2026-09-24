@@ -8,7 +8,7 @@
 
 ## Card Schema
 
-**New product goals use schema 3 with engineering-plan/2.** The planner authors
+**New product goals use schema 3 with engineering-plan/3.** The planner authors
 the complete design and the source/outcomes of the goal. `prepare-plan <goal>
 <design-path>` derives `engineering_plan: {path, sha256}` and UI obligations from
 the design; the implementation model does not maintain them by hand. Any

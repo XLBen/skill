@@ -11,6 +11,8 @@ import re
 import tempfile
 from pathlib import Path, PureWindowsPath
 
+import planning_readiness
+
 
 def text(value):
     return isinstance(value, str) and bool(value.strip())
@@ -41,9 +43,9 @@ def goal_problems(goal):
 
 def validate(plan, goal, engine):
     errors = []
-    if not isinstance(plan, dict) or plan.get("schema") not in ("engineering-plan/1", "engineering-plan/2"):
-        return ["engineering plan schema must be engineering-plan/1 or engineering-plan/2"]
-    layered = plan["schema"] == "engineering-plan/2"
+    if not isinstance(plan, dict) or plan.get("schema") not in ("engineering-plan/1", "engineering-plan/2", "engineering-plan/3"):
+        return ["engineering plan schema must be engineering-plan/1, engineering-plan/2 or engineering-plan/3"]
+    layered = plan["schema"] in ("engineering-plan/2", "engineering-plan/3")
     if plan.get("goal_id") != goal["id"]:
         errors.append("engineering plan goal_id mismatch")
     for field in ("architecture", "data_flow"):
@@ -150,6 +152,8 @@ def validate(plan, goal, engine):
         errors.append("every journey needs a verification step")
     if layered:
         validate_layered(plan, groups, fields, refs, verification, errors)
+    if not errors and plan["schema"] == "engineering-plan/3":
+        errors.extend(planning_readiness.validate(plan, goal, groups))
     return errors
 
 
@@ -265,6 +269,16 @@ def readable_plan(source, plan):
     sections += ["- " + item + "\n" for item in plan.get("shared_context", [])]
     for decision in plan.get("decisions", []):
         sections.append(f"\n技术决定：{decision['decision']}\n\n理由：{decision['reason']}\n\n依据：{decision['evidence']}\n")
+        if "evidence_level" in decision:
+            sections.append(f"\n证据级别：{decision['evidence_level']}；范围：{decision['scope']}；证伪条件：{decision['invalidated_by']}\n")
+    if plan.get("conditions"):
+        sections.append("\n## 待决条件（未满足前不等于可施工）\n")
+        for condition in plan["conditions"]:
+            sections.append(f"\n- {condition['id']} / {condition['kind']}：{condition['claim']}\n"
+                            f"  解除标准：{condition['criterion']}；影响：{', '.join(condition['affects'])} 及后继任务。\n")
+    if "design_review" in plan:
+        review = plan["design_review"]
+        sections.append(f"\n设计审查方式：{review['mode']}；理由：{review['reason']}；这不是已完成审查的声明。\n")
     sections.append("\n## 组件与真实边界\n")
     for component in plan["components"]:
         sections.append(f"\n- {component['id']}：{component['responsibility']}；文件：" + ", ".join(component["files"]) +
@@ -312,6 +326,9 @@ def prepare(goal_path, plan_path, engine):
     if goal.get("status") == "complete":
         raise engine.ValidationError("cannot replace a completed goal's plan")
     root = engine.goal_project_root(goal_path)
+    if not isinstance(goal.get("id"), str) or not engine.GOAL_ID_RE.fullmatch(goal["id"]):
+        raise engine.ValidationError("invalid goal id")
+    planning_readiness.publication_guard(root, goal_path, goal, engine)
     if not relative(plan_path):
         raise engine.ValidationError("plan path must be project-relative")
     path = (root / plan_path).resolve()
@@ -413,6 +430,7 @@ class Cycles:
         self.steps = {s["id"]: s for s in self.plan["steps"]}
         self.journeys = {j["id"]: j for j in self.plan["journeys"]}
         self.boundaries = {b["id"]: b for b in self.plan["boundaries"]}
+        self.readiness = planning_readiness.Readiness(self)
 
     def fail(self, message):
         raise self.e.ValidationError(message)
@@ -459,7 +477,7 @@ class Cycles:
                 and self.e.evaluate_assertion(payload.get("stdout"), spec["assertion"]))
 
     def specs(self, step, probe=False):
-        layered = self.plan["schema"] == "engineering-plan/2"
+        layered = self.plan["schema"] in ("engineering-plan/2", "engineering-plan/3")
         if probe:
             bids = step["preflight_boundary_ids"] if layered else {b for j in step["journey_ids"] for b in self.journeys[j]["boundary_ids"]}
             return [(b + "-probe", self.boundaries[b]["probe"]) for b in sorted(bids) if self.boundaries[b]["external"]]
@@ -550,6 +568,11 @@ class Cycles:
 
     def next_packet(self):
         folders, completed, active = self.history()
+        hold = self.readiness.hold()
+        if hold:
+            return dict(hold, goal=self.goal["goal"], plan=self.goal["engineering_plan"]["path"],
+                        active_cycle=str(active) if active else None,
+                        instructions=["Resolve the actual owner decision; no success is implied and no cycle history is rewritten."])
         if active:
             sid = self.read(active / "start.json")["step"]
             action = "observe" if (active / "result.json").exists() else "implement"
@@ -565,8 +588,14 @@ class Cycles:
             action = "replan" if decision == "replan" else "retry" if decision == "retry" else "blocked"
         else:
             ready = [s for s in self.plan["steps"] if s["id"] not in completed and set(s["depends_on"]) <= completed]
+            unblocked = [s for s in ready if not self.readiness.pending(s["id"], completed) and not self.readiness.missing_files(s["id"])]
+            if unblocked:
+                ready = unblocked
             if not ready:
-                if folders and self.read(folders[-1] / "result.json")["workspace"] != self.snapshot():
+                pending_steps = [s for s in self.plan["steps"] if self.readiness.pending(s["id"], completed)]
+                if pending_steps:
+                    sid, action = pending_steps[0]["id"], "blocked"
+                elif folders and self.read(folders[-1] / "result.json")["workspace"] != self.snapshot():
                     sid, action = self.read(folders[-1] / "start.json")["step"], "revalidate"
                 else:
                     return {"action": "final-acceptance", "completed": sorted(completed),
@@ -574,12 +603,17 @@ class Cycles:
             else:
                 sid, action = ready[0]["id"], "begin-cycle"
         step = self.steps[sid]
+        pending_conditions = self.readiness.pending(sid, completed)
+        missing_files = self.readiness.missing_files(sid)
+        if pending_conditions or missing_files:
+            action = "blocked"
         kids = set(step.get("consumes", []) + step.get("produces", []))
         packet = {"schema": "implementation-packet/1", "action": action, "goal": self.goal["goal"],
                   "plan": self.goal["engineering_plan"]["path"], "architecture": self.plan["architecture"],
                   "shared_context": self.plan.get("shared_context", self.goal["constraints"]),
                   "step": step, "contracts": [c for c in self.plan.get("contracts", []) if c["id"] in kids],
                   "completed_dependencies": [d for d in step["depends_on"] if d in completed],
+                  "pending_conditions": pending_conditions, "missing_preflight_files": missing_files,
                   "instructions": ["Read only read_files and current step's relevant sources. Implement no later step.",
                                    "If existing code already satisfies the task, verify it; do not rewrite working code just because the plan binding changed.",
                                    "Use exact shared contracts. Local implementation failures: repair; missing environment: blocked; interface/architecture conflict: replan.",
@@ -600,12 +634,17 @@ class Cycles:
         return packet
 
     def begin(self, step_id):
+        self.readiness.guard()
         folders, completed, active = self.history()
         if active:
             self.fail("previous cycle needs execution and observation before the next cycle")
         step = self.steps.get(step_id)
         if step is None or not set(step["depends_on"]) <= completed:
             self.fail("unknown step or dependency not yet observed")
+        pending = self.readiness.pending(step_id, completed)
+        missing = self.readiness.missing_files(step_id)
+        if pending or missing:
+            self.fail("step not ready: " + json.dumps({"conditions": pending, "preflight_files": missing}, ensure_ascii=False))
         if folders and self.read(folders[-1] / "observation.json")["decision"] != "advance":
             if self.read(folders[-1] / "observation.json")["decision"] == "replan":
                 self.fail("design conflict requires a revised planner artifact before implementation resumes")
@@ -624,10 +663,13 @@ class Cycles:
                 "next": "implement one step" if passed else "observe blocker; do not implement"}
 
     def verify(self):
-        _, _, folder = self.history()
+        self.readiness.guard()
+        _, completed, folder = self.history()
         if folder is None:
             self.fail("begin-cycle required before verification")
         step = self.steps[self.read(folder / "start.json")["step"]]
+        if self.readiness.pending(step["id"], completed):
+            self.fail("step has unresolved planning conditions")
         if not self.verify_record(folder, "preflight.json", step, probe=True)["passed"]:
             self.fail("external preflight failed; observe and retry before implementation")
         if (folder / "result.json").exists():
@@ -643,7 +685,8 @@ class Cycles:
         return dict(result, cycle=str(folder), observed=self.readbacks(folder), next="inspect observed output then observe-cycle")
 
     def observe(self, source):
-        _, _, folder = self.history()
+        self.readiness.guard()
+        _, completed, folder = self.history()
         if folder is None:
             self.fail("no unobserved cycle")
         obs = dict(source) if isinstance(source, dict) else self.read(Path(source))
@@ -656,6 +699,8 @@ class Cycles:
             self.fail("observation decision must be advance, retry, blocked or replan")
         if obs["decision"] == "advance":
             step = self.steps[self.read(folder / "start.json")["step"]]
+            if self.readiness.pending(step["id"], completed):
+                self.fail("cannot advance with unresolved planning conditions")
             preflight = self.verify_record(folder, "preflight.json", step, probe=True)
             result = self.verify_record(folder, "result.json", step)
             if not preflight["passed"] or not result["passed"] or result["workspace"] != self.snapshot():
@@ -668,11 +713,15 @@ class Cycles:
         return record
 
     def gate(self):
+        self.readiness.guard()
         folders, completed, active = self.history()
         if active:
             self.fail("cycle observation missing; inspect the actual results before proceeding")
         if set(self.steps) != completed:
             self.fail("engineering steps lack observed real verification: " + ", ".join(sorted(set(self.steps) - completed)))
+        for sid in self.steps:
+            if self.readiness.pending(sid, completed):
+                self.fail("unresolved planning conditions for " + sid)
         last = self.read(folders[-1] / "result.json")
         if last["workspace"] != self.snapshot():
             self.fail("cycle evidence is stale after product changes; begin a new verification cycle")

@@ -50,19 +50,92 @@ An interview round exists only if the user actually answers it:
   turn-ending prompt). `owner_confirmation.confirmed: true` may only
   follow an explicit user reply observed in this session.
 
+### When the Owner Answers with a Question
+
+An owner counter-question is **new information and often an architecture signal**,
+not an answer to the option the agent just offered. The answers in the EU4 grill
+transcript ("what does this produce?", "can the model really do that?", "can it
+control the original AI?") changed the product shape; forcing another menu choice
+would have lost that signal.
+
+1. Preserve the counter-question verbatim as an open frontier item (反问不是答案), or update the
+   directly affected existing BQ/BA. Do not record an answer or BD on the owner's
+   behalf, and do not count the turn as confirmation.
+2. Classify it: factual capability → research the primary source; product/experience
+   tradeoff → explain concrete options and ask which success matters; ambiguous term
+   → give a short operational definition and ask if that definition matches; proposal
+   that changes the goal → map affected outcomes/constraints and confirm the change.
+3. Answer what can be established now, with the evidence boundary. Then ask a **new,
+   concise decision question** only if the owner's choice is still needed. Keep the
+   old question open if it was not answered. Do not re-ask the old option list as if
+   the counter-question had selected one.
+4. If it introduces a real solution fork, use brainstorming for a bounded comparison;
+   first explain evidence, feasibility, cost/latency/operating feel and unknowns.
+   Present only viable choices. Allow a free-text reply. Do not let question rounds
+   become an unbounded architectural debate: after answering, identify the single
+   decision or experiment that moves the frontier.
+
+An expression such as "还有要改的" or "按 prompt 来" is ambiguous, not consent.
+Ask what specifically is missing / which prompt or behavior they mean. Recommendations
+are okay when requested, but must be labeled as agent advice, not owner choice.
+
+### Question Rendering (especially OpenCode `question` tool)
+
+- Put at most three short context bullets before a decision question. The question
+  sentence itself should be one screen line where practical; no long numbered essay
+  inside the question field.
+- In `question` tool options, use single-line labels of roughly 1–4 words and a short,
+  single-line description. Put technical detail/trade-offs in the preceding context,
+  not inside multi-line option labels. Avoid nested numbering and long preambles that
+  client rendering may flatten or scramble.
+- Default checkpoints to 3–5 questions (never >10); decisions that change architecture,
+  interaction method, fairness or success criteria are asked one at a time unless the
+  owner explicitly requests a batch. Do not bundle unrelated high-impact decisions.
+- Use single-choice for mutually exclusive routes. Offer an open-text answer; do not
+  fake neutrality by adding options that steer to the preferred answer. If options are
+  genuinely unclear, ask an open question rather than a malformed choice menu.
+- Before sending, inspect the rendered question payload: every option maps to the
+  intended decision, line breaks are absent from labels, and context does not swallow
+  the question. If the host still renders it poorly, fall back to one plain-text question
+  and wait for the answer.
+
 On `/resume` with no active/blocked goal and a draft `docs/brief.md`, validate
 the draft and resume its persisted frontier/revision. Do not restart intake,
 infer confirmation from chat, or start building. Ambiguous drafts require a target.
+
+### Informed Choices, Not Just Confirmed Words
+
+涉及执行方式、自动化观感、实时性、人工准备量或持续占用设备时，把抽象术语翻译成
+一次真实使用情景：用户会看到什么、要等待什么、需要先准备什么、失败后丢失什么。
+“确定性自动化”“后台运行”“MCP”不是可接受性标准；MCP 是接口协议，不会凭空
+提供目标软件没有的写入能力。分别确认通信接口、执行驱动和用户期望的体验。
+
+- 关键禁令记录**保护对象**与明确边界：公平性/规则、权限、观感、成本或其他目的。
+  不要诱导用户放宽禁令；原先明确的“只准正常玩家操作”不能因换成按钮外观而绕过。
+  只有真实存在歧义才询问；已确认的禁止事项一直有效，修改需明确新决定。
+- 显著影响产品形态的路线，在承诺前并列说明已知可行性、未知点、操作负担和
+  取舍；不把用户需要裁决的路线藏在 build 的 fallback 中。没有搜索结果只表示
+  未找到，不能推论全世界不存在、没有 API 或只有三种路线。
+- 对陌生/高影响的交互方式，优先最小演示或代表性录像；没有演示条件时可以用
+  具体逐步说明，并让用户明确接受哪些仍未知。**文字确认有效，但确认范围必须
+  清楚**：知道名词不等于确认了延迟/反复标定/鼠标占用等未展示后果。
+- 不为了定稿假装已演示。演示尚需构建时，brief 写成已确认目标 + BA 条件性
+  路线，约定后续观察后裁决；plan 安排低成本验证任务和 owner 条件，再放行
+  依赖路线。不是每个小功能都要求演示或再问一轮。
+- “算了”“随便吧”不能自动解释为重新批准方案或放宽约束。询问一个具体问题
+  确定是继续原路线、暂停还是改需求；保留原话/会话引用，不能替用户作结论。
+
+这些事实写进现有 BF/BA/BD/BC 及 success 条目；不另造第二份需求表。区分：
+技术能做到、用户接受这种做法、实际效果达到目标；三者不能互相替代。
 
 Map the idea as a decision tree. The frontier is the set of questions whose
 prerequisites are already settled. Ask only the current frontier; answers
 unlock later questions.
 
-Select and record the interview mode and round budget in the brief's readable
-prose, without adding schema fields; default to `checkpoints` unless another
-mode is agreed. In `checkpoints` ask five to ten questions per round, grouped
-by dimension so the user can answer in one pass; never more than ten in any
-round. In `stepwise` ask one question per round. After each round, incorporate
+Select and record the interview mode in the brief's readable prose; default to
+`checkpoints` unless another mode is agreed. In `checkpoints` ask three to five
+independent low-risk questions per round, grouped by dimension; never more than ten.
+In `stepwise` or for a material decision fork ask one question per round. After each round, incorporate
 the answers, recompute the frontier, analyze what the answers changed or
 exposed, and only then select the next round. Do not dump every conceivable
 question at once; each round must be derived from what is still open.
@@ -166,16 +239,26 @@ recompute the frontier; do not edit a consumed/frozen brief in place.
 while unconfirmed the latter may be empty. This is distinct from the truthful,
 nonempty top-level summary. Do not ask the user to fill in hashes.
 
-Before finalizing, show the user the brief as a short “this is what I heard”
-summary and ask for explicit confirmation. Only then set `status: final` and
-`owner_confirmation.confirmed: true`, record a nonempty confirmation summary,
-clear the frontier, obtain the hash from the engine output below, and run:
+For a brief with `decision_ledger_version: 1`, before asking for final confirmation
+run `python .opencode/workflow/scripts/check.py brief-confirmation docs/brief.md`
+while the brief is still `draft`. Present its current itemized summary (active decision per topic,
+constraints, assumptions/unknowns, success signals, non-goals).
+Do a **cross-interaction conflict sweep** before confirmation. Re-run the command after every owner correction; never reuse a previous round's summary. Compare
+high-interaction topics across items (e.g. target shape ↔ interface ↔ rule/fairness
+constraint ↔ verification route ↔ runtime/operating style); keys catch same-topic
+revisions, but cannot detect semantic conflict between differently labelled items.
+If a contradiction or materially open BQ remains, ask one targeted question rather
+than asking “confirm?”.
 
-```powershell
-python .opencode/workflow/scripts/check.py brief docs/brief.md
-```
+Then show the full “this is what I heard” summary and ask for explicit confirmation.
+Only after a real owner reply set `status: final`, `owner_confirmation.confirmed: true`,
+the nonempty confirmation summary, and `owner_confirmation.snapshot_hash` copied from
+the preview. Run `check.py brief docs/brief.md`, copy the printed `brief-hash:` to
+frontmatter, and run it once more. Any semantic edit makes the snapshot stale and
+requires a fresh preview + confirmation. The snapshot hash binds content; it does
+**not** prove who answered — the real-interaction rule above still applies.
 
-Use exactly the `brief-hash:` value printed by that command; never compute a
+Use exactly the `brief-hash:` value printed by the validator; never compute a
 hash by hand or with ad-hoc snippets. Do not hand off an invalid or unconfirmed
 brief. Once contract-review consumes
 its hash, the brief is frozen; later semantic correction enters `/fix`, which

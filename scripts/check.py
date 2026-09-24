@@ -3,11 +3,14 @@
 
 Commands:
   check.py brief <docs/brief.md>
+  check.py brief-confirmation <docs/brief.md>
   check.py hash <file> [<file> ...]
   check.py goal <.opencode/mvp/goal.md>
   check.py engineering-plan <.opencode/mvp/goal.md>
   check.py prepare-plan <.opencode/mvp/goal.md> <project-relative-design.md>
   check.py next-step <.opencode/mvp/goal.md>
+  check.py request-decision <.opencode/mvp/goal.md> <request.json>
+  check.py resolve-decision <.opencode/mvp/goal.md> <Q-NN|D-NN> <decision.json>
   check.py begin-cycle <.opencode/mvp/goal.md> <step-id>
   check.py verify-cycle <.opencode/mvp/goal.md>
   check.py observe-cycle <.opencode/mvp/goal.md> <observation.json>
@@ -251,6 +254,39 @@ def brief_hash(brief):
     return digest(brief, "requirement-brief")
 
 
+def brief_confirmation_hash(brief):
+    """Bind the final owner confirmation to current semantic brief content."""
+    projection = json.loads(json.dumps(brief))
+    for key in ("status", "revision", "owner_confirmation"):
+        projection.pop(key, None)
+    return digest(projection, "brief-confirmation-snapshot")
+
+
+def brief_confirmation_view(brief):
+    items = brief.get("items", [])
+    decisions = [x for x in items if isinstance(x, dict) and x.get("kind") == "decision"]
+    superseded = {target for item in decisions for target in (item.get("supersedes", []) or [])}
+    active = [x for x in decisions if x.get("id") not in superseded]
+    def pick(kind, fields):
+        return [{k: x.get(k) for k in fields} for x in items
+                if isinstance(x, dict) and x.get("kind") == kind]
+    return {
+        "project": brief.get("summary"), "status": brief.get("status"), "revision": brief.get("revision"),
+        "active_decisions": [{k: x.get(k) for k in ("id", "decision_key", "question", "choice", "rationale")}
+                              for x in active],
+        "constraints": pick("constraint", ("id", "statement", "source")),
+        "assumptions": pick("assumption", ("id", "statement", "evidence_status", "source")),
+        "success": pick("success", ("id", "statement", "source")),
+        "non_goals": pick("non-goal", ("id", "statement", "source")),
+        "unresolved_questions": pick("question", ("id", "question", "status")),
+        "frontier": brief.get("frontier", []),
+        "snapshot_hash": brief_confirmation_hash(brief),
+        "ready_to_confirm": (brief.get("status") == "draft" and not brief.get("frontier")
+                             and not any(isinstance(x, dict) and x.get("kind") == "question" and x.get("status") == "open"
+                                         for x in items)),
+    }
+
+
 def goal_definition_hash(goal):
     projected = json.loads(json.dumps(goal))
     projected.pop("status", None)
@@ -341,12 +377,16 @@ def validate_brief(brief):
         problems.append("brief.status must be draft or final")
     if not isinstance(brief.get("summary"), str) or not brief.get("summary", "").strip():
         problems.append("brief.summary must be a non-empty string")
+    ledger_version = brief.get("decision_ledger_version")
+    if ledger_version is not None and (type(ledger_version) is not int or ledger_version != 1):
+        problems.append("brief.decision_ledger_version must be 1 when present")
 
     items = brief.get("items", [])
     if not isinstance(items, list):
         problems.append("brief.items must be an array")
         items = []
     by_id = {}
+    item_positions = {}
     for index, item in enumerate(items):
         where = f"brief.items[{index}]"
         if not isinstance(item, dict):
@@ -363,6 +403,7 @@ def validate_brief(brief):
             problems.append(f"brief: duplicate item id {ident}")
         elif isinstance(ident, str):
             by_id[ident] = item
+            item_positions[ident] = index
 
         if kind == "fact":
             require(item, ("statement", "source", "evidence_status"), ident or where, problems)
@@ -394,6 +435,38 @@ def validate_brief(brief):
         for field in text_fields:
             if not isinstance(item.get(field), str) or not item.get(field, "").strip():
                 problems.append(f"{ident or where}: {field} must be a non-empty string")
+
+    if ledger_version == 1:
+        decisions = [x for x in items if isinstance(x, dict) and x.get("kind") == "decision"]
+        by_key = {}
+        superseded = set()
+        for item in decisions:
+            ident = item.get("id", "?")
+            key = item.get("decision_key")
+            if not isinstance(key, str) or not re.fullmatch(r"[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*", key):
+                problems.append(f"{ident}: decision_key must be a stable lowercase topic key")
+                continue
+            refs = item.get("supersedes")
+            if not isinstance(refs, list) or any(not isinstance(ref, str) for ref in refs):
+                problems.append(f"{ident}: supersedes must be an array of prior decision IDs")
+                continue
+            if len(refs) != len(set(refs)):
+                problems.append(f"{ident}: supersedes contains duplicates")
+            for target in refs:
+                prior = by_id.get(target)
+                if (not isinstance(prior, dict) or prior.get("kind") != "decision"
+                        or prior.get("decision_key") != key
+                        or item_positions.get(target, len(items)) >= item_positions.get(ident, -1)):
+                    problems.append(f"{ident}: supersedes must reference an earlier decision with the same decision_key")
+                elif target in superseded:
+                    problems.append(f"{ident}: supersedes a decision already replaced by another decision")
+                else:
+                    superseded.add(target)
+            by_key.setdefault(key, []).append(item)
+        for key, grouped in by_key.items():
+            current = [x for x in grouped if x.get("id") not in superseded]
+            if len(current) > 1:
+                problems.append(f"decision_key {key}: multiple current decisions; resolve the conflict before final confirmation")
 
     frontier = brief.get("frontier", [])
     if not isinstance(frontier, list):
@@ -430,6 +503,13 @@ def validate_brief(brief):
             problems.append("final brief requires a confirmation summary")
         if not any(item.get("kind") == "success" for item in items if isinstance(item, dict)):
             problems.append("final brief requires at least one success item")
+    if ledger_version == 1:
+        snapshot = confirmation.get("snapshot_hash")
+        if brief.get("status") == "final" or snapshot is not None:
+            if not isinstance(snapshot, str) or not HASH_RE.fullmatch(snapshot):
+                problems.append("owner_confirmation.snapshot_hash must bind the current final preview")
+            elif snapshot != brief_confirmation_hash(brief):
+                problems.append("owner_confirmation.snapshot_hash is stale; regenerate the itemized preview and reconfirm")
     return problems
 
 
@@ -5341,6 +5421,12 @@ def main(argv):
             meta, brief, expected, problems = validate_brief_artifact(argv[2])
             print(f"brief-hash: {expected}")
             return report("brief", problems)
+        if command == "brief-confirmation":
+            _, brief, _, problems = validate_brief_artifact(argv[2])
+            if problems:
+                return report("brief-confirmation", problems)
+            print(json.dumps(brief_confirmation_view(brief), ensure_ascii=False, indent=2))
+            return 0
         if command == "hash" and len(argv) >= 3:
             for raw in argv[2:]:
                 target = Path(raw)
@@ -5359,7 +5445,7 @@ def main(argv):
                 result = _engineering_delivery.prepare(argv[2], argv[3], sys.modules[__name__])
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0
-        if command in ("engineering-plan", "begin-cycle", "verify-cycle", "observe-cycle", "cycle-gate", "next-step"):
+        if command in ("engineering-plan", "begin-cycle", "verify-cycle", "observe-cycle", "cycle-gate", "next-step", "request-decision", "resolve-decision"):
             with file_lock(str(argv[2]) + ".runtime"):
                 _, goal, problems = validate_goal_artifact(argv[2])
                 if problems:
@@ -5395,6 +5481,14 @@ def main(argv):
                     result = cycles.gate()
                 elif command == "next-step":
                     result = cycles.next_packet()
+                elif command == "request-decision":
+                    if len(argv) != 4:
+                        raise ValidationError("request-decision requires a request JSON file")
+                    result = cycles.readiness.request(cycles.read(Path(argv[3])))
+                elif command == "resolve-decision":
+                    if len(argv) != 5:
+                        raise ValidationError("resolve-decision requires a condition/request id and decision JSON file")
+                    result = cycles.readiness.resolve(argv[3], cycles.read(Path(argv[4])))
                 print(json.dumps(result, ensure_ascii=False, indent=2))
                 if result.get("passed") is False:
                     print("cycle failed; inspect receipts and record observation before retry")

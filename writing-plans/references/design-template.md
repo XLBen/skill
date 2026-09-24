@@ -29,17 +29,19 @@
 
 ## 5. 全部施工卡（权威执行索引）
 
-一个 `json engineering-plan` 块，schema `engineering-plan/2`。它包含：
+一个 `json engineering-plan` 块，新计划用 schema `engineering-plan/3`。它包含：
 
 | 范围 | 字段与含义 |
 |---|---|
 | 全局 | `goal_id`, `architecture`, `data_flow`, `shared_context`（全局不变量字符串数组） |
-| 技术决定 | `decisions[]`: `decision`, `reason`, `evidence`（真实引用及确认程度） |
+| 技术决定 | `decisions[]`: `decision`, `reason`, `evidence`, `critical`（bool）, `evidence_level`（assumed/documented/measured）, `scope`, `invalidated_by`；关键且尚未实测的主张用 `condition: Q-NN` 绑定未决条件 |
 | 组件 | `components[]`: `id`, `responsibility`, `files`, `interfaces` |
 | 共享合同 | `contracts[]`: `id: K-NN`, `owner: C-NN`, `signature`, `definition`（类型/代码/错误约定） |
-| 外部边界 | `boundaries[]`: `id`, `kind: cli/api/browser/desktop/filesystem`, `external`, `target`, `driver`; external=true 时含 `probe` 命令及断言 |
+| 外部边界 | `boundaries[]`: `id`, `kind: cli/api/browser/desktop/filesystem`, `external`, `target`, `driver`; external=true 时含 `probe` 命令/断言及 `requires_files: [{path, provided_by}]`，provided_by 为 existing 或严格前置步骤 ID；无文件依赖显式 [] |
 | 用户旅程 | `journeys[]`: `id`, `outcome_ids`, `boundary_ids`, `entry`, `preconditions`, `actions`, `expected`, `verification`; `negative_control` 按需 |
-| 每个任务 | `id`, `context`, `depends_on`, `component_ids`, `read_files`, `files`, `consumes`, `produces`, `implementation`, `change`, `bounds`, `rollback`, `failure_routes`, `preflight_boundary_ids`, `checks`, `journey_ids` |
+| 每个任务 | `id`, `kind: probe|implementation`, `context`, `depends_on`, `component_ids`, `read_files`, `files`, `consumes`, `produces`, `implementation`, `change`, `bounds`, `rollback`, `failure_routes`, `preflight_boundary_ids`, `checks`, `journey_ids` |
+| 待决条件 | `conditions[]`（可为 []）：`id: Q-NN`, `kind: check|owner|review`, `claim`, `criterion`, `affects: [S-ID]`, `evidence_required: bool`；check 条件另有 `resolver: {step, check}` |
+| 设计审查 | `design_review: {mode: self|independent, reason, condition?}`；independent 指向 review 条件；Guarded/Audited 必须独立审查，所有 implementation 任务需受该条件约束 |
 
 每步的 `implementation` 是有顺序的具体实现动作；`change` 是关键代码/伪代码，
 不能只写功能名称。`read_files` 可为空；不会要求新建项目预先存在源码。
@@ -54,6 +56,10 @@
 `reason`；它捕获什么缺陷须在说明中可理解。
 
 `preflight_boundary_ids` 只列本步实现前必须就绪的边界，不每一步探测全部环境。
+探针的 requires_files 不得由本步或后续任务提供；existing 文件在运行前核实存在。
+probe 只为有预算的特定可行性问题实现最少必要工具，不允许把完整产品都改名 probe
+绕过审查。条件影响列出的任务和它们的后继；技术条件仅由指定 check 的真实运行和
+观察解除，用户批准不能让技术失败变成功。owner/review 决定命令见执行协议。
 `journey_ids` 在组件/探测步骤为空，仅在接通阶段列出。外部旅程的里程碑依赖
 此前成功的对应 boundary 检查步骤。`checks` 和 `journey_ids` 至少一个非空。
 

@@ -118,6 +118,45 @@ def trace_provenance(trace: dict[str, Any]) -> str:
     return "unverified"
 
 
+def verify_conversation_reference(trace: dict[str, Any], reference: dict[str, Any],
+                                  target: Path, role: str = "user") -> tuple[dict[str, Any] | None, list[str]]:
+    """Verify quoted text against an exported native project trace.
+
+    Provenance confirms a message existed in the local store; it does NOT
+    determine what the message means or whether consent was informed.
+    """
+    if role not in ("user", "assistant"):
+        return None, ["unsupported conversation role"]
+    if not isinstance(reference, dict) or any(
+        not isinstance(reference.get(k), str) or not reference[k].strip()
+        for k in ("session_id", "message_id", "part_id", "quote")
+    ):
+        return None, ["conversation reference requires session_id/message_id/part_id/quote"]
+    if trace_provenance(trace) != "native":
+        return None, ["conversation decision requires a native trace"]
+    problems = verify_native_trace(trace)
+    if problems:
+        return None, problems
+    sessions = {s.get("id"): s for s in trace.get("sessions", []) if isinstance(s, dict)}
+    session = sessions.get(reference["session_id"])
+    if not session:
+        return None, ["conversation session is absent from trace"]
+    if _norm_dir(session.get("directory", "")) != _norm_dir(str(Path(target).resolve())):
+        return None, ["conversation session belongs to a different project directory"]
+    matches = [e for e in trace.get("conversation_events", []) if isinstance(e, dict)
+               and e.get("session_id") == reference["session_id"]
+               and e.get("message_id") == reference["message_id"]
+               and e.get("part_id") == reference["part_id"]]
+    if len(matches) != 1:
+        return None, ["conversation part absent/duplicated; export with --include-conversation-text"]
+    event = matches[0]
+    if event.get("role") != role or not isinstance(event.get("text"), str):
+        return None, [f"conversation part is not a {role} text message"]
+    if reference["quote"] not in event["text"]:
+        return None, ["quoted decision is not present in the referenced native message"]
+    return event, []
+
+
 def _resolve_ref(ref: Any, base_dir: Path | None) -> Path:
     path = Path(str(ref))
     if not path.is_absolute() and base_dir is not None:
@@ -188,13 +227,15 @@ def verify_native_trace(trace: dict[str, Any]) -> list[str]:
                 continue
             sid = entry["id"]
             row = con.execute(
-                f"select parent_id, agent, {model_expr} from session where id=?", (sid,)
+                f"select parent_id, directory, agent, {model_expr} from session where id=?", (sid,)
             ).fetchone()
             if row is None:
                 problems.append(f"trace session {sid} is not present in the source store")
                 continue
             if (entry.get("parent_id") or None) != (row["parent_id"] or None):
                 problems.append(f"trace session {sid} parent does not match the source store")
+            if entry.get("directory") and _norm_dir(entry["directory"]) != _norm_dir(row["directory"] or ""):
+                problems.append(f"trace session {sid} directory does not match the source store")
             store_agent = row["agent"] or "(primary)"
             if entry.get("agent") and entry["agent"] != store_agent:
                 problems.append(
@@ -265,6 +306,27 @@ def verify_native_trace(trace: dict[str, Any]) -> list[str]:
                 problems.append(
                     f"tool call {sid}:{call_id} status {claimed!r} does not match the source store"
                 )
+        for ev in trace.get("conversation_events", []) or []:
+            sid, mid, pid = ev.get("session_id"), ev.get("message_id"), ev.get("part_id")
+            if not sid or not mid or not pid:
+                problems.append("conversation event lacks native session/message/part identity")
+                continue
+            row = con.execute(
+                "select m.data as message_data, p.data as part_data from message m "
+                "join part p on p.message_id=m.id and p.session_id=m.session_id "
+                "where m.id=? and m.session_id=? and p.id=?", (mid, sid, pid)
+            ).fetchone()
+            if row is None:
+                problems.append(f"conversation part {sid}:{mid}:{pid} is not in the source store")
+                continue
+            try:
+                message_data, part_data = json.loads(row["message_data"]), json.loads(row["part_data"])
+            except (TypeError, json.JSONDecodeError):
+                problems.append(f"conversation part {sid}:{mid}:{pid} has malformed source data")
+                continue
+            if (message_data.get("role") != ev.get("role") or part_data.get("type") != "text"
+                    or part_data.get("text") != ev.get("text")):
+                problems.append(f"conversation part {sid}:{mid}:{pid} content/role does not match source store")
         for ev in trace.get("task_events", []) or []:
             child = ev.get("child_session")
             if not child:
@@ -389,7 +451,8 @@ def open_db(explicit: str | None) -> tuple[sqlite3.Connection | None, str]:
     return None, "no readable opencode session database found"
 
 
-def export_trace(target: Path, db_arg: str | None, lookback_days: int | None) -> dict[str, Any]:
+def export_trace(target: Path, db_arg: str | None, lookback_days: int | None,
+                 include_conversation_text: bool = False) -> dict[str, Any]:
     target = target.resolve()
     con, db_note = open_db(db_arg)
     trace: dict[str, Any] = {
@@ -401,6 +464,7 @@ def export_trace(target: Path, db_arg: str | None, lookback_days: int | None) ->
         "skill_events": [],
         "task_events": [],
         "tool_events": [],
+        "conversation_events": [],
     }
     if con is None:
         trace["export_error"] = db_note
@@ -434,6 +498,7 @@ def export_trace(target: Path, db_arg: str | None, lookback_days: int | None) ->
             {
                 "id": r["id"],
                 "parent_id": r["parent_id"],
+                "directory": r["directory"],
                 "agent": r["agent"] or "(primary)",
                 "model": _parse_session_model(raw_model),
                 "model_raw": raw_model,
@@ -508,6 +573,36 @@ def export_trace(target: Path, db_arg: str | None, lookback_days: int | None) ->
                     **timing,
                 }
             )
+    if include_conversation_text and sids:
+        # Explicit privacy opt-in. Default runtime traces never copy chat text.
+        mq = ",".join("?" * len(sids))
+        messages = con.execute(
+            f"select id, session_id, time_created, data from message where session_id in ({mq}) order by time_created",
+            list(sids),
+        ).fetchall()
+        for message in messages:
+            try:
+                mdata = json.loads(message["data"])
+            except (TypeError, json.JSONDecodeError):
+                continue
+            role = mdata.get("role")
+            if role not in ("user", "assistant"):
+                continue
+            text_parts = con.execute(
+                "select id, data from part where message_id=? and session_id=? order by time_created",
+                (message["id"], message["session_id"]),
+            ).fetchall()
+            for part in text_parts:
+                try:
+                    pdata = json.loads(part["data"])
+                except (TypeError, json.JSONDecodeError):
+                    continue
+                if pdata.get("type") == "text" and isinstance(pdata.get("text"), str) and pdata["text"]:
+                    trace["conversation_events"].append({
+                        "session_id": message["session_id"], "message_id": message["id"],
+                        "part_id": part["id"], "role": role, "text": pdata["text"],
+                        "time": _ts(message["time_created"]), "time_ms": message["time_created"],
+                    })
     con.close()
     trace["provenance"] = trace_provenance(trace)
     return trace
@@ -540,6 +635,8 @@ def load_trace(path: Path) -> dict[str, Any]:
             raise TraceValidationError(f"trace missing list field '{key}'")
     if not isinstance(trace.get("tool_events"), list):
         trace["tool_events"] = []  # optional since runtime-trace/1; older exports lack it
+    if "conversation_events" in trace and not isinstance(trace["conversation_events"], list):
+        raise TraceValidationError("trace conversation_events must be a list when present")
     trace["provenance"] = trace_provenance(trace)
     return trace
 
@@ -825,6 +922,8 @@ def main(argv: list[str] | None = None) -> int:
     ex.add_argument("target", help="target project directory")
     ex.add_argument("--db", help="explicit path to opencode session database")
     ex.add_argument("--lookback-days", type=int, default=None)
+    ex.add_argument("--include-conversation-text", action="store_true",
+                    help="privacy opt-in: include text for user/assistant messages in matching sessions")
     ex.add_argument("--out", required=True, help="output trace JSON path")
     va = sub.add_parser("validate", help="validate a dispatch record against a trace (fail-closed)")
     va.add_argument("trace", help="trace JSON path")
@@ -834,7 +933,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.cmd == "export":
-        trace = export_trace(Path(args.target), args.db, args.lookback_days)
+        trace = export_trace(Path(args.target), args.db, args.lookback_days,
+                             include_conversation_text=args.include_conversation_text)
         out = Path(args.out)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(trace, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

@@ -16,6 +16,9 @@ blocked outcome until the original goal is complete.
 
 ## 工程循环续跑（schema 3）
 
+- 有 owner-decision 时先读取持久问题和真实回复来源；resolve-decision 后继续原尝试，
+  不是把未完成的输入测试补记通过。未回答/拒绝的请求不能靠重新发布计划跳过。
+
 - 先运行 `check.py next-step <goal>`：重放循环历史，返回当前任务包、必要合同和
   implement/observe/retry/blocked/replan/final-acceptance 动作，不重读全部历史。
 - 有未观察尝试时，先读该尝试的回执再 `observe-cycle`；中断的运行只能

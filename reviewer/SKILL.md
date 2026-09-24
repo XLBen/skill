@@ -196,6 +196,18 @@ the other.
   choices are backed by actual dependency/API evidence. Identify decisions the
   implementation model would still have to invent. Structural completeness is
   insufficient; report ambiguous steps and disconnected data/control paths.
+- Use `../writing-plans/references/engineering-challenges.md` to falsify, not
+  paraphrase, the design: bootstrap dependencies, event producers while paused,
+  watchdog/expected-wait conflicts, coordinate frames, unknown-result retries
+  of non-idempotent actions, fallback scope changes and justified budgets.
+  Evidence must support the precise claim; a fallback is not risk closure and
+  search absence is not proof of impossibility. Separate technical feasibility,
+  owner acceptability and achieved outcomes. For engineering-plan/3, return the
+  review source and issues for the review condition; open material design defects
+  cannot be accepted. Probe code may supply evidence before review; relabelling
+  full implementation as probe is a finding. Decision files/session IDs are
+  locally attributed, not native identity proof; inspect real question/dispatch
+  references instead of trusting a controller summary.
 - For schema-3 goals, also read the bound engineering design
   (at its declared project-relative path) and the cycle records under
   `.opencode/mvp/cycles/<goal>/`, per

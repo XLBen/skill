@@ -246,6 +246,7 @@ def main():
             "visibility_config.py",
             "runtime_state_policy.py",
             "engineering_delivery.py",
+            "planning_readiness.py",
         ):
             source_path = repo / "scripts" / script_name
             if not source_path.is_file():

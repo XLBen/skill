@@ -50,18 +50,20 @@ S-03 才通过实际交付入口验证用户结果。后续步骤已经写明实
 
 ```json engineering-plan
 {
-  "schema": "engineering-plan/2",
+  "schema": "engineering-plan/3",
   "goal_id": "G-FILE-READER",
   "architecture": "Read-only reader owns decoding and empty validation; CLI owns argument/error presentation and delegates reading to K-01.",
   "data_flow": "argv path -> CLI -> reader -> UTF-8 file -> trimmed str or exception -> VALUE / nonzero exit",
   "shared_context": ["UTF-8; no mock fallback in production", "K-01 is the only reading implementation", "Read-only; test temporary files must be cleaned", "Missing input exit 3; empty input exit 4; other I/O errors are not success"],
-  "decisions": [{"decision": "Use Python pathlib and standard-library tests", "reason": "Local read-only I/O needs no framework or service", "evidence": "Python docs: pathlib.Path.read_text and tempfile.TemporaryDirectory; actual interpreter path is bound for this host before execution"}],
+  "decisions": [{"decision": "Use Python pathlib and standard-library tests", "reason": "Local read-only I/O needs no framework or service", "evidence": "Python docs: pathlib.Path.read_text and tempfile.TemporaryDirectory; actual interpreter path is bound for this host before execution", "critical": true, "evidence_level": "documented", "scope": "Local readable UTF-8 files; does not prove access to the actual target", "invalidated_by": "Target cannot be read as a local UTF-8 file", "condition": "Q-01"}],
+  "conditions": [{"id": "Q-01", "kind": "check", "claim": "The delivered reader can read the real target before CLI integration", "criterion": "S-02 actual boundary check passes and is observed", "affects": ["S-03"], "evidence_required": true, "resolver": {"step": "S-02", "check": "T-01"}}],
+  "design_review": {"mode": "self", "reason": "Small local read-only example, no irreversible operations, asynchronous state or unfamiliar UX; explicit boundary evidence before integration"},
   "components": [
     {"id": "C-01", "responsibility": "Read and normalize actual file content", "files": ["reader.py"], "interfaces": ["K-01"]},
     {"id": "C-02", "responsibility": "Public CLI and error presentation", "files": ["app.py"], "interfaces": ["main(argv: list[str]) -> int"]}
   ],
   "contracts": [{"id": "K-01", "owner": "C-01", "signature": "read_value(path: pathlib.Path) -> str", "definition": "Return UTF-8 text stripped of outer whitespace. Raise FileNotFoundError for missing input and ValueError('empty input') for empty/whitespace-only content; propagate other OSError/UnicodeError. No writes or process exits in reader."}],
-  "boundaries": [{"id": "B-01", "kind": "filesystem", "external": true, "target": "Disposable input.txt on this host containing 42", "driver": "pathlib via delivered reader.py", "probe": {"command": "python -c \"from pathlib import Path; assert Path('input.txt').read_text(encoding='utf-8').strip() == '42'; print('INPUT_READY')\"", "assertion": {"type": "stdout-contains", "literal": "INPUT_READY"}}}],
+  "boundaries": [{"id": "B-01", "kind": "filesystem", "external": true, "target": "Disposable input.txt on this host containing 42", "driver": "pathlib via delivered reader.py", "probe": {"command": "python -c \"from pathlib import Path; assert Path('input.txt').read_text(encoding='utf-8').strip() == '42'; print('INPUT_READY')\"", "assertion": {"type": "stdout-contains", "literal": "INPUT_READY"}, "requires_files": [{"path": "input.txt", "provided_by": "existing"}]}}],
   "journeys": [{
     "id": "J-01", "outcome_ids": ["O-01"], "boundary_ids": ["B-01"],
     "entry": "python app.py <path>", "preconditions": "Python available; input.txt contains 42; absent-input.txt does not exist",
@@ -72,7 +74,7 @@ S-03 才通过实际交付入口验证用户结果。后续步骤已经写明实
   }],
   "steps": [
     {
-      "id": "S-01", "context": "Build the reading component and its shared contract; do not create the CLI yet",
+      "id": "S-01", "kind": "probe", "context": "Build the minimal reader to test the input contract; do not create the CLI yet",
       "depends_on": [], "component_ids": ["C-01"], "read_files": [], "files": ["reader.py", "tests/check_reader.py"],
       "consumes": [], "produces": ["K-01"],
       "implementation": ["Create read_value using Path.read_text(encoding='utf-8') and strip()", "Reject empty/whitespace value with ValueError; preserve other I/O errors", "Create tests/check_reader.py; insert Path(__file__).resolve().parents[1] into sys.path before importing reader because the check runs as a script", "Use TemporaryDirectory for non-ASCII content, missing input and empty input; assertions must execute before printing READER_OK; run before/after implementation"],
@@ -85,7 +87,7 @@ S-03 才通过实际交付入口验证用户结果。后续步骤已经写明实
       "journey_ids": []
     },
     {
-      "id": "S-02", "context": "Verify the delivered reader against the actual target file before expanding CLI integration",
+      "id": "S-02", "kind": "probe", "context": "Verify the delivered reader against the actual target file before expanding CLI integration",
       "depends_on": ["S-01"], "component_ids": ["C-01"], "read_files": ["reader.py"], "files": ["reader.py"],
       "consumes": ["K-01"], "produces": [],
       "implementation": ["Check that the real disposable input exists through preflight", "Invoke delivered read_value on input.txt", "Compare actual content with 42; change code only for a proven reader defect"],
@@ -98,7 +100,7 @@ S-03 才通过实际交付入口验证用户结果。后续步骤已经写明实
       "journey_ids": []
     },
     {
-      "id": "S-03", "context": "Connect the public CLI to K-01 and deliver O-01; verify actual readback, missing and empty input",
+      "id": "S-03", "kind": "implementation", "context": "Connect the public CLI to K-01 and deliver O-01; verify actual readback, missing and empty input",
       "depends_on": ["S-02"], "component_ids": ["C-02"], "read_files": ["reader.py"], "files": ["app.py", "tests/check_cli.py"],
       "consumes": ["K-01"], "produces": [],
       "implementation": ["Create main(argv) requiring exactly one path; usage errors exit 2", "Import K-01 rather than duplicate reading logic", "Render VALUE:<result>; map FileNotFoundError to exit 3 and ValueError to exit 4", "Create tests/check_cli.py: resolve app.py from Path(__file__).resolve().parents[1]; run [sys.executable, app_path, input_path] with subprocess capture_output/text and bounded timeout", "Generate two independent input values inside TemporaryDirectory and assert exact VALUE:<input>; also assert exit 4 on empty, exit 3 on missing; print CLI_CASES_OK only after all assertions"],
@@ -123,3 +125,6 @@ S-03 才通过实际交付入口验证用户结果。后续步骤已经写明实
 - 单个固定输入不能排除硬编码，因此 S-03 还运行生成内容的真实子进程检查。
 - 待实测：Python 路径和真实 input.txt；对应 S-02 的探针。任何检查都未在本计划
   编写时宣称通过。外部可行性失败按 failure_routes 反馈，不继续扩张。
+- Q-01 是运行条件，不由文字“已测”解除：只有 S-02 的实测及观察通过才放行 S-03。
+  探针直接用已有解释器/输入，不调用本步尚未创建的脚本。没有暂停/异步等待或写入
+  副作用；若改为异步或写入任务，必须重新做状态推进和结果未知重试走查。

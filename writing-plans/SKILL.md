@@ -1,6 +1,6 @@
 ---
 name: writing-plans
-description: Use for /plan after a confirmed grill brief, or before handing a multi-step implementation to another model. Acts as the engineering designer: resolves technical decisions, defines shared interfaces, designs the complete system, and writes every dependency-ordered task with implementation guidance and layered verification so build can execute without redesigning.
+description: Use for /plan after a confirmed grill brief, when /work needs an autonomous design, or before handing a multi-step implementation to another model. Acts as the engineering designer: resolves technical decisions, defines shared interfaces, designs the complete system, and writes every dependency-ordered task with implementation guidance and layered verification so execution can proceed without redesigning.
 license: MIT
 metadata:
   language: "zh-CN"
@@ -28,6 +28,10 @@ metadata:
   build；跨组件接口、状态归属、依赖版本、失败策略由你确定。
 - 计划不改变已确认需求。事实推翻设计时修订受影响设计；产品取舍才问用户。
 - 有完整计划后才交给 build。仅通过结构检查不得称“设计已验证可行”。
+
+## `/work` 调用模式
+
+`/work` 可调用本 skill 进行自主规划，并在设计完成后由同一总控自动接续执行；不得把“下一步运行 `/build`”当成交接终点。对有界、低风险且无需跨任务交接的工作，可输出短的会话内路线而不创建 brief/plan 文件。跨模块、多步骤或需要独立执行者、持久恢复、goal/审核/UI/观察正式 gate 的目标仍按完整工程计划和 `mvp-delivery` 规则发布所需文件；不为省文件跳过已有强制产物。假设由 controller 标记并持续验证，不得把猜测伪装为 owner 已确认需求。
 
 ## 工作顺序（必须产出新的工程判断）
 

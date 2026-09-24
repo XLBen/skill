@@ -34,7 +34,7 @@ ROLE_BY_SEAT = {
 }
 KNOWN_SEATS = tuple(ROLE_BY_SEAT)
 AUDITED_SEAT_TOKEN = "resolve:audited_implementation"
-ENTRY_POINTS = ("fix-entry", "build-entry")
+ENTRY_POINTS = ("work-entry", "fix-entry", "build-entry")
 _APPLIES_WHEN_RIGORS = {
     "guarded": ("guarded",),
     "guarded-or-audited": ("guarded", "audited"),

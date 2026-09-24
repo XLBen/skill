@@ -1,6 +1,6 @@
 ---
 name: grill
-description: Use when the user types /grill or says 拷问我、盘问我或帮我把需求问清楚 for a vague, high-risk, or conflicted idea before contract review. Elicits a confirmed requirement brief without writing a contract or code.
+description: Use for /grill or its autonomous inference mode under /work to analyze a vague, high-risk, or conflicted idea; interactive /grill elicits a confirmed brief, while /work records unconfirmed inferences as assumptions.
 license: MIT
 metadata:
   language: "zh-CN"
@@ -27,6 +27,29 @@ Use `/grill` when at least one of these is true:
 Skip it for a small, reversible, already-specific change. That path enters
 mvp-delivery through `/build <goal>` or `/plan <goal>`; contract-review is used
 only if the selected slice later requires Audited rigor.
+
+### Work Inference Mode
+
+When `/work` encounters an unclear goal, it may load this skill for autonomous
+requirements analysis without entering the interactive `/grill` interview:
+
+- Inspect the request, session context, repository and available evidence; close
+  facts through research rather than asking the user.
+- Infer the smallest reversible defaults that make progress possible. Keep
+  model-generated inferences explicitly labeled as assumptions with a way to
+  falsify them; never turn them into user answers, decisions, confirmation or a
+  final brief.
+- Do not create `docs/brief.md` solely to record this internal analysis, and do
+  not ask questions just to close every interview dimension. `/work` asks only
+  for an unresolved material owner decision or an authorization/prerequisite
+  that genuinely blocks safe progress.
+- Return a compact working goal to the `/work` controller and proceed. If facts
+  later disprove an assumption, revise the working understanding and continue;
+  explicit user requirements remain authoritative.
+
+This mode does not weaken `/grill`: direct `/grill` still requires real owner
+interactions, confirmation and a validated brief. If `/work` needs an owner
+decision, ask it as a real interaction; never answer it on the owner's behalf.
 
 ## Interview
 

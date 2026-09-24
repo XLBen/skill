@@ -17,7 +17,7 @@ class AdhdIntegrationTests(unittest.TestCase):
         self.assertIn("6f1f982d0a47c65899af3c5a7450b7098bc65325", upstream)
 
     def test_command_wrappers_load_the_output_layer(self):
-        for command in ("build", "fix", "grill", "plan", "resume"):
+        for command in ("build", "fix", "grill", "plan", "resume", "work"):
             with self.subTest(command=command):
                 text = (ROOT / f".opencode/commands/{command}.md").read_text(encoding="utf-8")
                 self.assertIn("i-have-adhd", text)

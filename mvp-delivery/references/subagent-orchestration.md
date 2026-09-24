@@ -111,7 +111,8 @@ step-executor。正常路由到主控（Normal 直接实现、Audited `direct`�
 
 ## Skill Applicability Selection
 
-在以下时机执行一次有界的 skill 适用性选择：目标建立时、进入新验收边界时
+在以下时机执行一次有界的 skill 适用性选择：`/work` 目标入口
+(`work-entry`)、其他目标建立时、进入新验收边界时
 （阶段按 `stage-routing.json` 变化）、验收范围变化时、最终验收前：
 
 1. 列出本次验收项与真实边界（不超过当前阶段声明的范围）。

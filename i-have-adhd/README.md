@@ -20,7 +20,7 @@ ADHD 输出是用户视图；reviewer 和 PUA 使用完整交接包。不要用�
 
 ## Scope
 
-- 默认随 `/grill`、`/plan`、`/build`、`/fix`、`/resume` 的工作流内部加载。
+- 默认随 `/grill`、`/plan`、`/build`、`/work`、`/fix`、`/resume` 的工作流内部加载。
 - 不提供 `/i-have-adhd` 公开命令，不安装 hook，不写全局状态。
 - 用户要求详细说明时，完整性优先；用户要求关闭简洁模式时，只关闭展示约束。
 - engine gate、owner 决定、reviewer 独立性和 PUA 检查不因简洁输出而改变。

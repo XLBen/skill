@@ -1,20 +1,22 @@
 ---
 name: mvp-delivery
-description: Use for /build, /fix and /resume, or the engineering handoff from /plan. Executes a complete planner-authored design one bounded task at a time, checks components, real boundaries and integration milestones at the correct stage, and returns design conflicts to planning instead of asking an implementation model to redesign.
+description: Use for /work, /build, /fix and /resume, or the engineering handoff from /plan. Executes a complete planner-authored design one bounded task at a time, checks components, real boundaries and integration milestones at the correct stage, and returns design conflicts to planning instead of asking an implementation model to redesign.
 license: MIT
 metadata:
   language: "zh-CN"
-  commands: "/plan <brief>, /build [goal], /fix <problem>, /resume"
+  commands: "/work <goal>, /plan <brief>, /build [goal], /fix <problem>, /resume"
   produces: "working product code and observed verification evidence"
   calls-skills: "writing-plans, systematic-debugging, task-worker, reviewer, computer-use, webapp-testing, contract-review, construction, i-have-adhd, pua"
 ---
 
 # Delivery：按设计施工，用实际结果推进
 
-主路径：**grill → plan 完成工程设计 → build 执行当前任务 → 观察反馈 → 下一任务**。
+主路径：**grill（交互式可选）→ plan 完成工程设计 → build 执行当前任务 → 观察反馈 → 下一任务**。`/work` 将这些阶段编排成一个持续目标循环；被 `/work` 调用时，阶段完成或 replan 不得把控制权交还给用户。
 MVP 是交付顺序，不缩减原始目标。让规划阶段承担跨模块判断，让实现模型做有界工作。
 
 ## 最少上下文
+
+- `/work`：持续总控入口；按需运行 Work Inference Mode，自主规划并接续实现/修复/验收。只读适用的 skills，不把完整 skill 集合灌入每个任务；动态技能发现规则见 `../work/SKILL.md`。
 
 - `/plan`：加载 `writing-plans` 为主流程，不加载整个施工/审计体系后才开始设计。
   发布阶段才读 `references/goal-definition.md`。完整计划必须能独立阅读。

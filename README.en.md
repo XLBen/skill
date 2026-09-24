@@ -15,6 +15,10 @@ the goal is always a really-verified, user-usable result.
 
 ## The overall chain of thought
 
+Use `/work <goal>` to orchestrate the needed stages from one command; the
+diagram below describes the specialist roles without requiring users to invoke
+`/grill` or `/plan` first.
+
 ```text
 idea
  ↓  Can I state it clearly? — no → /grill (interrogate)
@@ -332,8 +336,20 @@ delivery-log remains the primary re-entry point.
 
 ## Command quick reference
 
+`/work <goal>` is the one-shot entry point. For vague goals it runs `grill` in
+autonomous inference mode, labels guesses as assumptions, dynamically selects
+matching skills actually available in the current OpenCode session, and plans,
+executes, repairs and verifies until completion. It does not create brief/plan
+documents just for ceremony; artifacts required by the requested result or a
+formal acceptance/recovery gate are still produced. It never fabricates owner
+confirmation and asks only for a genuinely blocking product decision,
+authorization or external prerequisite. Newly added skills become candidates
+automatically once the current OpenCode session has loaded them; no `/work`
+allowlist needs maintenance.
+
 | Command | When | Result |
 |---|---|---|
+| `/work <goal>` | agent should autonomously understand and pursue a goal | dynamically selected skills, planning/execution/verification through evidenced completion or a real blocker |
 | `/grill <idea>` | idea is vague | a confirmed `docs/brief.md` |
 | `/plan <goal-or-brief>` | see the complete design first, no code | whole-goal engineering design + readable plan + schema-3 goal card; strict compiled PLAN at high risk |
 | `/build [goal]` | start delivery | task-packet-driven, observed execution until the original outcomes are verified |
@@ -341,13 +357,14 @@ delivery-log remains the primary re-entry point.
 | `/resume` | previous run interrupted | resume from the next-step packet to the original goal |
 | `/visibility [model name]` | choose/view this project's observation model | writes `.opencode/mvp/visibility.json` |
 
-Recommended paths: vague → `/grill` → `/plan` → `/build`; clear → `/plan` →
+Recommended paths: one-shot → `/work`; owner-confirmed requirements → `/grill` → `/plan` → `/build`; clear → `/plan` →
 `/build`; bug → `/fix`; interrupted → `/resume`.
 
 ## Internal skills quick reference
 
 | Skill | Role in the chain of thought |
 |---|---|
+| `work` | autonomous controller: infer unclear goals, discover applicable skills dynamically, execute the loop and verify completion |
 | `writing-plans` | engineering designer: synthesize → components/interfaces/flows → fully specified tasks → walkthrough |
 | `mvp-delivery` | execution controller: task-packet loop, layered verification, failure routing, convergence to the original goal |
 | `grill` | requirements interrogation: decision tree + twelve-dimension coverage |

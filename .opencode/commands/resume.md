@@ -14,6 +14,11 @@ starting from its minimal recovery read set. Ask only when multiple targets or
 an unclear repair base make routing ambiguous; continue at the first pending or
 blocked outcome until the original goal is complete.
 
+If this goal was started through `/work`, restore its autonomous orchestration:
+rediscover currently available applicable skills and continue through any
+planning, implementation, repair and final acceptance without returning an
+intermediate `/plan`, `/build` or `/fix` handoff to the user.
+
 ## 工程循环续跑（schema 3）
 
 - 有 owner-decision 时先读取持久问题和真实回复来源；resolve-decision 后继续原尝试，

@@ -104,7 +104,7 @@ class AgentDefinitionTests(unittest.TestCase):
 
 class EntryIntegrationTests(unittest.TestCase):
     def test_command_wrappers_reference_the_orchestration_protocol(self):
-        for command in ("build", "fix", "plan", "resume"):
+        for command in ("build", "fix", "plan", "resume", "work"):
             with self.subTest(command=command):
                 text = (ROOT / f".opencode/commands/{command}.md").read_text(encoding="utf-8")
                 self.assertIn("subagent-orchestration.md", text)

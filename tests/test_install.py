@@ -67,6 +67,7 @@ class InstallTests(unittest.TestCase):
         )
         self.sources = {
             ".opencode/commands/build.md": "command\n",
+            ".opencode/commands/work.md": "work command\n",
             ".opencode/agents/mvp-worker.md": "agent\n",
             ".opencode/agents/mvp-reviewer.md": "agent\n",
             ".opencode/plugins/workflow-visibility.js": "// visibility plugin\n",
@@ -164,7 +165,7 @@ class InstallTests(unittest.TestCase):
         ]
         self.assertEqual(sorted(discovered), ["computer-use", "planning"])
         expected_files = [
-            "opencode.json", ".opencode/commands/build.md",
+            "opencode.json", ".opencode/commands/build.md", ".opencode/commands/work.md",
             ".opencode/agents/mvp-reviewer.md", ".opencode/agents/mvp-worker.md",
             ".opencode/plugins/workflow-visibility.js",
             ".opencode/workflow/install-manifest.json",
@@ -214,6 +215,7 @@ class InstallTests(unittest.TestCase):
         target.mkdir()
         output = self.run_install(str(target), "--commands-only")
         self.assertTrue((target / ".opencode/commands/build.md").is_file())
+        self.assertTrue((target / ".opencode/commands/work.md").is_file())
         self.assertFalse((target / ".opencode/plugins").exists())
         self.assertFalse((target / ".opencode/workflow/scripts").exists())
         manifest = json.loads(
@@ -270,6 +272,7 @@ class InstallTests(unittest.TestCase):
         self.assertIn(source / "computer-use", roots)
         self.assertIn(source / "i-have-adhd", roots)
         self.assertIn(source / "pua", roots)
+        self.assertIn(source / "work", roots)
         names = []
         for root in roots:
             self.assertEqual(root.parent, source)

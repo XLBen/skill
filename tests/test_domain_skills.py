@@ -53,6 +53,10 @@ class RoutingRegistrationTests(unittest.TestCase):
             self.assertIn(name, names)
 
     def test_insertion_filter(self):
+        work_entries = {
+            entry["name"] for entry in protocol.domain_capabilities(self.routing, "work-entry")
+        }
+        self.assertEqual(work_entries, set(SKILLS))
         fix_entries = protocol.domain_capabilities(self.routing, "fix-entry")
         self.assertEqual([entry["name"] for entry in fix_entries], ["incident-response"])
         finish_entries = {

@@ -15,7 +15,9 @@ permission:
     "**/*.spec.*": allow
     "docs/test-manifests/**": allow
     "docs/audit-slices/*/test-manifests/**": allow
-  bash: allow
+  bash:
+    "*": allow
+    "*cua-driver*": deny
   task: deny
 ---
 You are the independent test-author seat. When dispatched, first load the

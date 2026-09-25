@@ -1,10 +1,11 @@
 # Computer Use
 
-User-interface acceptance capability for the existing `/build`, `/fix` and
-`/resume` delivery loop. No new slash command. When an affected outcome
-includes an interface journey (native app, OS dialog, web interaction), the
-controller loads `computer-use`, executes the declared scenarios from the
-user's seat, and records evidence in
+Desktop-control skill for direct user requests (native apps, OS dialogs and
+file pickers), plus the UI acceptance capability for `/build`, `/fix` and
+`/resume`. Direct requests use the short, window-scoped observe/act/verify
+loop in `SKILL.md`; they do not require a delivery goal or evidence sidecar.
+No new slash command. When an affected delivery outcome includes an interface
+journey, the controller executes its declared scenarios and records evidence in
 `.opencode/mvp/<goal-slug>.ui-acceptance.json` (see
 `references/ui-acceptance-protocol.md`); the independent reviewer checks that
 evidence at the acceptance handoff, and `check.py ui-gate` enforces it before
@@ -30,7 +31,10 @@ respect DPI/crop coordinate mappings; scope authorization to the existing goal;
 keep GUI observations separate from engine evidence and owner acceptance.
 Upstream's one-action/one-verification loop and unknown-send readback still
 apply, with state-ID validity resolved from the live backend rather than guessed.
-No upstream install scripts, binaries or automatic updates are bundled.
+No upstream install scripts, binaries or automatic updates are bundled. The
+optional `references/cua-driver-fast-path.md` is a backend-specific recipe:
+it follows the installed tool schema (snapshot-bound targets and conditional
+image capture), not an assumed universal desktop API.
 
 ## Enable Deliberately
 
@@ -38,6 +42,10 @@ The repository installer registers this skill alongside other live top-level
 skills. It does **not** install/enable a desktop driver or change MCP permissions.
 If another global `computer-use` skill is installed, resolve that duplicate
 explicitly; do not rely on discovery order.
+If you use this repository directly without running its installer, register
+`<absolute-path-to-repo>/computer-use` under `skills.paths` in your OpenCode
+config. `opencode debug skill` must list `computer-use`; having an MCP server
+alone does not cause the skill to load.
 
 Suggested backend: [Cua Driver](https://github.com/trycua/cua/tree/main/libs/cua-driver).
 Its documented MCP entry is `cua-driver mcp`; platform capabilities vary by
@@ -48,10 +56,14 @@ pipe an unreviewed remote script into a shell. This repository has not performed
 a live desktop test of that backend.
 
 After installation, confirm the executable path and version using its local
-help. Merge the following **disabled example** into the intended OpenCode
-configuration only after review; preserve existing settings. Replace the first
-command argument with the verified absolute executable path if it is not on
-OpenCode's PATH. The MCP key `desktop` supplies the permission-tool prefix.
+help. `cua-driver mcp-config --client opencode` prints a current registration
+example (escape backslashes in JSON on Windows). Merge the following
+**disabled example** into the intended OpenCode configuration only after
+review; preserve existing settings. Replace the first command argument with
+the verified absolute executable path if it is not on OpenCode's PATH. The
+MCP key `desktop` supplies the permission-tool prefix. Default-deny the
+desktop tools and allow only the primary `build` agent to request them; this
+also covers newly added subagents by default.
 
 ```json
 {
@@ -64,20 +76,24 @@ OpenCode's PATH. The MCP key `desktop` supplies the permission-tool prefix.
     }
   },
   "permission": {
-    "desktop_*": "ask"
+    "desktop_*": "deny"
   },
   "agent": {
-    "general": { "permission": { "desktop_*": "deny" } },
-    "explore": { "permission": { "desktop_*": "deny" } }
+    "build": { "permission": { "desktop_*": "ask" } }
   }
 }
 ```
 
 Only set `enabled` to `true` after authorizing this backend and its desktop scope.
-Apply the same denial to any other subagent used in your installation. Do not
-replace a stricter deny rule with ask; inspect merged project/global permissions.
-Skill instructions alone do not enforce isolation or sandbox the driver. Do not
-enable unrestricted driver mode or a personal browser-profile grant by default.
+Check the *resolved* permissions of `build` and any custom agent: file-defined
+per-agent permissions or project config can override the global default. A
+subagent that actually needs UI must have an explicitly reviewed separate grant
+and lease. Skill instructions and tool-name permissions are not an OS sandbox;
+if shell commands are allowed, deny direct `cua-driver` CLI commands in the
+global **and** any overriding per-agent `bash` rules so CLI input cannot
+casually bypass MCP's `ask` rule. Other drivers need their own permission
+boundaries. Do not enable unrestricted driver mode or a personal
+browser-profile grant by default.
 Quit and restart OpenCode after configuration or skill changes.
 
 ## Readiness And Smoke Test
@@ -86,6 +102,10 @@ From the target project, `opencode mcp list` checks whether the server connects;
 connection is not proof that UI control works. In a fresh session, request a
 read-only observation of a named, non-sensitive test window. Confirm actual tool
 names, target identity and the visible state; a list of tools alone is not proof.
+If the tool isn't available in an old OpenCode session, restart instead of
+falling back to shell-driven clicks. Prefer a tree-only snapshot when the named
+control suffices, a window screenshot only when pixels/appearance matter,
+and a bounded semantic result assertion or fresh window state after acting.
 
 For an authorized write smoke, use a disposable test window, enter `CU-SMOKE-42`,
 and read back the exact text. Keep personal documents closed, do not save over an
@@ -98,8 +118,8 @@ verify; it must not assume permission to operate any open desktop application.
 
 ## Acceptance Boundary
 
-Interactive screenshots/MCP results are acceptance evidence recorded in the
-UI acceptance sidecar; they are not a replacement for `verify-goal`,
+During delivery acceptance, interactive screenshots/MCP results are evidence
+recorded in the UI acceptance sidecar; they are not a replacement for `verify-goal`,
 `verify-step`, or actual owner acceptance. Under `runtime-policy/1`, run
 `check.py ui-gate <goal-card> --trace <trace.json>` before `finish-goal`:
 required scenarios must be `passed` (or reasoned `not-applicable`), the

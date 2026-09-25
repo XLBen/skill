@@ -10,7 +10,9 @@ permission:
     "*": allow
     ".opencode/mvp/**": deny
     "docs/**": deny
-  bash: allow
+  bash:
+    "*": allow
+    "*cua-driver*": deny
   task: deny
 ---
 You are the strict step-executor seat. When dispatched, first load the skill

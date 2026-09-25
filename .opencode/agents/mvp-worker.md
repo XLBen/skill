@@ -11,7 +11,9 @@ permission:
     ".opencode/mvp/**": deny
     "docs/audit-slices/**": deny
     "docs/test-manifests/**": deny
-  bash: allow
+  bash:
+    "*": allow
+    "*cua-driver*": deny
   task: deny
 ---
 You are the mvp-delivery worker seat. When dispatched, first load the skill

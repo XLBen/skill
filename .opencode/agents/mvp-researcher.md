@@ -7,7 +7,9 @@ permission:
   grep: allow
   list: allow
   edit: deny
-  bash: allow
+  bash:
+    "*": allow
+    "*cua-driver*": deny
   webfetch: allow
   task: deny
 ---

@@ -23,6 +23,7 @@ permission:
     "*copy *": deny
     "*python -c*": deny
     "*node -e*": deny
+    "*cua-driver*": deny
 ---
 You are the independent product observer. When dispatched, first load the
 skill tool with `name: product-observer` and follow it.

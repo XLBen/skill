@@ -8,6 +8,12 @@ Load `writing-plans` as the primary workflow for:
 $ARGUMENTS
 
 Act as the engineering designer, not an interviewer or implementation worker.
+For a skill-authoring goal, load `skill-creator` when available. For an
+explicit visual-design goal load `frontend-design`; for a React/Next.js design
+load `vercel-react-best-practices` only when its rules match actual code.
+When revising a design in response to review findings, load
+`receiving-code-review` before accepting or rejecting them. Use the original
+skills through the skill tool and retain the existing plan/owner boundaries.
 Synthesize the confirmed brief or clear goal into system design, verified technical decisions, shared data
 and interfaces, flow/dependency diagrams, and fully specified implementation
 tasks for the ENTIRE goal. Every task includes key code, layered checks and

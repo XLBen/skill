@@ -120,15 +120,23 @@ step-executor。正常路由到主控（Normal 直接实现、Audited `direct`�
    记忆或文件存在假设）中筛选与验收项匹配的候选。条件型领域能力注册在
    `stage-routing.json` 的 `domain_capabilities`：
    `security-assurance`（信任边界/认证/隐私/密钥/不可信输入）、
-   `production-readiness`（生产部署/长期服务/迁移/可用性目标）、
-   `incident-response`（正在发生的线上影响，经 `fix-entry`）、
-   `outcome-learning`（未验证的用户/业务假设）。只有触发条件与真实边界
-   匹配才加载，不默认全选。
+    `production-readiness`（生产部署/长期服务/迁移/可用性目标）、
+    `incident-response`（正在发生的线上影响，经 `fix-entry`）、
+    `outcome-learning`（未验证的用户/业务假设）、
+    `skill-creator`（目标是创建/修改/评估 skill）、
+    `receiving-code-review`（收到评审意见后核实与返修）、
+    `frontend-design`（明确的视觉设计任务）、
+    `vercel-react-best-practices`（相关 React/Next.js 代码与适用规则）。只有触发条件与真实边界
+    匹配才加载，不默认全选。
 3. 读取候选 skill 的 description/正文确认适用条件；不适用的淘汰并记录
    一句理由。
 4. 适用的分配执行席位（controller 或对应子代理），写进派发正文
    `selected_domain_skills`，由该席位在执行中实际加载并使用。
 5. 在返回/交接正文记录 `SKILL_USE` 块（见下）。
+
+编码、代码设计和代码评审还按 `stage-routing.json` 加载原版 `ponytail`；判断额外加固、范围、过度设计或重复验证时将原版 `stop-that-shit` 交给实际作判断的席位。派发正文在 `required_skills` 或 `selected_domain_skills` 中列名称，不粘贴或改写提示词；子代理自行加载完整原文，席位权限和文件边界不因此扩大。
+
+四个新增领域 skill 也只在实际边界匹配时加载原版 `SKILL.md`，不为它们新增验收席位或全局 gate。`skill-creator` 中提及的 Claude CLI/评估展示脚本须先检查本机能力，缺失时如实注明实际未运行的模型对照；`receiving-code-review` 由收到 findings 的 controller/实现席位使用，不能让产生 findings 的独立 reviewer 自行采纳结论。`frontend-design` 决定视觉实施，不取代真实 UI 旅程；React 规则按相关文件展开，不把性能优化变成无关任务。已有 reviewer、test-author、owner 与工具权限不变。
 
 边界（必须遵守）：
 

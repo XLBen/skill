@@ -24,7 +24,7 @@ DeepSeek / GLM 等较省的模型也能少猜、少返工、少读无关上下�
  ↓    实现错误 → retry（修本步）  缺环境 → blocked  设计假设被证伪 → replan（回 plan）
  ↓  集成里程碑回看原始结果清单——有差距 → 下一任务（循环）
  ↓                          ——无差距 → 验收：证据呢？
- ↓  验收通过 → 交付前完整产品黑盒观察（product-observer，观察模型由 /visibility 选择）
+  ↓  验收通过 → 目标卡要求时做完整产品黑盒观察（product-observer，模型由 /visibility 选择）
  ↓  观察 gate：v2 报告 + 原生 trace —— 有阻断缺陷 → /fix → 新候选全量重观察
  ↓                                        —— 无阻断缺陷 → delivery
  ↘  出 bug → /fix：复现→隔离→假设→验证
@@ -119,7 +119,7 @@ delivery-log），不依赖聊天记录。下面逐段展开这条链。
    | component | 组件就绪 | 组件行为；不要求完整应用已建成 |
    | boundary | 适配器就绪、扩张上层前 | 真实接触目标文件/设备/窗口/API 并回读 |
    | journey | 阶段接通后 | 经交付公开入口完成用户动作 |
-   | final | 完整候选 | 全部承诺 + 独立产品观察 |
+    | final | 完整候选 | 全部承诺 + 目标卡要求时的独立产品观察 |
 
    负向对照只放在有意义的故障点，不强制每个组件配非零退出码脚本。
 6. **发布与自动记账**：
@@ -201,7 +201,7 @@ python .opencode/workflow/scripts/check.py observe-cycle <goal> --decision <d> -
 
 ## 产品观察的思维链 —— “完整产品真用过了吗？”
 
-实现和引擎验证只证明“命令能跑”；交付前还要有人第一次接触产品那样把完整
+实现和引擎验证只证明“命令能跑”；目标卡要求观察时，交付前还要有人第一次接触产品那样把完整
 产品真用一遍。`/build` 在固定候选版本后派发 `mvp-product-observer` 独立席位，
 它拿到的是公开简报与真实入口——不是 diff、测试或实现说明。
 
@@ -300,7 +300,13 @@ bug → `/fix`；中断 → `/resume`。
 | `step-executor` | 隔离执行单个严格 PLAN 步骤 |
 | `webapp-testing` | Web 旅程：断言式浏览器自动化 |
 | `computer-use` | 桌面旅程：硬预算 GUI 操作与验证 |
-| `product-observer` | 全产品黑盒观察：discover + compare，交付前强制 gate；模型由 `/visibility` 选择 |
+| `product-observer` | 目标卡要求时全产品黑盒观察：discover + compare；模型由 `/visibility` 选择 |
+| `ponytail` | 上游原文：编码、代码设计及评审的最小正确实现选择 |
+| `stop-that-shit` | 上游原文：范围、无用途防御及重复验证的条件型判断 |
+| `skill-creator` | 条件型：创建、修改或实测 skill 的行为与触发条件 |
+| `receiving-code-review` | 条件型：收到评审反馈后核实、澄清与有据采纳 |
+| `frontend-design` | 条件型：用户明确要求视觉设计或界面改版 |
+| `vercel-react-best-practices` | 条件型：适用的 React/Next.js 代码与性能规则 |
 | `pua` | 验收质询：闭环/事实驱动/穷尽不盲目 |
 | `i-have-adhd` | 用户沟通：短视图，不删完整事实 |
 | `security-assurance` | 条件型：信任边界/认证/隐私/密钥的安全保证与威胁建模 |
@@ -328,6 +334,10 @@ python scripts/install.py "E:/path/to/target-project"
 OpenCode。桌面验证为可选：不自动安装 MCP、不改全局权限，接入见
 [computer-use/README.md](computer-use/README.md)。
 
+`ponytail/SKILL.md` 与 `stop-that-shit/SKILL.md` 是按固定上游提交逐字复制的原文（各目录 `UPSTREAM.md` 记录来源）；安装器将它们注册为本套件的 skill。按阶段加载的是原始提示词；不会自动安装 Ponytail 常驻插件、`/ponytail` 命令或 Stop That Shit Guard，不能把指令式边界宣称为宿主工具拦截。
+
+新增四个条件型 skill 也保留固定上游提交的原文与引用文件（各目录 `UPSTREAM.md`）。`/work`、`/plan`、`/build`、`/fix`、`/resume` 仅在真实任务边界选择适用能力，不会为普通产品工作默认运行 skill 评估、视觉重设计或 React 优化。`skill-creator` 的 Claude 专用评估/展示命令在 OpenCode 不会自动可用，须先确认实际后端并报告真实结果。
+
 如需 `/visibility` 的动态观察模型派发：目标项目 `.opencode` 需能解析
 `@opencode-ai/plugin`（安装器检测缺失时会提示，在该目录执行 `npm install`），
 重启 OpenCode 后由插件提供 `visibility_dispatch` / `visibility_status`。
@@ -349,7 +359,7 @@ python .opencode/workflow/scripts/check.py check-current .opencode/mvp/<goal>.md
 运行时门禁（可选）：`runtime-policy.json` 启用后 `finish-goal` 要求先过
 `runtime-gate`——用原生会话证据核验 dispatch 声明；手写/导入 trace 一律拒绝。
 UI 门禁：`ui-gate ... --bind` 核验场景状态、真实工具加载、原生调用与产物
-身份绑定；产物变化必须重跑重绑。观察门禁：schema-2/3 目标在 `finish-goal`
+身份绑定；产物变化必须重跑重绑。观察门禁：schema-2/3 且 `product_observation.required: true` 的目标在 `finish-goal`
 前必须过 `product-audit-gate`（必须带原生 trace）。
 
 引擎检查结构、绑定、退出/超时与断言；hash 检测“验证后被改动”，不证明语义

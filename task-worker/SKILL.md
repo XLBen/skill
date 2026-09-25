@@ -36,6 +36,10 @@ manifest 和精确 V 命令）。
 
 ## Procedure
 
+编码前通过 skill 工具加载 `ponytail`（`../ponytail/SKILL.md`）。考虑工作包外扩张、额外防御或重复验证时通过 skill 工具加载 `stop-that-shit`（`../stop-that-shit/SKILL.md`）。上游提示词优先于本文件中相冲突的实现偏好，但不改变派发的 write_scope、验收及席位权限；缺少可用的 skill 时如实报告，不冒充已加载。
+
+派发包的 `selected_domain_skills` 若选中了 `skill-creator`、`receiving-code-review`、`frontend-design` 或 `vercel-react-best-practices`，由本席位通过 skill 工具加载原文并仅用于对应的工作包。没有宿主支持的 Claude 专用评估操作不执行、不宣称通过；需要新增权限或目标范围时返回 controller。
+
 如果任务包仍有 pending_conditions/missing_preflight_files，返回 blocked 请求主控
 解决，不自行批准或改成已满足。用户在施工中提出路线异议时停止新副作用并交回
 主控记录 request-decision。不要把“能发出输入”推成“目标接受”、把未知结果

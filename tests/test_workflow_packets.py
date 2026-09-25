@@ -59,7 +59,7 @@ class StagePacketTests(unittest.TestCase):
             item["name"] for item in packet["required_skills"] if item["applies"]
         }
         self.assertEqual(applicable(controller), set())
-        self.assertEqual(applicable(executor), {"step-executor", "pua"})
+        self.assertEqual(applicable(executor), {"step-executor", "pua", "ponytail"})
         self.assertEqual(applicable(reviewer), {"reviewer"})
 
     def test_converge_audit_mode_names_its_mode_file(self):

@@ -24,11 +24,14 @@ fence, using schema 1 from `tests/fixtures/goal-valid.md` and `check.py`:
   `risk`, `first_slice`, `demo`, `constraints`, `deferred`, and nonempty `outcomes`.
 - **Schema 2/3**: `schema_version: 2` introduced (and 3 retains)
   the required `product_observation: {"required": true|false, "reason": "...",
-  "basis": "..."}` field. New product goals default `required: true`.
-  `required: false` is legal only for changes that cannot affect delivered
-  behavior and needs a non-empty `reason` plus a concrete `basis` (how that
-  was determined); the obligation cannot be dropped by deleting the audit
-  sidecar. When an unfinished old goal is selected for the new workflow,
+  "basis": "..."}` field. `prepare-plan` defaults `required: true` when
+  browser/desktop journeys map to outcomes; otherwise it records `required:
+  false` with the concrete boundary/journey basis. The planner may explicitly
+  require independent observation for other real gaps (e.g. cross-journey
+  behavior); an existing explicit selection is preserved. `required: false`
+  needs a non-empty `reason` and concrete `basis`, and never waives outcome,
+  UI, runtime or owner gates. Do not turn it off merely because the observer
+  backend is unavailable. When an unfinished old goal is selected for the new workflow,
   prepare-plan publishes its engineering design as schema 3 (a definition
   change: evidence invalidation rules apply). Completed historical cards stay as-is and
   are never rewritten or claimed to have passed the observation gate.

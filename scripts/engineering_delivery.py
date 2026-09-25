@@ -2,7 +2,7 @@
 
 Uses check.py's existing command runner, workspace binding and file lock. This
 is NOT a UI driver or a semantic test oracle. Commands and observations still
-need review; native UI/product-observation gates remain mandatory.
+need review; required UI/product-observation gates remain mandatory.
 """
 import hashlib
 import json
@@ -25,6 +25,14 @@ def strings(value, empty=False):
 def relative(value):
     return (text(value) and not Path(value).is_absolute() and not PureWindowsPath(value).is_absolute()
             and not PureWindowsPath(value).drive and ".." not in value.replace("\\", "/").split("/"))
+
+
+def default_observation_spec(ui_ids):
+    if ui_ids:
+        return {"required": True, "reason": "Browser/desktop journeys need independent whole-product observation"}
+    return {"required": False,
+            "reason": "No browser/desktop journey requires an additional observation round",
+            "basis": "Engineering-plan boundary/journey mapping has no browser or desktop outcome; planned outcome checks remain required"}
 
 
 def goal_problems(goal):
@@ -349,7 +357,7 @@ def prepare(goal_path, plan_path, engine):
         updated = json.loads(json.dumps(goal))
         updated.update(schema_version=3, engineering_plan={"path": path.relative_to(root).as_posix(), "sha256": hashlib.sha256(raw).hexdigest()},
                        ui={"required": bool(ui_ids), "reason": "Derived from engineering-plan boundary/journey mapping", "outcome_ids": sorted(ui_ids)})
-        updated.setdefault("product_observation", {"required": True})
+        updated.setdefault("product_observation", default_observation_spec(ui_ids))
         changed = engine.goal_definition_hash(updated) != engine.goal_definition_hash(goal)
         if changed:
             updated["status"] = "active"

@@ -31,6 +31,10 @@ Work Inference Mode 是自主需求建模，不是模拟访谈。不得在同一
 
 ## 动态技能发现与路由
 
+编码、代码设计、修复和代码评审时通过 skill 工具加载 `ponytail`（原文在 `../ponytail/SKILL.md`）；遇到范围边界、额外加固、过度设计或重复验证时通过 skill 工具加载 `stop-that-shit`（原文在 `../stop-that-shit/SKILL.md`）。不要摘编或改写上游提示词替代实际加载；当前会话无法加载时按现有 capability-unavailable 处理。二者与本地规则冲突时执行上游原文，明确授权、用户已要求的结果及宿主权限仍有效。只读任务不得因加载 skill 获得写权限。
+
+领域选择同时覆盖原版 `skill-creator`（交付物是 skill 或其模型效果评估）、`receiving-code-review`（当前席位收到评审意见）、`frontend-design`（明确的视觉设计）和 `vercel-react-best-practices`（实际相关的 React/Next.js 代码）。仅在匹配时用 skill 工具加载，按当前设计/实施/评审席位分配；不要把几份上游全文一起塞给无关的子代理，或用加载回执冒充验证。
+
 技能目录不是固定白名单。目标建立时、进入新的技术/验收边界时、方案受挫时及最终验收前，按 `../mvp-delivery/references/subagent-orchestration.md` 的 **Skill Applicability Selection** 执行有界选择；同一边界没有变化时复用已作出的适用性判断：
 
 1. 先看当前 OpenCode 会话实际提供的 skill 清单/skill 工具能力；若当前会话提供不了清单，再检查当前项目与已注册 skill roots 中可读的 `SKILL.md` frontmatter 和 description。不能仅凭文件存在声称 skill 已加载或可用。

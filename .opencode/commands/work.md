@@ -20,6 +20,13 @@ handing the user another command to run. Do not create brief/plan/checkpoint
 documents solely as ceremony; create artifacts required by the requested result
 or an applicable rigor, audit, handoff, or recovery gate.
 
+Use the conditional capabilities in `mvp-delivery/references/stage-routing.json`
+at the actual boundary: `skill-creator` for skill authoring/evaluation,
+`receiving-code-review` when findings arrive, `frontend-design` for requested
+visual design, and `vercel-react-best-practices` for applicable React/Next.js
+code. Load each original skill through the skill tool only when its trigger
+matches; do not copy a short paraphrase into the task packet.
+
 Continue until every original required outcome is verified, or report the exact
 external decision, authorization, or capability that blocks further progress.
 Follow `mvp-delivery/references/subagent-orchestration.md` for required seats,

@@ -16,6 +16,10 @@ MVP 是交付顺序，不缩减原始目标。让规划阶段承担跨模块判�
 
 ## 最少上下文
 
+代码规划、实现或修复的执行席位通过 skill 工具加载 `ponytail`（`../ponytail/SKILL.md`）；新增防御、范围变化、过度设计或反复验证时由当前判断席位通过 skill 工具加载 `stop-that-shit`（`../stop-that-shit/SKILL.md`）。普通依赖或正常验证本身不触发后者。既有规则和上游提示词有冲突时以上游原文为准；所有原始必需结果与已适用的真实 gate 仍需验收。
+
+按 `references/stage-routing.json` 的条件型触发器决定是否加载 `skill-creator`、`receiving-code-review`、`frontend-design`、`vercel-react-best-practices`。收到 reviewer findings 的 controller 先验证反馈再返修；独立 reviewer 不因反馈而自行改代码。skill 设计的模型对照需有本机可用执行后端与真实结果，结构测试或上游的 Claude 专用命令不能代替 OpenCode 的实测。视觉设计由规划/实现席位承担；视觉目标的最终对照仍由 controller 结合真实界面与原始要求检查，UI 使用验收按现有工具路由。
+
 - `/work`：持续总控入口；按需运行 Work Inference Mode，自主规划并接续实现/修复/验收。只读适用的 skills，不把完整 skill 集合灌入每个任务；动态技能发现规则见 `../work/SKILL.md`。
 
 - `/plan`：加载 `writing-plans` 为主流程，不加载整个施工/审计体系后才开始设计。
@@ -128,7 +132,7 @@ resolve-decision 引用实际原话与演示/审查证据。accept 恢复原任�
 2. verify-goal：每个必需 outcome 经真实入口覆盖，受影响回归及 lint/build。
 3. 适用 UI 场景（Web 用 webapp-testing，原生用 computer-use）：真实后端、
    产物绑定及原生调用证据；缺后端保持 blocked。
-4. required 全产品观察在**完整稳定候选**执行 discover/compare，
+4. 目标卡明确要求的全产品观察在**完整稳定候选**执行 discover/compare，
    `product-observation/2` 及 reviewer 的 `product-observation-review/2` 结果通过
    product-audit-gate；缺原生 trace、能力缺口、未解决阻断发现均不放行。
 5. 既有 runtime/owner gate 满足后 finish-goal，追加 delivery-log。

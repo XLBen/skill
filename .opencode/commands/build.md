@@ -7,6 +7,13 @@ Load `mvp-delivery` in Build Mode for:
 
 $ARGUMENTS
 
+At each current task boundary select only matching skills from
+`mvp-delivery/references/stage-routing.json`: `skill-creator` for skill
+authoring, `frontend-design` for requested visual construction,
+`vercel-react-best-practices` for relevant React/Next.js code, and
+`receiving-code-review` when review feedback is handed back. Have the actual
+executing seat load the original skill, not a controller-authored summary.
+
 Resolve the planner's complete design first; if none exists, complete the
 writing-plans workflow before implementing. Do not redesign architecture,
 interfaces or acceptance criteria in the implementation loop.

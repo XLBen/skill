@@ -12,6 +12,8 @@ metadata:
 
 # Reviewer (Independent Seat)
 
+代码设计或代码变更评审时通过 skill 工具加载 `ponytail`（`../ponytail/SKILL.md`）；评审过度设计、额外加固、任务边界或重复检查时通过 skill 工具加载 `stop-that-shit`（`../stop-that-shit/SKILL.md`）。上游提示词只作用于已派发的评审范围，不赋予写入权限，也不增加独立审查轮次。
+
 You are the independent reviewer. Contract-bound callers, normally
 contract-review or construction, read the reviewer protocol before each
 dispatch, create a fresh reviewer subagent, and have it load this skill. They supply:

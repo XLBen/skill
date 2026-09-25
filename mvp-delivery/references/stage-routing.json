@@ -38,6 +38,7 @@
       "rigors": ["normal", "guarded"],
       "required_skills": [
         {"name": "writing-plans", "seat": "controller", "roles": ["controller"]},
+        {"name": "ponytail", "seat": "controller", "roles": ["controller"]},
         {"name": "i-have-adhd", "seat": "controller", "roles": ["controller"]},
         {"name": "pua", "stage_card": "goal-validation", "seat": "controller", "roles": ["controller"], "applies_when": "guarded-or-audited"}
       ],
@@ -84,6 +85,9 @@
       "required_skills": [
         {"name": "task-worker", "seat": "worker-subagent", "roles": ["worker"], "applies_when": "guarded"},
         {"name": "step-executor", "seat": "step-executor-subagent", "roles": ["step-executor"], "applies_when": "audited"},
+        {"name": "ponytail", "seat": "controller", "roles": ["controller"]},
+        {"name": "ponytail", "seat": "worker-subagent", "roles": ["worker"]},
+        {"name": "ponytail", "seat": "step-executor-subagent", "roles": ["step-executor"]},
         {"name": "i-have-adhd", "seat": "controller", "roles": ["controller"]}
       ],
       "reviewer": {
@@ -153,6 +157,7 @@
       "rigors": ["audited"],
       "required_skills": [
         {"name": "contract-review", "seat": "controller", "roles": ["controller"]},
+        {"name": "ponytail", "seat": "controller", "roles": ["controller"]},
         {"name": "reviewer", "seat": "reviewer-subagent", "roles": ["reviewer"]},
         {"name": "pua", "stage_card": "contract-release", "seat": "varies", "roles": ["reviewer", "controller"]}
       ],
@@ -177,6 +182,7 @@
       "rigors": ["audited"],
       "required_skills": [
         {"name": "contract-review", "seat": "controller", "roles": ["controller"]},
+        {"name": "ponytail", "seat": "controller", "roles": ["controller"]},
         {"name": "reviewer", "seat": "reviewer-subagent", "roles": ["reviewer"]},
         {"name": "pua", "stage_card": "plan-confirmation", "seat": "varies", "roles": ["reviewer", "controller"]}
       ],
@@ -201,6 +207,7 @@
       "rigors": ["audited"],
       "required_skills": [
         {"name": "test-author", "seat": "test-author-subagent", "roles": ["test-author"]},
+        {"name": "ponytail", "seat": "test-author-subagent", "roles": ["test-author"]},
         {"name": "pua", "stage_card": "test-freeze", "seat": "test-author-subagent", "roles": ["test-author"]}
       ],
       "reviewer": {
@@ -221,6 +228,7 @@
       "rigors": ["audited"],
       "required_skills": [
         {"name": "step-executor", "seat": "step-executor-subagent", "roles": ["step-executor"]},
+        {"name": "ponytail", "seat": "step-executor-subagent", "roles": ["step-executor"]},
         {"name": "pua", "stage_card": "step-verification", "seat": "step-executor-subagent", "roles": ["step-executor"]}
       ],
       "reviewer": {
@@ -321,6 +329,36 @@
   "domain_capabilities": {
     "note": "Conditional domain skills registered for Skill Applicability Selection. Load only when the trigger matches the actual slice boundary; they are additional capabilities, never a blanket call-everything rule. `insertion` names stage ids or workflow entry points (fix-entry, build-entry) where the capability is evaluated.",
     "capabilities": [
+      {
+        "name": "stop-that-shit",
+        "trigger": "extra hardening, possible overengineering, repeated verification loops, explicit task boundaries, scope creep, or direct invocation; ordinary validation, retry, or dependency use alone is not a trigger",
+        "insertion": ["work-entry", "goal-validation", "slice-implementation", "step-verification", "review-verdict", "goal-finish", "fix-entry"],
+        "outputs": ["in-scope decision and verification using the original Skill prompt; no additional gate or proof file"]
+      },
+      {
+        "name": "skill-creator",
+        "trigger": "the requested deliverable is a new or revised agent skill, skill description/trigger, or a measured evaluation of skill behavior; not ordinary application development",
+        "insertion": ["work-entry", "goal-validation", "build-entry", "slice-implementation", "fix-entry", "review-verdict", "goal-finish"],
+        "outputs": ["original skill artifact and realistic task/trigger evaluation when the host can run it", "actual observed results versus a comparable baseline, or an explicit capability gap; no fabricated Claude runs"]
+      },
+      {
+        "name": "receiving-code-review",
+        "trigger": "the controller or implementation seat receives actionable human or independent reviewer findings and must decide whether and how to repair them; not a trigger while writing a review",
+        "insertion": ["work-entry", "build-entry", "fix-entry", "slice-implementation", "step-verification", "review-verdict"],
+        "outputs": ["checked feedback against the current code and approved scope", "itemized adoption, technical disagreement, or specific clarification before affected edits"]
+      },
+      {
+        "name": "frontend-design",
+        "trigger": "the goal explicitly creates or reshapes a user-facing visual interface, layout, typography or visual identity; not a routine UI bug fix or UI acceptance run",
+        "insertion": ["work-entry", "goal-validation", "build-entry", "slice-implementation", "fix-entry", "goal-finish"],
+        "outputs": ["brief-grounded design direction and implementation of requested visual outcomes", "existing UI acceptance evidence remains controller-owned"]
+      },
+      {
+        "name": "vercel-react-best-practices",
+        "trigger": "actual React or Next.js code is being designed, written, refactored or reviewed and a specific rendering, fetching, bundle or performance rule is relevant; not non-React code or speculative optimization",
+        "insertion": ["work-entry", "goal-validation", "build-entry", "slice-implementation", "fix-entry", "review-verdict"],
+        "outputs": ["applicable upstream rules checked against actual React/Next.js usage and version", "verified affected behavior or measured performance, not an unrelated optimization sweep"]
+      },
       {
         "name": "security-assurance",
         "trigger": "authentication, authorization, privacy, secrets, cryptography, untrusted input, multi-tenancy, externally reachable attack surface, regulated data",

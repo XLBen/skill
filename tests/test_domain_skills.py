@@ -56,14 +56,16 @@ class RoutingRegistrationTests(unittest.TestCase):
         work_entries = {
             entry["name"] for entry in protocol.domain_capabilities(self.routing, "work-entry")
         }
-        self.assertEqual(work_entries, set(SKILLS))
+        additions = {"stop-that-shit", "skill-creator", "receiving-code-review",
+                     "frontend-design", "vercel-react-best-practices"}
+        self.assertEqual(work_entries, set(SKILLS) | additions)
         fix_entries = protocol.domain_capabilities(self.routing, "fix-entry")
-        self.assertEqual([entry["name"] for entry in fix_entries], ["incident-response"])
+        self.assertEqual({entry["name"] for entry in fix_entries}, additions | {"incident-response"})
         finish_entries = {
             entry["name"] for entry in protocol.domain_capabilities(self.routing, "goal-finish")
         }
         self.assertEqual(
-            finish_entries, {"security-assurance", "production-readiness", "outcome-learning"}
+            finish_entries, {"stop-that-shit", "skill-creator", "frontend-design", "security-assurance", "production-readiness", "outcome-learning"}
         )
 
     def test_unknown_insertion_token_is_rejected(self):

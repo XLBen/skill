@@ -32,7 +32,7 @@ idea
  ↓    falsified design assumption → replan (back to plan)
  ↓  at milestones, compare against the original outcomes — gaps? → next task (loop)
  ↓                                —— no gaps → acceptance: where is the evidence?
- ↓  accepted → whole-product black-box observation before delivery
+  ↓  accepted → whole-product black-box observation when required by the goal
  ↓            (product-observer; model chosen by /visibility)
  ↓  observation gate: v2 report + native trace — blocking finding → /fix → full re-observation
  ↓                                              — no blocking finding → delivery
@@ -379,7 +379,13 @@ Recommended paths: one-shot → `/work`; owner-confirmed requirements → `/gril
 | `step-executor` | isolated execution of one strict PLAN step |
 | `webapp-testing` | web journeys: assertion-first browser automation |
 | `computer-use` | desktop journeys: hard-budgeted GUI operation and verification |
-| `product-observer` | whole-product black-box observation: discover + compare, mandatory pre-finish gate; its model is chosen by `/visibility` |
+| `product-observer` | whole-product black-box observation when required by the goal: discover + compare; its model is chosen by `/visibility` |
+| `ponytail` | verbatim upstream prompt for smallest correct coding/design/review choices |
+| `stop-that-shit` | verbatim upstream prompt for scope, speculative defenses and repeated verification decisions |
+| `skill-creator` | conditional skill authoring and real model/trigger evaluation |
+| `receiving-code-review` | conditional verification and resolution of incoming review feedback |
+| `frontend-design` | conditional visual design for requested UI work |
+| `vercel-react-best-practices` | conditional React/Next.js guidance for relevant code |
 | `pua` | acceptance interrogation: closure / fact-driven / exhaustive-not-blind |
 | `i-have-adhd` | user communication: short view, full facts preserved |
 | `security-assurance` | conditional: trust boundaries, auth, privacy, secrets; threat model and control mapping |
@@ -411,6 +417,18 @@ must be restarted after installing or modifying skills. Desktop verification
 is optional: no MCP is auto-installed and no global permissions change; see
 [computer-use/README.md](computer-use/README.md).
 
+`ponytail/SKILL.md` and `stop-that-shit/SKILL.md` are byte-for-byte copies
+of pinned upstream prompts (see each `UPSTREAM.md`). The installer registers
+them as skills; it does not install Ponytail's always-on plugin or command,
+or the Stop That Shit Guard. Skill guidance alone is not host-enforced blocking.
+
+Four additional conditional skills preserve pinned upstream prompts and their
+supporting files (see each `UPSTREAM.md`). `/work`, `/plan`, `/build`, `/fix`
+and `/resume` select them only at matching boundaries. Claude-specific
+skill-creator evaluation and viewer commands require an actually available
+backend in OpenCode; loading a skill or passing structural checks is not model
+evaluation evidence.
+
 For `/visibility` dynamic observation-model dispatch, the target `.opencode`
 must resolve `@opencode-ai/plugin` (the installer prints a hint when it is
 missing — run `npm install` in that directory); the plugin provides
@@ -435,7 +453,7 @@ requires a passing `runtime-gate` first — dispatch claims are verified against
 native session evidence; handwritten/imported traces are rejected. UI gate:
 `ui-gate ... --bind` verifies scenario statuses, real tool loads, native calls
 and artifact-identity binding; changed artifacts must re-run and re-bind.
-Observation gate: schema-2/3 goals must pass `product-audit-gate` (with a
+Observation gate: schema-2/3 goals with `product_observation.required: true` must pass `product-audit-gate` (with a
 native trace) before `finish-goal`.
 
 The engine checks structure, bindings, exit/timeout and assertions; hashes

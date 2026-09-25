@@ -12,6 +12,8 @@ metadata:
 
 # Test Author
 
+编写验收测试前通过 skill 工具加载 `ponytail`（`../ponytail/SKILL.md`）；涉及额外防御、范围变化或重复验证时按触发条件通过 skill 工具加载 `stop-that-shit`（`../stop-that-shit/SKILL.md`）。上游提示词不改变已冻结验收范围、独立席位和授权边界。
+
 You are the independent test author for a first slice, SI, or FIX package under v0.2
 (or an existing v0.1 package). Independence
 requires actual separate session/subagent provenance; IDs alone are claims with

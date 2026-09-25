@@ -7,6 +7,14 @@ Load the `mvp-delivery` skill in Fix Mode for:
 
 $ARGUMENTS
 
+When the reported defect comes from review findings, load
+`receiving-code-review` before treating a suggestion as an implementation
+requirement. Select `skill-creator` for a skill behavior/trigger defect,
+`frontend-design` only for a requested visual redesign, and
+`vercel-react-best-practices` only for an affected React/Next.js path.
+The current owner of the repair loads the original applicable skill;
+no skill permits edits outside the affected task or protected acceptance.
+
 Load `i-have-adhd` for concise user-facing progress and final delivery. Follow
 `systematic-debugging` (reproduce / isolate / hypothesize / verify) before
 editing. When the root cause is unclear, dispatch a read-only research seat

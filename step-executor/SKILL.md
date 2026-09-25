@@ -10,6 +10,10 @@ metadata:
 
 # Step Executor
 
+实现代码前通过 skill 工具加载 `ponytail`（`../ponytail/SKILL.md`）；出现范围膨胀、额外加固或重复验证的判断时通过 skill 工具加载 `stop-that-shit`（`../stop-that-shit/SKILL.md`）。执行原文而非转述；派发的步骤、冻结测试、精确 V 和只读边界仍是已约定的工作范围。
+
+当严格步骤实际需要且派发包选中了四个条件型 skill 之一时，本席位通过 skill 工具加载其原文；原版 `skill-creator`、`receiving-code-review`、`frontend-design` 和 `vercel-react-best-practices` 不改变 compiled PLAN、受保护验收测试或 controller 拥有的正式 V。上游提示需要的操作超出本席位权限时按现有交回协议返回。
+
 You execute exactly one compiled construction step. The construction controller
 dispatches a fresh subagent that loads this skill and supplies the step ID, unit/variant/segment,
 actions, artifacts, interfaces, declared side effects, idempotency and

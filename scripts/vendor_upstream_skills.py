@@ -39,6 +39,13 @@ SOURCES = (
         "source": "skills/react-best-practices", "dest": "vercel-react-best-practices",
         "skill_blob": "237988de4a66dd8a71d30a2c24ebe1a86b58d04e",
     },
+    {
+        "repo": "Jeffallan/claude-skills", "ref": "882ef55e377dbf9a4dbe496bb41ac6ccd0e555cf",
+        "tree": "44b08027e2c06856066b6e27f1584acb7328e164",
+        "source": "skills/architecture-designer", "dest": "architecture-designer",
+        "skill_blob": "c3014c38d71393a886a2c3b84fe8c347e33abe45",
+        "license_blob": "b77bf2ab726c6e7cb5a81a9d3b7dc38266ebfd3d",
+    },
 )
 
 

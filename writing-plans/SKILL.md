@@ -18,6 +18,8 @@ metadata:
 
 涉及代码设计或依赖选择时先通过 skill 工具加载 `ponytail`（`../ponytail/SKILL.md`）；涉及新机制、额外防御或范围扩张时按触发条件通过 skill 工具加载 `stop-that-shit`（`../stop-that-shit/SKILL.md`）。先追踪当前真实流程再决定组件与任务；如本地流程与上游提示词冲突，以上游原文及已授权目标为准。
 
+高层系统架构设计、既有系统架构评审或重大架构决定时，通过 skill 工具加载固定上游原文 `architecture-designer`（`../architecture-designer/SKILL.md`），按原文选择 references、写重要决定的 ADR，并在定稿前取得真实干系人评审。未得到实际回复不得伪称评审通过；未触发时不为普通局部修改额外加载。
+
 本次产物若是 skill，按 `stage-routing.json` 选择原版 `skill-creator`；目标明确包含新视觉设计时选原版 `frontend-design`；仅当技术路线确为 React/Next.js 且相关规则适用时选原版 `vercel-react-best-practices`。设计受到评审反馈时由当前决策席位按需加载原版 `receiving-code-review`，先核对事实再修订。上游 skill 的方案不能替换已确认产品范围或本计划的实际验证。
 
 | grill | plan（你） | build |

@@ -26,6 +26,7 @@ class UpstreamPromptTests(unittest.TestCase):
             ("receiving-code-review", "950da7b74bf6dbed6b8726d12ddadd65a9f5fda7"),
             ("frontend-design", "a5333457c414d20d625f307df945842c0952ecc3"),
             ("vercel-react-best-practices", "237988de4a66dd8a71d30a2c24ebe1a86b58d04e"),
+            ("architecture-designer", "c3014c38d71393a886a2c3b84fe8c347e33abe45"),
         ):
             with self.subTest(skill=skill):
                 data = (ROOT / skill / "SKILL.md").read_bytes()
@@ -110,6 +111,28 @@ class UpstreamPromptTests(unittest.TestCase):
         capabilities = {item["name"]: item for item in routing["domain_capabilities"]["capabilities"]}
         self.assertTrue(routed <= capabilities.keys())
         self.assertFalse(any(item["name"] in routed for stage in routing["stages"]
+                             for item in stage["required_skills"]))
+
+    def test_architecture_designer_keeps_upstream_references_and_planning_route(self):
+        upstream = ROOT / "architecture-designer"
+        for relative, expected in {
+            "references/architecture-patterns.md": "30b90f23b5b203f0dfaf4c29d2a6dd7a26efc13f",
+            "references/adr-template.md": "e82652d654f84ee4be190182bd8b422d1b0f6f43",
+            "references/system-design.md": "c810dc54601651af0aedee5cab774ab4e45e4613",
+            "references/database-selection.md": "2a29216900cf9deb5418a3213dfe45808e1482fc",
+            "references/nfr-checklist.md": "7e3389b4b532ee79771b1d95a5f12dafbe5c04d6",
+            "LICENSE": "b77bf2ab726c6e7cb5a81a9d3b7dc38266ebfd3d",
+        }.items():
+            with self.subTest(resource=relative):
+                data = (upstream / relative).read_bytes()
+                blob = b"blob " + str(len(data)).encode() + b"\0" + data
+                self.assertEqual(hashlib.sha1(blob).hexdigest(), expected)
+        self.assertIn("architecture-designer", (ROOT / "writing-plans/SKILL.md").read_text(encoding="utf-8"))
+        self.assertIn("architecture-designer", (ROOT / ".opencode/commands/plan.md").read_text(encoding="utf-8"))
+        routing = json.loads((ROOT / "mvp-delivery/references/stage-routing.json").read_text(encoding="utf-8"))
+        capabilities = {item["name"]: item for item in routing["domain_capabilities"]["capabilities"]}
+        self.assertIn("goal-validation", capabilities["architecture-designer"]["insertion"])
+        self.assertFalse(any(item["name"] == "architecture-designer" for stage in routing["stages"]
                              for item in stage["required_skills"]))
 
 

@@ -342,6 +342,12 @@
         "outputs": ["original skill artifact and realistic task/trigger evaluation when the host can run it", "actual observed results versus a comparable baseline, or an explicit capability gap; no fabricated Claude runs"]
       },
       {
+        "name": "architecture-designer",
+        "trigger": "high-level system architecture design or review, or significant architectural decisions about components, patterns, scalability or infrastructure; not routine code-level changes",
+        "insertion": ["work-entry", "goal-validation", "contract-release", "plan-confirmation"],
+        "outputs": ["verbatim upstream architecture design and trade-offs", "ADRs for all significant architecture decisions and actual stakeholder review before finalizing; never fabricate approval"]
+      },
+      {
         "name": "receiving-code-review",
         "trigger": "the controller or implementation seat receives actionable human or independent reviewer findings and must decide whether and how to repair them; not a trigger while writing a review",
         "insertion": ["work-entry", "build-entry", "fix-entry", "slice-implementation", "step-verification", "review-verdict"],

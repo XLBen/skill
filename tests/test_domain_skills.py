@@ -58,7 +58,11 @@ class RoutingRegistrationTests(unittest.TestCase):
         }
         additions = {"stop-that-shit", "skill-creator", "receiving-code-review",
                      "frontend-design", "vercel-react-best-practices"}
-        self.assertEqual(work_entries, set(SKILLS) | additions)
+        self.assertEqual(work_entries, set(SKILLS) | additions | {"architecture-designer"})
+        planning_entries = {
+            entry["name"] for entry in protocol.domain_capabilities(self.routing, "goal-validation")
+        }
+        self.assertIn("architecture-designer", planning_entries)
         fix_entries = protocol.domain_capabilities(self.routing, "fix-entry")
         self.assertEqual({entry["name"] for entry in fix_entries}, additions | {"incident-response"})
         finish_entries = {

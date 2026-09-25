@@ -14,6 +14,10 @@ load `vercel-react-best-practices` only when its rules match actual code.
 When revising a design in response to review findings, load
 `receiving-code-review` before accepting or rejecting them. Use the original
 skills through the skill tool and retain the existing plan/owner boundaries.
+For high-level system architecture design or review, or significant
+architectural decisions, load the original `architecture-designer` skill through
+the skill tool. Follow its original ADR and stakeholder-review requirements;
+do not claim a stakeholder review occurred without an actual reply.
 Synthesize the confirmed brief or clear goal into system design, verified technical decisions, shared data
 and interfaces, flow/dependency diagrams, and fully specified implementation
 tasks for the ENTIRE goal. Every task includes key code, layered checks and

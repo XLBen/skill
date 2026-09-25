@@ -133,6 +133,9 @@ project-relative path the user chooses):
    exactly one producer; consumers depend on it), layout, data-flow and
    dependency diagrams. Mutually exclusive product forks go to the user;
    ordinary engineering choices get a decision, a reason and evidence.
+   Load the original `architecture-designer` for high-level architecture design,
+   review or significant decisions; its workflow requires ADRs for important
+   decisions and real stakeholder review before finalizing.
 4. **Every task reaches construction grade** — not just the first slice. Each
    carries: purpose, dependencies, minimal read files, write scope,
    consumed/produced contracts, ordered implementation actions, key code
@@ -366,6 +369,7 @@ Recommended paths: one-shot → `/work`; owner-confirmed requirements → `/gril
 |---|---|
 | `work` | autonomous controller: infer unclear goals, discover applicable skills dynamically, execute the loop and verify completion |
 | `writing-plans` | engineering designer: synthesize → components/interfaces/flows → fully specified tasks → walkthrough |
+| `architecture-designer` | verbatim upstream: conditional high-level architecture design/review, decisions, ADRs and stakeholder review |
 | `mvp-delivery` | execution controller: task-packet loop, layered verification, failure routing, convergence to the original goal |
 | `grill` | requirements interrogation: decision tree + twelve-dimension coverage |
 | `research` | external fact-finding: source grading, citation, freshness |
@@ -422,7 +426,7 @@ of pinned upstream prompts (see each `UPSTREAM.md`). The installer registers
 them as skills; it does not install Ponytail's always-on plugin or command,
 or the Stop That Shit Guard. Skill guidance alone is not host-enforced blocking.
 
-Four additional conditional skills preserve pinned upstream prompts and their
+Five additional conditional skills preserve pinned upstream prompts and their
 supporting files (see each `UPSTREAM.md`). `/work`, `/plan`, `/build`, `/fix`
 and `/resume` select them only at matching boundaries. Claude-specific
 skill-creator evaluation and viewer commands require an actually available

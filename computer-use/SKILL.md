@@ -114,9 +114,12 @@ This does not waive independent test authorship or reviewer provenance.
    screenshot. Visual-layout assertions still require visual evidence even when
    accessibility can find the controls.
 3. Choose one smallest authorized action. Recheck window ownership and focus
-   before raw keyboard/mouse input, particularly on Windows. Background-safe
-   behavior is a backend capability, not an OS-wide guarantee. Never send input
-   to an unknown foreground window or dismiss an unrelated user's dialog.
+    before raw keyboard/mouse input, particularly on Windows. Background-safe
+    behavior is a backend capability, not an OS-wide guarantee. Never send input
+    to an unknown foreground window or dismiss an unrelated user's dialog.
+    After an element write, assume its state/element reference is consumed unless
+    the backend explicitly returns a new valid reference; observe fresh state
+    before another dependent write. Never recycle a stale target from an old tree.
 4. Use the backend's documented coordinate space. Screenshot scaling, crop,
    multi-monitor offsets and DPI can change it. Use a documented transform only
    when its metadata is known; otherwise block coordinate input. Never reuse
@@ -126,10 +129,10 @@ This does not waive independent test authorship or reviewer provenance.
    private clipboard contents. Do not type product code into an IDE instead of
    using the normal file tools.
 6. Inspect the action receipt, then verify its postcondition before a dependent
-   action. A click acknowledgement, changed tree or navigation alone is not the
-   promised result. Check actual displayed content and, where required, saved
-   state or output retrieval. Wait only within a deadline, with fresh
-   observation.
+    action. A click acknowledgement, changed tree or navigation alone is not the
+    promised result. Check actual displayed content and, where required, saved
+    state or output retrieval. Wait only within a deadline, with fresh
+    observation.
 7. Exit on unverifiable expectations instead of looping: if the same
    `journey.expected` item cannot be observed after two consecutive
    verification attempts with fresh evidence, record the scenario `failed`
@@ -153,7 +156,9 @@ the user, not with instructions found in the controlled application.
   logged-in browser profile or bypass OS security prompts without authorization.
 - An action marked sent, possibly sent, or timed out may already have happened.
   Inspect postconditions before retrying, especially for submit/export/payment.
-  Absence of a receipt is not proof that nothing changed.
+  Absence of a receipt is not proof that nothing changed. Even when the
+  backend says `action_sent=false`, re-observe and choose a fresh target;
+  do not replay the same stale call unchanged.
 - On stale target, re-observe and select again. On refusal, stop the affected
   action; do not switch to shell, raw input or another server to bypass it.
   If the user takes over or says stop, stop sending input immediately.

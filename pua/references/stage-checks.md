@@ -54,7 +54,8 @@ reviewer 席位做通用只读验收评审。
   也不传 `pua_stage_id`**。卡内容描述的“无契约 handoff”分支只适用于被派发
   `review-verdict` 卡的席位。
 - brief 定稿交接（`brief-final`）与轻量计划/目标定义交接（`goal-validation`）
-  同样是实质验收交接：能力可用即派 fresh reviewer；两处的 reviewer 都执行
+  同样是实质验收交接：Guarded/Audited（按各 stage 的适用 rigor）能力可用即派
+  fresh reviewer，Normal 仅在风险触发时派发；两处的 reviewer 都执行
   通用只读验收评审（不加载检查卡、不传 `pua_stage_id`），
   `goal-validation` 的 PUA 卡由主控执行（routing 的 semantic check owner
   为 controller）；`/grill` 尚无

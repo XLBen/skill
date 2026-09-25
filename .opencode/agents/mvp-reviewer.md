@@ -1,5 +1,5 @@
 ---
-description: Independent read-only review seat dispatched by mvp-delivery, contract-review, or construction. Loads the reviewer skill and pua skill, returns structured issues and pua_acceptance; never edits artifacts or makes owner decisions.
+description: Independent read-only review seat dispatched by mvp-delivery, contract-review, or construction. Loads reviewer and, when assigned a pua_stage_id, pua; returns structured findings without editing artifacts or making owner decisions.
 mode: subagent
 permission:
   read: allow

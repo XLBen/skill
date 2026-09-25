@@ -138,7 +138,7 @@ step-executor。正常路由到主控（Normal 直接实现、Audited `direct`�
   `webapp-testing`（断言式浏览器自动化），原生应用/系统对话框/文件选择器加载
   `computer-use`（规则见
   `stage-routing.json` 的 ui_acceptance 块与
-  `computer-use/references/ui-acceptance-protocol.md`）；缺后端是 blocked，
+   `../../computer-use/references/ui-acceptance-protocol.md`）；缺后端是 blocked，
   不是不适用。无界面范围必须记录 `applicability: none` 及理由。
 - 加载 skill 只证明取得说明，不证明验收完成；验收结果仍需行为证据。
 - 父会话加载过角色 skill 不代替 fresh 子代理自行加载。
@@ -244,7 +244,7 @@ preflight 失败按 Failure Branches 降级或阻塞，并在 dispatch record �
   归一化失败签名”，跨 task、seat 与 resume 累计。达到三次同签名
   实际失败的 no-progress 熔断后，fresh seat 只可用于有界只读诊断；
   重新写入或重放失败方案必须先满足 owner 升级或新证据恢复条件
-  （见 mvp-delivery Build Continuously 与 `../pua/references/recovery-protocol.md`）。
+   （见 mvp-delivery Build Continuously 与 `../../pua/references/recovery-protocol.md`）。
 - reviewer 与被评实现的作者必须是不同 session；worker 不能评审自己的
   产出，主控不能在采纳前改写 reviewer 的 findings。
 - 同一评审任务的返修复核（同一任务、同一范围，作者更新制品后）可以 resume

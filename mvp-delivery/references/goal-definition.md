@@ -87,7 +87,7 @@ bounded, no recovery need) remain allowed per `SKILL.md`.
 ## PUA Acceptance: `goal-validation`
 
 For Guarded goals, before editing or resuming a product goal, load
-`../pua/SKILL.md` and execute the `goal-validation` card. Audited goals use the
+`../../pua/SKILL.md` and execute the `goal-validation` card. Audited goals use the
 contract-review gates (`contract-release`, `plan-confirmation`) instead. For
 Normal goals, apply the same questions directly without loading the card. Ask
 “BS 被悄悄缩水、改名或塞进 deferred 了吗？”
@@ -185,7 +185,7 @@ included file fails validation instead of being treated as unchanged.
 
 Audited package paths and contract/PLAN/reconcile hashes are recovery pointers
 and live in the goal's dispatch record (`active_slice.package`, see
-`../mvp-delivery/references/subagent-orchestration.md`), never inside the goal JSON:
+`subagent-orchestration.md`), never inside the goal JSON:
 the engine rewrites the card on every verification and binds evidence to the
 definition hash, so a runtime pointer in the JSON would be lost or would
 invalidate verified outcomes. They are not substitutes for goal verification.

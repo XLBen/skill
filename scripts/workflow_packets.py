@@ -157,13 +157,23 @@ def _routing_context(routing_path: str | None) -> tuple[dict[str, Any], dict[str
 
 
 def _narrowed_skills(
-    routing: dict[str, Any], stage_id: str, rigor: str | None
+    routing: dict[str, Any], stage_id: str, rigor: str | None, seat: str
 ) -> list[dict[str, Any]]:
     stage = _protocol.stage_definition(routing, stage_id)
     entries: list[dict[str, Any]] = []
     for entry in stage.get("required_skills") or []:
         try:
-            applies = _protocol.pua_applies(entry, rigor)
+            applies = (
+                (rigor not in _protocol.RIGORS or rigor in stage.get("rigors", []))
+                and _protocol.pua_applies(entry, rigor)
+                and (
+                    entry.get("seat") == seat
+                    or (
+                        entry.get("seat") == "varies"
+                        and _protocol.ROLE_BY_SEAT[seat] in entry.get("roles", [])
+                    )
+                )
+            )
         except _protocol.ProtocolError:
             applies = False  # unknown applies_when fails visibly below
         item: dict[str, Any] = {
@@ -216,7 +226,7 @@ def build_stage_packet(
             "scope": reviewer_block.get("scope"),
             "mode_file": MODE_FILES.get(reviewer_block.get("mode")),
         },
-        "required_skills": _narrowed_skills(routing, stage_id, rigor),
+        "required_skills": _narrowed_skills(routing, stage_id, rigor, seat),
         "rules": {
             "formal_v_owner": "controller",
             "single_semantic_owner": True,

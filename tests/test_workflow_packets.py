@@ -45,6 +45,23 @@ class StagePacketTests(unittest.TestCase):
         self.assertTrue(packet["reviewer"]["condition"]["mandatory"])
         self.assertEqual(packet["rules"]["formal_v_owner"], "controller")
 
+    def test_stage_packet_only_marks_current_seat_skills_applicable(self):
+        controller = build_stage_packet(
+            "step-verification", "audited", "controller", [], [], routing_path=str(ROUTING)
+        )
+        executor = build_stage_packet(
+            "step-verification", "audited", "step-executor", [], [], routing_path=str(ROUTING)
+        )
+        reviewer = build_stage_packet(
+            "goal-finish", "normal", "reviewer", [], [], routing_path=str(ROUTING)
+        )
+        applicable = lambda packet: {
+            item["name"] for item in packet["required_skills"] if item["applies"]
+        }
+        self.assertEqual(applicable(controller), set())
+        self.assertEqual(applicable(executor), {"step-executor", "pua"})
+        self.assertEqual(applicable(reviewer), {"reviewer"})
+
     def test_converge_audit_mode_names_its_mode_file(self):
         packet = build_stage_packet(
             "slice-acceptance", "audited", "reviewer", [], [], routing_path=str(ROUTING)

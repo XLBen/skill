@@ -71,7 +71,7 @@ delta 决定，然后确认新生成的 PLAN；goal 批准不是对未来 PLAN �
 
 ### PUA Acceptance: `slice-acceptance`
 
-For an Audited slice, before requesting the SI decision, load `../pua/SKILL.md`
+For an Audited slice, before requesting the SI decision, load `../../pua/SKILL.md`
 and execute the `slice-acceptance` card. Ask “clean 了当前 slice，整件事也交付了
 吗？” Show the owner the real input, output, environment, limitations and
 evidence for the observed slice. Keep goal-level pending outcomes visible. A

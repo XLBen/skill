@@ -77,9 +77,10 @@ constraints:
   `subagent-orchestration.md` Skill Applicability Selection）的条目。
 - 精确值（数字、签名、测试用例）放在 inputs 的文件里或直接内联，不写
   “参见上文”。
-- reviewer 派发额外包含 `ACCEPTANCE_HANDOFF` 全文与 `pua_stage_id`，
-  并要求其加载 `pua` skill 与对应检查卡，返回 `issues` 与
-  `pua_acceptance`（见 `../contract-review/references/reviewer-protocol.md`）。
+- reviewer 的验收派发包含 `ACCEPTANCE_HANDOFF` 全文；仅当阶段路由要求
+  PUA 检查卡时才传 `pua_stage_id`，要求其加载 `pua` 并返回
+  `pua_acceptance`。Normal 风险触发的 review 没有卡时只返回 `issues`
+  （见 `../../contract-review/references/reviewer-protocol.md`）。
 - worker/research 派发明确单文件或单工作包；不确定影响面时先派
   research 缩小范围。
 - test-author 派发必须包含调用方解析好的 manifest 路径；step-executor

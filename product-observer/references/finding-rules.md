@@ -2,8 +2,9 @@
 
 > When to read: while recording any observation finding, while triaging
 > findings into the repair loop, and while reviewing observation evidence.
-> Severity ladder and categories are adopted verbatim from
-> `../upstream/issue-taxonomy.md`; the deltas below are local rules.
+> Severity ladder and core categories follow the snapshot in
+> `../upstream/issue-taxonomy.md`; category `continuity`, evidence backends
+> and gate treatment are local rules.
 
 ## Finding Format
 
@@ -120,11 +121,12 @@ For `critical`/`high` findings the engine enforces this: `dismissed` and
 `intended-change` require a non-empty `owner_decision_ref`, and README or
 implementer prose alone is rejected.
 
-## Discovery Discipline (from upstream, unchanged)
+## Discovery Discipline (adapted from upstream)
 
 - Repro-first: interactive issues get stepwise screenshots (+ video when
-  ffmpeg is available; otherwise screenshot sequences + trace), static
-  issues get one annotated screenshot.
+  a working capture backend exists; otherwise screenshot sequences + trace);
+  static visual issues get one annotated screenshot. CLI/API/audio issues use
+  their actual channel evidence, not fabricated screenshots.
 - Record findings incrementally; never delete evidence mid-session.
 - Check console/errors/network at each material surface — silent failures
   live there.

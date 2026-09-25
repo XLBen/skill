@@ -106,7 +106,7 @@ duties. Selftest checks the engine, not product usability.
 ## PUA Acceptance: `goal-finish`
 
 For Audited goals, and whenever evidence is missing or suspect, load
-`../pua/SKILL.md` and execute the `goal-finish` card: compare the original
+`../../pua/SKILL.md` and execute the `goal-finish` card: compare the original
 request or every brief BS, the whole goal, deferred work, final integrated
 path, isolated setup/use replay and remaining limitations. For Normal/Guarded
 goals the same comparison is the controller's direct duty; PUA cards are not

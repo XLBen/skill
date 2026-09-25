@@ -6,7 +6,7 @@ metadata:
   language: "zh-CN"
   commands: "/work <goal>, /plan <brief>, /build [goal], /fix <problem>, /resume"
   produces: "working product code and observed verification evidence"
-  calls-skills: "writing-plans, systematic-debugging, task-worker, reviewer, computer-use, webapp-testing, contract-review, construction, i-have-adhd, pua"
+  calls-skills: "stage-routing.json required roles plus runtime-selected applicable skills"
 ---
 
 # Delivery：按设计施工，用实际结果推进
@@ -30,8 +30,7 @@ MVP 是交付顺序，不缩减原始目标。让规划阶段承担跨模块判�
 
 ## Plan Mode：工程设计者
 
-需求输入为实际确认的 brief；没有 brief 但需求已清楚时直接建立对应结果，不强制
-重做采访。需求不清才用 grill。`writing-plans` 负责：
+独立 `/plan` 如指定 brief，先验证其真实确认；没有 brief 但需求已清楚时直接使用原始目标，不强制重做采访。`/work` 的未确认推断按假设处理；只有需要 owner 决定的歧义才转交互式 grill。`writing-plans` 负责：
 1. 综合用户工作流，核实环境、真实依赖与高风险技术假设。
 2. 设计组件、状态/数据模型、共享接口与逻辑图，明确复用方案。
 3. 为**全部任务**写依赖、最少输入、文件职责、实现步骤、关键代码和分层验证。
@@ -46,9 +45,7 @@ MVP 是交付顺序，不缩减原始目标。让规划阶段承担跨模块判�
 
 ## Build Mode：有界执行者
 
-复用唯一匹配的 active/blocked 目标；不另造一个活动目标。无计划先执行完整 plan
-阶段，不能用一句“最薄首片”代替。新产品用 schema-3 目标与工程设计，完成历史
-保持只读；旧工件处理见恢复协议，不把迁移工作当作新项目主流程。
+正式 `/build` 复用唯一匹配的 active/blocked 目标；不另造一个活动目标。需要工程交接但无计划时先完成 plan 阶段，不能用一句“最薄首片”代替；`/work` 的局部可逆小改按 `../work/SKILL.md` 直接执行，不进入本循环。新产品用 schema-3 目标与工程设计，完成历史保持只读；旧工件处理见恢复协议，不把迁移工作当作新项目主流程。
 
 ### 每步的固定循环
 
@@ -64,8 +61,7 @@ next-step 选择下一依赖就绪任务，直到 final-acceptance
 
 - 主控不重新划分模块/换技术栈/改接口；任务包固定 read_files、files、consumes、
   produces、implementation、change、checks。局部实现细节按仓库习惯处理。
-- 一次只推进一个未观察任务。先写并运行少量关键行为测试，再实现/修正；不用为
-  每一行代码写测试，不在第一次接触真实目标前铺完所有新测试/实现。
+- 一次只推进一个未观察任务。对需要保护的行为先准备并运行少量关键测试，再实现/修正；局部可逆改动可直接用现有检查或结果回读验证。不为每一行代码写测试，不在第一次接触真实目标前铺完所有新测试/实现。Audited 验收测试冻结仍按 construction 执行。
 - component 通过只表示组件成立；boundary 必须用实际目标；journey 经交付入口
   完成用户动作并回读结果。普通组件不强制启动尚未完成的完整 UI。
 - 负向对照按计划选择关键故障，不是每步必须另写非零退出码脚本。已有回归可批跑。

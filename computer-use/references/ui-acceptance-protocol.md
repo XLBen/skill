@@ -114,7 +114,8 @@ implementation done -> automated/engine verification
      exclusive UI lease over the delivered candidate; the controller pauses
      planned UI runners for the audit window
   -> ACCEPTANCE_HANDOFF includes the sidecar summary
-  -> fresh reviewer + PUA check UI evidence with the other acceptance items
+   -> reviewer per stage routing checks UI evidence with other acceptance items
+      (PUA card only when pua_stage_id is assigned)
   -> failures repaired and affected scenarios re-executed
   -> check.py ui-gate (with runtime policy) -> existing engine/owner gates
 ```

@@ -181,12 +181,15 @@ class ResponsibilityRoutingTests(unittest.TestCase):
         self.assertFalse(condition["blocking"])
 
     def test_guarded_worker_skill_does_not_apply_to_audited(self):
-        entries = protocol.required_skills_for_stage(
+        audited = protocol.required_skills_for_stage(
             self.routing, "slice-implementation", "audited"
         )
-        worker = next(entry for entry in entries if entry["name"] == "task-worker")
-        self.assertFalse(protocol.pua_applies(worker, "audited"))
-        self.assertTrue(protocol.pua_applies(worker, "guarded"))
+        guarded = protocol.required_skills_for_stage(
+            self.routing, "slice-implementation", "guarded"
+        )
+        self.assertNotIn("task-worker", {entry["name"] for entry in audited})
+        self.assertIn("task-worker", {entry["name"] for entry in guarded})
+        self.assertNotIn("step-executor", {entry["name"] for entry in guarded})
 
     def test_validation_rejects_duplicate_checks_and_unknown_owners(self):
         broken = copy.deepcopy(self.routing)

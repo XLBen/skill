@@ -54,7 +54,7 @@ blocks the journey rather than changing its target to a fixture.
   cause is a no-progress blocker: stop mechanical retries (a fresh seat is not
   retry authorization), summarize attempts/evidence and two concrete options,
   and escalate to the user.
-- Before escalating, load `../pua/references/recovery-protocol.md`: the first
+- Before escalating, load `../../pua/references/recovery-protocol.md`: the first
   failed experiment is L0, the second same-signature failure is L1 and must
   switch to a materially different method, and the third-failure no-progress
   blocker remains authoritative. PUA L2 is the evidence checklist for that
@@ -68,18 +68,18 @@ part of the acceptance handoff:
 - `/plan` declares `goal.ui.required` (optionally `outcome_ids`) and authors the
   scenarios; the controller executes them in the
   `.opencode/mvp/<goal-slug>.ui-acceptance.json` sidecar following
-  `../computer-use/references/ui-acceptance-protocol.md` (preflight,
+   `../../computer-use/references/ui-acceptance-protocol.md` (preflight,
   observe/act/verify).
-- Web-only journeys load `../webapp-testing/SKILL.md` first (assertion-first
+- Web-only journeys load `../../webapp-testing/SKILL.md` first (assertion-first
   browser automation, deterministic scripts preferred); the desktop MCP via
-  `../computer-use/SKILL.md` serves native app, OS-dialog and file-picker
+   `../../computer-use/SKILL.md` serves native app, OS-dialog and file-picker
   boundaries, under its per-scenario hard budget. References must be real trace
   calls or existing non-empty project-relative files; without policy `ui_tools`
   record the runner output. After the artifact identity changes, re-run
   scenarios instead of re-binding old results.
 - The shared desktop/browser is serialized by the controller only; subagents
   return scenario requests instead of controlling input. Missing MCP/permissions
-  is reported per `../computer-use/README.md` and the scenario is `blocked` —
+   is reported per `../../computer-use/README.md` and the scenario is `blocked` —
   never auto-install, open permissions or record missing capability as passed.
 - GUI操作记录是验收证据的组成部分，可执行 outcome 断言仍需通过 goal/step
   gate；Audited human V 仍需真实 owner 决定，不能替代 goal 验证。

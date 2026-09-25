@@ -1,5 +1,5 @@
 ---
-description: Design the complete software from a confirmed brief and hand build fully specified tasks
+description: Design the complete software from a confirmed brief or clear goal and hand build fully specified tasks
 agent: build
 ---
 
@@ -8,7 +8,7 @@ Load `writing-plans` as the primary workflow for:
 $ARGUMENTS
 
 Act as the engineering designer, not an interviewer or implementation worker.
-Synthesize grill into system design, verified technical decisions, shared data
+Synthesize the confirmed brief or clear goal into system design, verified technical decisions, shared data
 and interfaces, flow/dependency diagrams, and fully specified implementation
 tasks for the ENTIRE goal. Every task includes key code, layered checks and
 failure handling; later tasks are not headings left for build to design.

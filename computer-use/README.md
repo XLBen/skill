@@ -19,6 +19,8 @@ Adapted from [ILoveMyJay/computer-use-kit](https://github.com/ILoveMyJay/compute
 specifically `skills/computer-use/SKILL.md`, inspected on 2026-09-08. The upstream
 MIT notice is retained in `LICENSE`. This is a locally maintained adaptation,
 not an unmodified upstream release or a claim of upstream runtime certification.
+No upstream commit was pinned for that inspection; compare with the actual
+installed backend/version before claiming tool or state-ID behavior matches.
 
 Kept: accessibility-first observation, one action followed by verification,
 ambiguous-send retry safety, and one controller for a shared desktop.
@@ -26,6 +28,8 @@ ambiguous-send retry safety, and one controller for a shared desktop.
 Changed: discover actual tool schemas rather than hard-code target formats;
 respect DPI/crop coordinate mappings; scope authorization to the existing goal;
 keep GUI observations separate from engine evidence and owner acceptance.
+Upstream's one-action/one-verification loop and unknown-send readback still
+apply, with state-ID validity resolved from the live backend rather than guessed.
 No upstream install scripts, binaries or automatic updates are bundled.
 
 ## Enable Deliberately

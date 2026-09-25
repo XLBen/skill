@@ -5,8 +5,8 @@ license: MIT
 metadata:
   language: "zh-CN"
   produces: "the active brief version (docs/brief.md, or versioned docs/brief-vN.md once the base is consumed/frozen)"
-  next-skill: "contract-review"
-  calls-skills: "i-have-adhd, research, brainstorming"
+  next-skill: "writing-plans (via mvp-delivery); contract-review for Audited slices"
+  calls-skills: "i-have-adhd, research, brainstorming, outcome-learning (conditional)"
   commands: "/grill <idea>"
 ---
 
@@ -191,11 +191,12 @@ coverage is complete. A brief with open dimensions is incomplete even if the
 round budget felt generous; a user who says "you decide" on a dimension closes
 it as a recorded owner decision, not as an unasked question.
 
-When the requirement is clear but competing solution shapes remain (2+
-architectures, build-vs-buy, materially different data models), load
-`../brainstorming/SKILL.md` before finalizing: explore concrete alternatives
-with trade-offs, converge with the user, and record the chosen design and the
-rejected alternatives as decisions (BD) in the brief.
+When requirements are clear but credible solution shapes change the user's
+experience, operating burden, scope or acceptable outcome, load
+`../brainstorming/SKILL.md` before finalizing: compare the real alternatives,
+ask the owner only about the product trade-off, and record an actual owner
+choice as BD. If the difference is only an ordinary engineering selection,
+leave it to writing-plans and do not turn a technical recommendation into BD.
 
 When a success signal depends on real user behavior, adoption or a business
 metric rather than on delivered behavior, load `../outcome-learning/SKILL.md`

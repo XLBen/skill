@@ -22,6 +22,8 @@
 - The reader is not assumed to have a diagnosis; this is an output ergonomics layer.
 - The skill is internal to this repository's five-command workflow, not an always-on plugin,
   hook or public `/i-have-adhd` command.
+- State is restated at meaningful handoffs, resumptions and waits, not after
+  every routine tool call; the upstream persistent session mode is not adopted.
 - “Lead with the next action” never delegates work the agent is authorized to perform itself.
 - Full acceptance facts are placed in `ACCEPTANCE_HANDOFF` for reviewer/PUA; the user receives
   a concise preview or delivery summary.

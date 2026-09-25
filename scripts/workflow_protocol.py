@@ -301,9 +301,9 @@ def required_skills_for_stage(
 ) -> list[dict[str, Any]]:
     """Return the stage's required skills that apply at this rigor.
 
-    A rigor outside the stage's own rigors yields no PUA card (the stage does
-    not run there); PUA cards with `applies_when` are filtered by rigor, and
-    unknown rigor keeps them (fail closed)."""
+    A rigor outside the stage's own rigors yields no skills. All entries with
+    `applies_when` are filtered by rigor; unknown rigor keeps them (fail closed).
+    Implementation-seat candidates still require seat selection at dispatch."""
 
     stage = stage_definition(routing, stage_id)
     stage_rigors = stage.get("rigors") or []
@@ -311,11 +311,8 @@ def required_skills_for_stage(
     stage_applies = rigor is None or not known or rigor in stage_rigors
     required = []
     for entry in stage.get("required_skills") or []:
-        if entry.get("name") == "pua":
-            if not stage_applies:
-                continue
-            if not pua_applies(entry, rigor):
-                continue
+        if not stage_applies or not pua_applies(entry, rigor):
+            continue
         required.append(entry)
     return required
 

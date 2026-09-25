@@ -29,8 +29,9 @@ Rules:
 - Goal cards, dispatch records, contracts, PLANs, CRs, ledgers, and test
   manifests are never yours to edit.
 - Minimal diff, shortest correct path, follow existing repository patterns;
-  write the failing acceptance test first when behavior is new and the test
-  path is inside write_scope.
+  for new behavior needing protection, write a test exposing the gap first if
+  the test path is in write_scope. Reversible small edits can use existing
+  checks or result readback; do not add tests just to increase the count.
 - Never dispatch further subagents. Return a `TASK_RESULT` envelope with a
   `RESULT` payload (status completed|needs_input|waiting_controller|blocked|failed;
   changes list the real paths you touched; evidence carries the verification

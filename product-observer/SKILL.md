@@ -15,8 +15,9 @@ metadata:
 产品的用户身份实际使用当前候选版本的全部重要表面，发现明显、严重、
 不崩溃的问题；发现结果进入修复循环与完成 gate。
 
-方法论改编自 agent-browser 的 dogfood skill（探索策略、复现纪律、
-严重度与问题分类照抄；本地改编见 `UPSTREAM.md`，不得冒充上游功能）。
+方法论改编自 agent-browser 的 dogfood skill：保留按产品表面探索、
+发现即记录与严重度分类；证据后端、可用性预算和阻断条件按本地协议
+调整（见 `UPSTREAM.md`，不得冒充上游功能）。
 
 ## Role
 
@@ -50,8 +51,9 @@ workflow_packets.py observer <goal> --phase discover|compare --model <provider/m
    `blocked` 并点名缺失前提——绝不转成 `not-applicable`，绝不用降级手段
    冒充通过。
 3. **discover（独立探索）**：从真实入口建立产品地图（功能 × 模式 ×
-   入口 × 连接关系），对每个重要表面执行代表性短旅程批次；发现问题立即
-   按复现纪律记录，然后继续其余区域的广度巡检。返回
+    入口 × 连接关系），对每个重要表面执行代表性短旅程批次；发现问题立即
+    按复现纪律记录，交互问题先核能否复现；不能稳定复现但有实际证据时
+    标为 `intermittent`，绝不因未复现而删除。再继续其余区域的广度巡检。返回
    `product-observation/2`（phase=discover），不宣布整体结论。
 4. **compare（目标/历史查漏）**：在 discover 结果已采纳并绑定候选版本
    后，对照 packet.original 的原始目标、历史产品地图与上一稳定版本行为

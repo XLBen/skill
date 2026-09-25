@@ -39,8 +39,9 @@ delegated to contract-review inside `/plan`; construction never compiles it itse
 `references/seat-dispatch.md`（权威表为 `../mvp-delivery/references/subagent-orchestration.md` 的 Audited Execution Seat Selection table）；
 加载 skill 只增加说明，不创造独立身份，必须使用真实 task/subagent 能力并保留实际 provenance。PLAN 缺失或过期时加载 **contract-review** 走 `/plan`（gate + compile + confirm），construction 永不自行编译 PLAN；契约缺陷交回 `/fix`。
 
-要点：step-executor 每步一个 fresh 席位并交接实现（正式 `verify-step` 由
-主控执行）；test-author 在行为实现前冻结验收测试（`stage_id: test-freeze`）；
+要点：仅决策表路由到 step-executor 的步骤才每步派一个 fresh 席位并交接实现
+（正式 `verify-step` 由主控执行）；test-author 在行为实现前冻结验收测试
+（`stage_id: test-freeze`）；
 reviewer 用于逐步 review 与 Finish 的 converge-audit（`stage_id:
 review-verdict`）；优先安装的
 `mvp-step-executor` / `mvp-test-author` / `mvp-reviewer` 项目 agent。
@@ -145,15 +146,17 @@ record and may not weaken V.
 
 ### PUA Acceptance: `step-verification`
 
-The step-executor runs the pre-handoff portion of the `step-verification`
-card against the evidence it holds and returns the result; the controller
-then runs the formal `verify-step` and performs the deterministic post-gate
-check (engine-generated evidence, all manifest scenarios, raw V output,
-content/state assertions, cleanup and failure signature). Ask “这一步是真的
+When the seat table routes implementation to step-executor, that seat runs the
+pre-handoff portion of the `step-verification` card against the evidence it
+holds and returns the result. In-session implementation has no executor
+handoff to invent. The controller runs the formal `verify-step` and performs
+the deterministic post-gate check (engine-generated evidence, all manifest
+scenarios, raw V output, content/state assertions, cleanup and failure
+signature). Ask “这一步是真的
 跑了，还是你手写了一个 passing event？” exactly once, with a single semantic
 owner per routing (`step-handoff` / `step-formal-evidence`); never repeat the
-card as a second semantic pass. The executor returns raw results; only the
-controller records the ledger and step state.
+card as a second semantic pass. When dispatched, the executor returns raw
+results; only the controller records the ledger and step state.
 
 ### Direct Fast Path
 

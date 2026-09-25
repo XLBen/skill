@@ -166,7 +166,10 @@ contract before testing the riskiest assumption. Read
    `blocked` or `refuted` returns to owner control or a blocking CR; it never
    becomes a complete PLAN by optimism.
 
-The first contract is a thin end-to-end slice, not a compressed full roadmap.
+The first Audited contract is a thin end-to-end slice, not a compressed full
+roadmap. The whole-goal engineering plan and goal outcomes still cover every
+required result; requirements outside this slice remain in later work rather
+than disappearing when the slice passes.
 Declare its numeric budget before drafting it and show actual versus budget in
 the final audit. The default budget guidance is at most 3 active P, 3 active F,
 3 active I, 5 active V, 8 PLAN segments, and 180 non-blank contract lines;

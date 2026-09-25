@@ -9,6 +9,11 @@
 - 本仓库的适配：字段格式（Context/Files/Change/Bounds/Verify/Rollback）、
   边界条件清单、与 Audited PLAN/目标卡/派发模板的嵌入关系、与最薄切片
   原则的对齐为本仓库新增；不复制上游文本。
+- 上游当前 main 还强调任务自足、占位符自检和高风险遗漏输入的 Review Focus；
+  本地将它们嵌入现有设计走查/施工卡，不新增第二份任务规格。上游每个微步骤
+  2–5 分钟、逐任务 review/TDD/commit 和人工选执行法的默认流程未移植：
+  本地按可拒绝的交付单元、风险与已有 gate 安排验证；不自行提交代码或把
+  局部可逆改动升级为仪式。main 是可变引用，不声称版本或行为等价。
 - 上游许可：MIT（见仓库 LICENSE）。本目录不包含上游代码副本。
 
 2026-09-22 对照上游当前 writing-plans/TDD 与 github/spec-kit 的 plan/tasks 方法：

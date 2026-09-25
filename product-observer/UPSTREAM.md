@@ -12,29 +12,25 @@
 | Copyright | Copyright (c) Vercel, Inc. and agent-browser contributors |
 | Snapshotted | 2026-09-20 |
 
-The upstream skill is served versioned by the installed CLI via
-`agent-browser skills get dogfood`. Because bundled skills track the
-installed CLI version, **pin the CLI version when installing**
-(`npm i -g agent-browser@<version>`) and record it here:
+The three files above are pinned to a Git commit, not to a locally recorded
+CLI binary: the CLI version used to serve this snapshot was **not recorded**.
+Before claiming runtime command compatibility, probe the installed CLI version
+and syntax. If upgrading the CLI or claiming parity with its bundled skill,
+record the exact version, compare the versioned `agent-browser skills get dogfood`
+output, and re-review the adaptations below. No parity is inferred from the
+Git snapshot alone.
 
-```text
-agent-browser CLI version used for this snapshot: <pin at install time>
-```
+## Methodology adapted from the snapshot
 
-If the CLI is upgraded, re-snapshot the skill, update the commit above, and
-re-review the adaptations below.
-
-## What is reused verbatim
-
-- The exploration strategy: orient from top-level navigation, visit each
-  section, exercise interactive elements, edge cases, realistic end-to-end
-  flows, periodic console checks.
-- Repro-first evidence discipline: match evidence weight to the issue
-  (video + step screenshots for interactive issues, one annotated screenshot
-  for static issues), write findings incrementally, never delete evidence.
-- The severity ladder (critical / high / medium / low) and the issue
-  taxonomy categories (visual, functional, UX, content, performance,
-  console/errors, accessibility).
+- Exploration strategy: orient from top-level navigation, visit material
+  surfaces, exercise interactive elements, edge cases and real journeys;
+  inspect errors/console when the backend exposes them.
+- Repro-first evidence discipline: match evidence weight to the issue and
+  record findings incrementally. Interactive repro video is conditional on
+  a working capture backend; screenshots plus trace are the local fallback.
+- Severity ladder (critical / high / medium / low) and core taxonomy
+  categories (visual, functional, UX, content, performance, console/errors,
+  accessibility) are retained; local `continuity` adds cross-mode defects.
 - "Never read the target app's source code" — the observer works from what
   the product presents, not from implementation files.
 

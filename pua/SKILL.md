@@ -44,8 +44,9 @@ metadata:
 ## Acceptance Handoff
 
 当控制器派 fresh reviewer 做阶段验收时，任务正文必须带完整的
-`ACCEPTANCE_HANDOFF`，并带 `pua_stage_id`。reviewer 不能只接收 ADHD 的短摘要；它
-必须检查原始目标、当前声明、产物身份、实际证据、真实用户入口和已知缺口。
+`ACCEPTANCE_HANDOFF`；仅当阶段路由指定检查卡时才带 `pua_stage_id`。
+reviewer 不能只接收 ADHD 的短摘要；它必须检查原始目标、当前声明、
+产物身份、实际证据、真实用户入口和已知缺口。
 
 reviewer 的既有结构化结果继续放在 `issues` 中，并在有 `pua_stage_id` 时附加：
 
@@ -137,8 +138,9 @@ reviewer 的既有结构化结果继续放在 `issues` 中，并在有 `pua_stag
 
 ## 子代理与权责
 
-派发 `test-author`、`step-executor` 或 `reviewer` 时，在任务正文中传入 `stage_id`、
-检查范围、输入工件和以下要求：
+派发 `test-author`、`step-executor`，或带 `pua_stage_id` 的 `reviewer` 时，
+在任务正文中传入检查卡 stage_id、检查范围、输入工件和以下要求；
+Normal 风险触发的无卡 reviewer 只按 reviewer 协议返回 issues：
 
 ```text
 加载 pua skill，按 references/stage-checks.md 索引读取 <stage_id> 对应的卡文件。

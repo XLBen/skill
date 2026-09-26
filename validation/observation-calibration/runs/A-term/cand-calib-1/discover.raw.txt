@@ -1,125 +1,0 @@
-```json
-{
-  "schema": "product-observation/2",
-  "phase": "discover",
-  "stop_reason": "coverage-completed",
-  "surfaces": [
-    {
-      "id": "S-01",
-      "name": "CLI mode A gameplay",
-      "importance": "material",
-      "modes": ["a"]
-    },
-    {
-      "id": "S-02",
-      "name": "CLI mode B gameplay",
-      "importance": "material",
-      "modes": ["b"]
-    }
-  ],
-  "journeys": [
-    {
-      "id": "J-01",
-      "surface_ids": ["S-01"],
-      "evidence_refs": [
-        "evidence/mode-a.txt",
-        "evidence/mode-a-repeat.txt"
-      ],
-      "outcome": "covered",
-      "notes": "Completed successfully and reproduced consistently through game over."
-    },
-    {
-      "id": "J-02",
-      "surface_ids": ["S-02"],
-      "evidence_refs": [
-        "evidence/mode-b.txt",
-        "evidence/mode-b-repeat.txt"
-      ],
-      "outcome": "covered",
-      "notes": "Completed successfully and reproduced consistently through game over."
-    }
-  ],
-  "findings": [],
-  "unobserved": [],
-  "capability_gaps": [],
-  "continuation": null,
-  "evidence_refs": [
-    "evidence/mode-a.txt",
-    "evidence/mode-a-repeat.txt",
-    "evidence/mode-b.txt",
-    "evidence/mode-b-repeat.txt"
-  ],
-  "notes": "Both supplied CLI gameplay modes were exercised twice via the real entry point. Each completed with exit code 0 and consistent move, effect, and score output."
-}
-```
-
---stderr--
-[0m
-> po-observer · gpt-5.6-luna
-[0m
-[0m→ [0mSkill "product-observer"
-[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-calib-1/discover.packet.json
-[0m→ [0mRead .opencode/mvp/observation/G-OBS/cand-calib-1/candidate.json
-[0m
-[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-calib-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-calib-1\evidence\mode-a.txt" -- python app/app.py --mode a
-captured argv=["python", "app/app.py", "--mode", "a"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-calib-1\evidence\mode-a.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-calib-1\evidence\mode-a.txt.stderr.txt
---stdout--
-== duel-blocks mode a ==
-move 1: left
-move 2: rotate
-move 3: drop
-move 4: lock
-[sound:lock.wav]
-move 5: line-clear
-[sound:clear.wav]
-move 6: attack
-game over: score 1200
-[0m
-[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-calib-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-calib-1\evidence\mode-b.txt" -- python app/app.py --mode b
-captured argv=["python", "app/app.py", "--mode", "b"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-calib-1\evidence\mode-b.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-calib-1\evidence\mode-b.txt.stderr.txt
---stdout--
-== duel-blocks mode b ==
-move 1: left
-move 2: rotate
-move 3: drop
-move 4: lock
-[sound:lock.wav]
-move 5: line-clear
-[sound:clear.wav]
-[fx:screen-shake]
-move 6: attack
-[sound:attack.wav]
-game over: score 1200
-[0m
-[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-calib-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-calib-1\evidence\mode-a-repeat.txt" -- python app/app.py --mode a
-captured argv=["python", "app/app.py", "--mode", "a"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-calib-1\evidence\mode-a-repeat.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-calib-1\evidence\mode-a-repeat.txt.stderr.txt
---stdout--
-== duel-blocks mode a ==
-move 1: left
-move 2: rotate
-move 3: drop
-move 4: lock
-[sound:lock.wav]
-move 5: line-clear
-[sound:clear.wav]
-move 6: attack
-game over: score 1200
-[0m
-[0m$ [0mpython .opencode/workflow/scripts/observation_capture.py --evidence-root "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-calib-1\evidence" --out "C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-calib-1\evidence\mode-b-repeat.txt" -- python app/app.py --mode b
-captured argv=["python", "app/app.py", "--mode", "b"] exit=0 timed_out=False evidence=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-calib-1\evidence\mode-b-repeat.txt stderr=C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-calib-1\evidence\mode-b-repeat.txt.stderr.txt
---stdout--
-== duel-blocks mode b ==
-move 1: left
-move 2: rotate
-move 3: drop
-move 4: lock
-[sound:lock.wav]
-move 5: line-clear
-[sound:clear.wav]
-[fx:screen-shake]
-move 6: attack
-[sound:attack.wav]
-game over: score 1200
-[0m
-[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/finding-rules.md
-[0m→ [0mRead E:/MISC/代码项目/skill/product-observer/references/result-contract.md

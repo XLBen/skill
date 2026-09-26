@@ -1,6 +1,6 @@
 ---
 name: webapp-testing
-description: Use for web-only UI acceptance journeys in /build, /fix and /resume - loading a delivered page, operating it as a user, and asserting observable results through dedicated browser automation (Playwright or an equivalent installed driver). Deterministic scripts preferred over agentic screenshot loops; native desktop apps, OS dialogs and file pickers stay with computer-use. Adapts the webapp-testing methodology from anthropics/skills for this workflow's evidence and gate rules.
+description: Use for web-only UI acceptance journeys in /build, internal fix, and /resume - loading a delivered page, operating it as a user, and asserting observable results through dedicated browser automation (Playwright or an equivalent installed driver). Deterministic scripts preferred over agentic screenshot loops; native desktop apps, OS dialogs and file pickers stay with computer-use. Adapts the webapp-testing methodology from anthropics/skills for this workflow's evidence and gate rules.
 license: MIT
 metadata:
   language: "zh-CN"
@@ -19,7 +19,7 @@ Web 旅程的验收优先用专用浏览器自动化，不用桌面截图循环�
 ## When To Use
 
 - 受影响 outcomes 包含 Web 页面旅程（表单、导航、结果渲染）时，
-  `/build`/`/fix`/`/resume` 的 UI 验收优先使用本 skill；
+  `/build`/内部 Fix Mode/`/resume` 的 UI 验收优先使用本 skill；
 - 原生桌面应用、OS 对话框、文件选择器仍然走 `../computer-use/SKILL.md`；
 - 纯 API/CLI 改动不适用（无界面声明时无需 sidecar）。
 

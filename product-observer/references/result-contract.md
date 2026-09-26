@@ -2,7 +2,7 @@
 
 > 状态：**S02 冻结**（2026-09-21）。单一权威实现为 `scripts/observation_contract.py`；
 > 本文档描述该合同，`.opencode` 侧不得改写语义。`contract-enums` 围栏块由
-> `tests/test_observation_contract.py` 与 `contract_enums()` 精确比对，禁止手工润色。
+> `contract_enums()` 为枚举权威；手工修改下方示例前先与其输出核对。
 > 本步骤只冻结**结构与枚举**；语义判定（覆盖是否诚实、证据是否支撑 finding、
 > review 是否成立）留给后续步骤与独立 reviewer。
 
@@ -238,8 +238,7 @@ expected_candidate_id=None, expected_packet_hash=None, expected_phase=None)`。
 
 ## 8. 枚举总表（contract-enums）
 
-以下块与 `contract_enums()` 的 `json.dumps(..., indent=2, sort_keys=True)` 逐字节一致，
-由 `tests/test_observation_contract.py::ContractDocTests` 校验：
+以下块按 `contract_enums()` 的 `json.dumps(..., indent=2, sort_keys=True)` 输出记录：
 
 ```json contract-enums
 {
@@ -348,8 +347,7 @@ expected_candidate_id=None, expected_packet_hash=None, expected_phase=None)`。
 
 ## 9. 示例文件与遗留项
 
-示例 fixtures（`tests/fixtures/product-observation/`，由
-`tests/test_observation_contract.py` 逐个校验）：
+示例 fixtures（`tests/fixtures/product-observation/`）：
 
 | 文件 | 覆盖点 |
 |---|---|

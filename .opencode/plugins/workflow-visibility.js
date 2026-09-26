@@ -14,8 +14,7 @@
 //     at `<directory>/.opencode/mvp/visibility.json` and dispatches through the host
 //     SDK client (`session.create` + `session.prompt`).
 //
-// Machine-checked by `node --test tests/js/` (tests/js/visibility-plugin.test.mjs).
-// Real host dispatch remains verification-pending until OpenCode is restarted (S21).
+// Verify dispatch through the running OpenCode host after restarting it.
 
 import { tool } from "@opencode-ai/plugin";
 import { readFileSync } from "node:fs";

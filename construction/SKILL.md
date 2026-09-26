@@ -8,7 +8,7 @@ metadata:
   updates: "docs/PLAN.md (runtime projection only)"
   requires-skill: "contract-review"
   calls-skills: "i-have-adhd, pua, test-author, step-executor, reviewer, contract-review"
-  public-commands: "/build, /fix, /resume (via mvp-delivery)"
+  public-commands: "/build, /resume (via mvp-delivery)"
 ---
 
 # Construction (纯施工)
@@ -24,20 +24,21 @@ through CR. 规划（契约与 PLAN 编译确认）归 contract-review 的 `/pla
   a confirmed Audited PLAN.
 - Public `/resume` enters through mvp-delivery, revalidates all gates, and
   continues from ledger state.
-- Public `/fix <fact>` enters through mvp-delivery and invokes internal CR
-  recovery when contract and reality disagree.
+- An uncommanded defect report enters mvp-delivery Fix Mode and invokes internal
+  CR recovery when contract and reality disagree.
 - Internal finish reconciles the built result and closes only after converge
   audit; `/build` runs it automatically.
 - Internal retro is optional evidence-based learning after delivery.
 
-Natural-language construction requests remain valid. Missing or stale PLAN is
-delegated to contract-review inside `/plan`; construction never compiles it itself.
+Natural-language work requests remain valid. An explicit `/build` with a missing
+or stale PLAN stops and directs the user to `/plan`; uncommanded work may plan
+internally. Construction never compiles the PLAN itself.
 
 ## Skill Calls
 
 本 skill 派出 fresh 子代理并让它们加载对应角色 skill，而不是内联它们的提示词。席位选择、独立性、回退和 `direct` 规则见
 `references/seat-dispatch.md`（权威表为 `../mvp-delivery/references/subagent-orchestration.md` 的 Audited Execution Seat Selection table）；
-加载 skill 只增加说明，不创造独立身份，必须使用真实 task/subagent 能力并保留实际 provenance。PLAN 缺失或过期时加载 **contract-review** 走 `/plan`（gate + compile + confirm），construction 永不自行编译 PLAN；契约缺陷交回 `/fix`。
+加载 skill 只增加说明，不创造独立身份，必须使用真实 task/subagent 能力并保留实际 provenance。显式 `/build` 遇到 PLAN 缺失或过期时停止并提示 `/plan`；无命令 work 方法可内部加载 **contract-review** 完成规划（gate + compile + confirm），construction 永不自行编译 PLAN；契约缺陷交回内部 Fix Mode。
 
 要点：仅决策表路由到 step-executor 的步骤才每步派一个 fresh 席位并交接实现
 （正式 `verify-step` 由主控执行）；test-author 在行为实现前冻结验收测试
@@ -75,7 +76,7 @@ Before every start or resume:
    For `/resume`, first use `--require-resumable`; if paused/suspended, append a
    `plan-transition` event to `building` with `plan-event`, then require
    building. A stale or hand-edited structure is rejected; recompilation goes
-   through contract-review `/plan` delegation or CR recovery.
+   through an explicit `/plan`, autonomous work planning, or CR recovery.
 5. Reconcile workflow revision and event IDs before changing runtime state.
 
 For a new Audited project, also verify before `/build` or `/resume` that the contract
@@ -84,7 +85,8 @@ declares top-level `workflow_protocol: v0.2`, the Phase 0 record is `passed` or 
 already in construction keeps the legacy protocol and must not be partially
 converted.
 
-If PLAN does not exist, delegate to contract-review `/plan` first; this
+If PLAN does not exist, stop an explicit `/build` and direct the user to `/plan`;
+autonomous work may complete planning internally before returning here. This
 skill never compiles or confirms PLAN itself. A blocking CR disables
 ordinary steps but must not disable its dedicated `cr-recovery` capability.
 
@@ -296,7 +298,7 @@ Show the real input, output, limitations, environment and evidence. Record the
 owner's actual acceptance, delta decision and next PLAN confirmation separately;
 do not continue construction or convert a missing decision into a pass.
 
-A defect discovered after `done` enters `/fix` as a new sibling `FIX` replacement
+A defect discovered after `done` enters internal Fix Mode as a new sibling `FIX` replacement
 package. Do not reopen or edit the completed package and do not invoke the
 engine's same-PLAN CR recovery. Record the base package/hash and mismatch in
 `repair.md`, then release and compile an independent affected-only contract/PLAN

@@ -50,4 +50,4 @@ Rules:
   who authorized and when.
 - Never declare recovery from a process-alive signal alone; a real user path
   must pass.
-- The handoff to `/fix` carries raw evidence pointers, not summaries.
+- The handoff to internal Fix Mode carries raw evidence pointers, not summaries.

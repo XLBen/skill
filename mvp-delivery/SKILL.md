@@ -1,17 +1,17 @@
 ---
 name: mvp-delivery
-description: Use for /work, /build, /fix and /resume, or the engineering handoff from /plan. Executes a complete planner-authored design one bounded task at a time, checks components, real boundaries and integration milestones at the correct stage, and returns design conflicts to planning instead of asking an implementation model to redesign.
+description: Use for /build and /resume, for an uncommanded defect in an existing managed goal, or for the engineering handoff from /plan or the internal work method. Executes planner-authored tasks with real feedback and returns design conflicts to planning.
 license: MIT
 metadata:
   language: "zh-CN"
-  commands: "/work <goal>, /plan <brief>, /build [goal], /fix <problem>, /resume"
+  commands: "/plan <brief>, /build [goal], /resume"
   produces: "working product code and observed verification evidence"
   calls-skills: "stage-routing.json required roles plus runtime-selected applicable skills"
 ---
 
 # Delivery：按设计施工，用实际结果推进
 
-主路径：**grill（交互式可选）→ plan 完成工程设计 → build 执行当前任务 → 观察反馈 → 下一任务**。`/work` 将这些阶段编排成一个持续目标循环；被 `/work` 调用时，阶段完成或 replan 不得把控制权交还给用户。
+主路径：**grill（交互式可选）→ plan 完成工程设计 → build 执行当前任务 → 观察反馈 → 下一任务**。无命令的 work 方法可将这些阶段编排成一个持续目标循环；在该流程中，阶段完成或 replan 不得把控制权交还给用户。
 MVP 是交付顺序，不缩减原始目标。让规划阶段承担跨模块判断，让实现模型做有界工作。
 
 ## 最少上下文
@@ -20,13 +20,13 @@ MVP 是交付顺序，不缩减原始目标。让规划阶段承担跨模块判�
 
 按 `references/stage-routing.json` 的条件型触发器决定是否加载 `skill-creator`、`receiving-code-review`、`frontend-design`、`vercel-react-best-practices`。收到 reviewer findings 的 controller 先验证反馈再返修；独立 reviewer 不因反馈而自行改代码。skill 设计的模型对照需有本机可用执行后端与真实结果，结构测试或上游的 Claude 专用命令不能代替 OpenCode 的实测。视觉设计由规划/实现席位承担；视觉目标的最终对照仍由 controller 结合真实界面与原始要求检查，UI 使用验收按现有工具路由。
 
-- `/work`：持续总控入口；按需运行 Work Inference Mode，自主规划并接续实现/修复/验收。只读适用的 skills，不把完整 skill 集合灌入每个任务；动态技能发现规则见 `../work/SKILL.md`。
+- 无命令行动目标：加载 `work`，按需运行 Work Inference Mode，自主规划并接续实现/修复/验收。只读适用的 skills，不把完整 skill 集合灌入每个任务；动态技能发现规则见 `../work/SKILL.md`。
 
 - `/plan`：加载 `writing-plans` 为主流程，不加载整个施工/审计体系后才开始设计。
   发布阶段才读 `references/goal-definition.md`。完整计划必须能独立阅读。
 - `/build`：本文件 + `references/engineering-delivery.md` 读一次；之后主要读
   `check.py next-step <goal>` 给出的任务包、其中的源码和实际输出。
-- `/fix`：当前任务包 + `systematic-debugging`；不重走全部 grill。
+- 无命令缺陷修复：先加载 `systematic-debugging`；若属于现有受管目标，再使用当前任务包和 Fix Mode，不重走全部 grill。
 - `/resume`：delivery-log（若有）→ 当前目标/设计绑定 → next-step；不默认重读
   所有历史计划、已完成任务、审计报告和全部 skill。
 - 专用 skill 按实际边界加载。只有进入 Audited/派发/最终验收时才展开相关协议。
@@ -34,7 +34,7 @@ MVP 是交付顺序，不缩减原始目标。让规划阶段承担跨模块判�
 
 ## Plan Mode：工程设计者
 
-独立 `/plan` 如指定 brief，先验证其真实确认；没有 brief 但需求已清楚时直接使用原始目标，不强制重做采访。`/work` 的未确认推断按假设处理；只有需要 owner 决定的歧义才转交互式 grill。`writing-plans` 负责：
+独立 `/plan` 如指定 brief，先验证其真实确认；没有 brief 但需求已清楚时直接使用原始目标，不强制重做采访。无命令 work 方法的未确认推断按假设处理；只有需要 owner 决定的歧义才转交互式 grill。`writing-plans` 负责：
 1. 综合用户工作流，核实环境、真实依赖与高风险技术假设。
 2. 设计组件、状态/数据模型、共享接口与逻辑图，明确复用方案。
 3. 为**全部任务**写依赖、最少输入、文件职责、实现步骤、关键代码和分层验证。
@@ -47,9 +47,29 @@ MVP 是交付顺序，不缩减原始目标。让规划阶段承担跨模块判�
 新计划采用 engineering-plan/3：只放行条件成立的步骤；探针前提不允许依赖本步
 新建脚本。完整路线可以条件性发布，不代表架构可行性与用户可接受性都已通过。
 
+## Fix Mode：无命令缺陷修复
+
+缺陷、失败检查、回归或需要修复的评审发现无需用户输入 skill 名称或 `/fix`。
+先加载 `systematic-debugging`，对照真实入口复现、隔离、证伪根因，再做最小修复和复验。
+收到评审意见时先按实际适用性加载 `receiving-code-review` 核对事实；生产事故先
+按条件加载 `incident-response` 控制影响。领域 skill 只在实际受影响边界匹配时加载。
+
+- 单个局部可逆、未受管的缺陷可直接修复并运行相称的检查/结果回读，不为修复
+  虚构计划或 goal 卡。若已有匹配的未完成受管目标，复用其卡和证据，不另建
+  active fix goal；完成的 Audited 包保持只读，按 `references/delivery-recovery.md`
+  建 sibling FIX replacement 包。
+- 受管 schema-3 缺陷先经受影响工程计划的真实旅程复现，在受影响步骤新开
+  `begin-cycle`，本层修复后 `verify-cycle`、读取实际回执并 `observe-cycle`；
+  受影响的后续步骤和证据重新验证，重跑 `cycle-gate` 与最终适用门禁。
+  真实边界出现的问题不能只靠 mock 回归测试关闭。
+- 当前任务包的 `failure_routes` 决定边界：实现错误局部修；接口、架构或关键
+  前提被证伪时带证据重新规划，不让执行者猜着扩范围。根因不明时依
+  `references/subagent-orchestration.md` 使用只读研究席位（宿主能力/权限允许时）；
+  普通局部修复可由主控直接完成。相同失败签名沿用既有熔断，不靠新会话重置。
+
 ## Build Mode：有界执行者
 
-正式 `/build` 复用唯一匹配的 active/blocked 目标；不另造一个活动目标。需要工程交接但无计划时先完成 plan 阶段，不能用一句“最薄首片”代替；`/work` 的局部可逆小改按 `../work/SKILL.md` 直接执行，不进入本循环。新产品用 schema-3 目标与工程设计，完成历史保持只读；旧工件处理见恢复协议，不把迁移工作当作新项目主流程。
+显式 `/build` 只消费现有有效计划，复用唯一匹配的 active/blocked 目标；没有有效计划时停止、提示 `/plan`，不创建计划或编辑产品代码。无命令 work 方法需要工程交接时可自主完成规划后接续执行；其局部可逆小改按 `../work/SKILL.md` 直接执行，不进入本循环。新产品用 schema-3 目标与工程设计，完成历史保持只读；旧工件处理见恢复协议，不把迁移工作当作新项目主流程。
 
 ### 每步的固定循环
 

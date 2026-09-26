@@ -1,6 +1,6 @@
 ---
 name: computer-use
-description: Use when the user asks to operate a native desktop app, OS dialog or file picker, or when a delivered interface journey needs UI acceptance in /build, /fix or /resume. Ground actions in the exact live window and fresh accessibility targets; verify the result. For web-only journeys prefer browser automation. Only the main controller operates the shared desktop; ordinary file/CLI work does not need this skill.
+description: Use when the user asks to operate a native desktop app, OS dialog or file picker, or when a delivered interface journey needs UI acceptance in /build, internal fix, or /resume. Ground actions in the exact live window and fresh accessibility targets; verify the result. For web-only journeys prefer browser automation. Only the main controller operates the shared desktop; ordinary file/CLI work does not need this skill.
 license: MIT
 metadata:
   language: "en"
@@ -27,7 +27,7 @@ Scenario states, evidence fields, reuse and blocking rules are defined in
   Report the observed result and limitations. No goal card, sidecar,
   `ui-gate`, reviewer or delivery approval is required just to use the GUI.
   Get authorization for consequential actions under Safety And Recovery.
-- **Delivery UI acceptance** (`/build`, `/fix`, `/resume`): use the goal's
+- **Delivery UI acceptance** (`/build`, internal Fix Mode, `/resume`): use the goal's
   declared scenarios, hard budget, sidecar and gate below. Do not let direct
   mode waive required acceptance. `/plan` only designs scenarios.
 - **Web-only task**: prefer the available dedicated browser backend (load

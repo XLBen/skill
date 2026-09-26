@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "note": "Authoritative stage-to-capability routing for the public commands (/work /grill /plan /build /fix, plus /resume). Every skill body, command wrapper and reference defers to this table; summaries may cite it but must not weaken it. domain_skills are selected per acceptance boundary via the Skill Applicability Selection procedure in subagent-orchestration.md - they are additional, conditionally required capabilities, never a blanket call-everything rule. `/work` also discovers any matching skill actually available at runtime; this table remains the minimum stage/role routing. `required_skills` entries apply only to the named executing seat and, when `applies_when` is present, the named rigor; an in-session Audited step does not acquire a step-executor subagent merely because the stage lists that seat. `reviewer.condition` and `seat_selection` are the machine-readable forms consumed by scripts/workflow_protocol.py; the human-readable tables elsewhere must agree with them. `responsibilities` names the single semantic owner of every check: a stage may have several checks, but each named check has exactly one seat that performs the semantic pass; other seats only validate returned fields and hashes mechanically.",
+  "note": "Authoritative stage/seat/skill policy for /grill, /plan, /build, /resume, /visibility and uncommanded work/fix. work-entry and fix-entry are internal tokens. Select only applicable runtime-available domain skills; required skills and semantic check owners apply to the specified seat and rigor. Human summaries defer to this table.",
   "responsibility_rules": {
     "single_semantic_owner": "Every check in `responsibilities.semantic_checks` has exactly one semantic owner. Other seats may verify that the owner returned the required fields, cards and hashes; they never re-execute the same semantic pass.",
     "formal_verification": "Only the controller runs check.py verify-step / record-human-step (and verify-goal / finish-goal). Implementation seats hand back with formal V pending and never write the ledger.",
@@ -80,7 +80,7 @@
     },
     {
       "stage_id": "slice-implementation",
-      "entry": "Guarded/Audited implementation work packages in /build or /fix (Normal may stay in-session or dispatch a worker)",
+      "entry": "Guarded/Audited implementation work packages in /build or internal Fix Mode (Normal may stay in-session or dispatch a worker)",
       "rigors": ["normal", "guarded", "audited"],
       "required_skills": [
         {"name": "task-worker", "seat": "worker-subagent", "roles": ["worker"], "applies_when": "guarded"},
@@ -381,7 +381,7 @@
         "name": "incident-response",
         "trigger": "active production impact, outage, data corruption or exposure, security compromise, alert requiring immediate restoration",
         "insertion": ["work-entry", "fix-entry"],
-        "outputs": ["severity and incident state", "containment and recovery record with timeline", "service restoration verification", "handoff to /fix with failure signature"]
+        "outputs": ["severity and incident state", "containment and recovery record with timeline", "service restoration verification", "handoff to internal Fix Mode with failure signature"]
       },
       {
         "name": "outcome-learning",

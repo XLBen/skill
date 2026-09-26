@@ -137,7 +137,7 @@ implementer prose alone is rejected.
 1. No issue-count quota (upstream "find 5-10 then stop" removed). Stop on
    coverage + unresolved findings.
 2. Intermittent findings retained (upstream discards non-reproducible).
-3. Findings feed `/fix`, re-observation on the new candidate, and the
+3. Findings feed internal Fix Mode, re-observation on the new candidate, and the
    reviewer's `findings_validity` check; upstream stops at a report.
 4. Historical/legacy problems inside the delivered product are recorded
    and routed the same way; "not introduced by this change" never dismisses
@@ -147,7 +147,7 @@ implementer prose alone is rejected.
 ## Repair Loop Contract
 
 1. Controller routes `confirmed`/`intermittent` critical/high findings to
-   the existing `/fix` path (Audited work keeps its CR/FIX boundaries).
+    the existing internal fix path (Audited work keeps its CR/FIX boundaries).
 2. After repair: rerun the finding's reproduction, relevant deterministic
    tests, then a **new candidate round with the full representative
    discover+compare sweep** — not a single-issue retest.

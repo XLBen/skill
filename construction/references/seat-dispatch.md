@@ -52,7 +52,7 @@ the relevant skill instead of inlining its prompt:
   reviewer independence.
 - Load the **contract-review** skill when the gate finds PLAN missing or
   stale: it runs `/plan` (gate + compile + confirm); construction never
-  compiles PLAN itself. For contract defects, return control to `/fix`; CR
+   compiles PLAN itself. For contract defects, return control to internal Fix Mode; CR
   adjudication delegates internally to contract-review/reviewer.
 
 Loading a skill only adds instructions to the current agent; it does not create

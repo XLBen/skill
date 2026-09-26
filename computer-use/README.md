@@ -1,7 +1,7 @@
 # Computer Use
 
 Desktop-control skill for direct user requests (native apps, OS dialogs and
-file pickers), plus the UI acceptance capability for `/build`, `/fix` and
+file pickers), plus the UI acceptance capability for `/build`, internal fix and
 `/resume`. Direct requests use the short, window-scoped observe/act/verify
 loop in `SKILL.md`; they do not require a delivery goal or evidence sidecar.
 No new slash command. When an affected delivery outcome includes an interface
@@ -112,7 +112,7 @@ and read back the exact text. Keep personal documents closed, do not save over a
 existing file, and close only the owned test window. If permission, input or
 observation fails, report the exact blocker rather than a successful setup.
 
-In delivery work, for example: `/fix the export dialog in the local test app`.
+In delivery work, for example: `Fix the export dialog in the local test app`.
 The controller must first resolve the app and output path, then observe, act and
 verify; it must not assume permission to operate any open desktop application.
 

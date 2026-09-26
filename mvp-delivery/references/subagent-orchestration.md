@@ -1,6 +1,6 @@
 # Subagent Orchestration Protocol
 
-> When to read: before any dispatch decision in plan/build/fix/resume, when
+> When to read: before any dispatch decision in plan/build/internal fix/resume, when
 > choosing an execution seat for a task, and before recording dispatch state.
 
 本协议是所有模式共用的唯一委派规则。主控制器（本 skill）持有目标、依赖、
@@ -52,7 +52,7 @@ step-executor。正常路由到主控（Normal 直接实现、Audited `direct`�
 | Guarded 实质实现任务 | 派 worker 子代理（轻量实现席位） | 默认派发 |
 | Audited 实质实现任务 | 按 Audited Execution Seat Selection 决策表（controller 或 step-executor，禁止 worker） | 按决策表 |
 | Normal 实质实现任务 | 主控可直接实现；独立正确性判断或验证盲区时派发 | 按风险选择 |
-| `/fix` 根因不明 | 先派 research 诊断，凭证据再派实现 | 默认派发 |
+| 内部 Fix Mode 根因不明 | 先派 research 诊断，凭证据再派实现 | 默认派发 |
 | 多个可独立复现的故障 | 按问题域并行派 research/worker | 默认派发 |
 | Guarded/Audited 实质切片验收交接 | 派 fresh reviewer（见 SKILL.md 验收章节） | 能力可用即必须 |
 | Normal 验收（独立判断/盲区/用户要求） | 派 fresh reviewer | 按风险选择 |
@@ -111,7 +111,7 @@ step-executor。正常路由到主控（Normal 直接实现、Audited `direct`�
 
 ## Skill Applicability Selection
 
-在以下时机执行一次有界的 skill 适用性选择：`/work` 目标入口
+在以下时机执行一次有界的 skill 适用性选择：无命令 work 目标入口
 (`work-entry`)、其他目标建立时、进入新验收边界时
 （阶段按 `stage-routing.json` 变化）、验收范围变化时、最终验收前：
 

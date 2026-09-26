@@ -21,7 +21,7 @@ existence of a sidecar file:
   in the engineering design require `required: true` and complete outcome mapping.
   Absence is no longer a valid opt-out for new product goals.
 - `/plan` writes the goal-level decision and designs scenarios; only
-  `/build`, `/fix` and `/resume` execute them.
+  `/build`, internal Fix Mode and `/resume` execute them.
 
 A missing backend, denied permission, or unreadable window produces
 `blocked` — never `not-applicable`, and never a silent applicability change.
@@ -124,7 +124,7 @@ Planned ui-acceptance scenarios stay controller-executed; the observer lease
 covers only the product-observation phases and never re-labels planned
 scenario evidence as observation evidence.
 
-`/fix` reproduces through the affected interface journey before editing and
+Internal Fix Mode reproduces through the affected interface journey before editing and
 re-executes the same scenario after repair. `/resume` re-observes the current
 window/app state; it never replays stale clicks or reuses observations of a
 build that no longer matches `artifact_identity`.

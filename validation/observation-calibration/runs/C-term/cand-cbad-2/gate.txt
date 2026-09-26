@@ -1,3 +1,0 @@
-product audit gate: fail
-  - review verdict is 'needs-observation'; only sufficient clears the gate
-gate record: C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-cbad-2\gate.json

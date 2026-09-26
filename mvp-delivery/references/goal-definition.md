@@ -76,7 +76,7 @@ fence, using schema 1 from `tests/fixtures/goal-valid.md` and `check.py`:
 ## Resolve The Card Before Product Edits
 
 Before product edits, resolve `.opencode/mvp/<goal-slug>.md`: reuse the matching
-active/blocked card, including for `/fix`; never create a second active fix goal.
+active/blocked card, including for internal Fix Mode; never create a second active fix goal.
 If multiple goals or an unrelated active goal make routing ambiguous, ask rather
 than overwrite. Create a card only for a genuinely new goal. Completed
 cards/packages remain history; a repair gets a new card only when no matching

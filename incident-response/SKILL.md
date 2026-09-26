@@ -1,10 +1,10 @@
 ---
 name: incident-response
-description: Use when there is active or suspected production impact - outage, data corruption or exposure, security compromise, or an alert requiring immediate restoration. Prioritizes severity, containment, evidence preservation, recovery and communication; root-cause repair happens afterwards through /fix. Conditional: never loaded for ordinary development bugs.
+description: Use when there is active or suspected production impact - outage, data corruption or exposure, security compromise, or an alert requiring immediate restoration. Prioritizes severity, containment, evidence preservation, recovery and communication; root-cause repair follows through internal Fix Mode. Conditional: never loaded for ordinary development bugs.
 license: MIT
 metadata:
   language: "zh-CN"
-  called-by: "mvp-delivery (/fix routing)"
+  called-by: "mvp-delivery (internal fix routing)"
   public-command: "none"
 ---
 
@@ -12,7 +12,7 @@ metadata:
 
 生产事故的第一优先级不是复现根因，而是控制影响、保住证据、恢复服务。先复现
 可能扩大损失。本 skill 定义事故响应路径；根因修复在服务恢复或影响受控后回到
-`systematic-debugging` 的 `/fix` 流程。
+`systematic-debugging` 的根因修复流程。
 
 ## When To Use
 
@@ -23,12 +23,12 @@ metadata:
 - 安全事件、凭据暴露、未授权访问；
 - 需要立即处置才能止损的告警。
 
-普通 bug、可回滚的本地错误、开发环境问题继续走 `/fix`。
+普通 bug、可回滚的本地错误、开发环境问题继续走默认缺陷修复。
 
 ## Procedure
 
 ```text
-定级 → 控制影响 → 保存证据 → 恢复服务 → 根因修复(/fix) → 复盘
+定级 → 控制影响 → 保存证据 → 恢复服务 → 根因修复(内部 Fix Mode) → 复盘
 ```
 
 1. **定级与广播**：影响范围、严重度、谁是 incident commander；owner 立即
@@ -39,7 +39,7 @@ metadata:
    identity；禁止为了“先恢复”而销毁唯一证据。
 4. **恢复服务**：恢复路径可以是回退、前滚修复或流量切换；恢复后运行真实
    用户路径检查，而不是只看进程存活。
-5. **根因修复**：影响受控后创建 `/fix` 任务，携带时间线、证据指针与
+5. **根因修复**：影响受控后创建内部修复任务，携带时间线、证据指针与
    失败签名；回归测试固化根因。
 6. **复盘**：时间线、影响、检测盲区、处置得失、行动项与 owner；行动项
    进入 goal/SI 或 issue tracker，不悬空。
@@ -50,13 +50,13 @@ metadata:
 - 带时间戳的时间线（处置动作 + 证据指针）；
 - 控制/恢复计划与执行记录；
 - 服务恢复验证；
-- `/fix` 交接（含失败签名）；
+- 内部 Fix Mode 交接（含失败签名）；
 - 复盘与行动项。
 
 ## Boundaries
 
 - 生产变更与不可逆动作由授权的 controller/operator 执行，owner 授权；
-- 本 skill 不替代 `/fix` 的根因纪律，也不替代 owner 的对外沟通决策；
+- 本 skill 不替代根因修复的纪律，也不替代 owner 的对外沟通决策；
 - 无法验证恢复时保持明确阻塞状态，不宣布“已恢复”；
 - 处置中的每个命令仍受 authorization、证据与回滚纪律约束。
 

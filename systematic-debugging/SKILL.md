@@ -1,6 +1,6 @@
 ---
 name: systematic-debugging
-description: Use when a failure needs root-cause diagnosis before repair - /fix work, repeated test failures, flaky behavior, production symptoms, or any "it doesn't work" report where the cause is not yet proven. Enforces a four-phase evidence-driven process: reproduce, isolate, hypothesize, verify the fix - no shotgun edits, no unverified attribution to environment or permissions.
+description: Use for an uncommanded defect report or any failure needing root-cause diagnosis before repair - failed checks, regressions, flaky behavior, production symptoms, or "it doesn't work" when the cause is not yet proven. Enforces reproduce, isolate, hypothesize, and verify - no shotgun edits or unverified environmental attribution.
 license: MIT
 metadata:
   language: "zh-CN"
@@ -12,13 +12,13 @@ metadata:
 
 修复从复现开始，不从猜测开始。本 skill 适配自
 [obra/superpowers](https://github.com/obra/superpowers) 的
-systematic-debugging 方法（见 `UPSTREAM.md`），服务于 `/fix` 与一切
+systematic-debugging 方法（见 `UPSTREAM.md`），服务于默认缺陷修复与一切
 “行为错误但原因未证实”的场景。它不替代既有失败计数与熔断规则，只规定
 每次尝试之间的方法。
 
 ## When To Use
 
-- `/fix <problem>`：复现、定位、最小修复、回归验证的主流程；
+- 用户直接报告缺陷时：复现、定位、最小修复、回归验证的主流程；
 - 同一失败签名第二次出现、准备“再试一次”之前；
 - 任何准备说“可能是环境/权限/网络问题”之前。
 

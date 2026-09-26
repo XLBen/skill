@@ -14,10 +14,10 @@ starting from its minimal recovery read set. Ask only when multiple targets or
 an unclear repair base make routing ambiguous; continue at the first pending or
 blocked outcome until the original goal is complete.
 
-If this goal was started through `/work`, restore its autonomous orchestration:
+If this goal was started through the uncommanded work method, restore its autonomous orchestration:
 rediscover currently available applicable skills and continue through any
 planning, implementation, repair and final acceptance without returning an
-intermediate `/plan`, `/build` or `/fix` handoff to the user.
+intermediate `/plan` or `/build` handoff to the user.
 At the first pending boundary re-evaluate `skill-creator`,
 `receiving-code-review`, `frontend-design` and
 `vercel-react-best-practices` under `stage-routing.json`; load only matches

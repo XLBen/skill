@@ -1,2 +1,0 @@
-product audit gate: pass
-gate record: C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-cbad-1\gate.json

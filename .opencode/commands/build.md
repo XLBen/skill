@@ -14,9 +14,12 @@ authoring, `frontend-design` for requested visual construction,
 `receiving-code-review` when review feedback is handed back. Have the actual
 executing seat load the original skill, not a controller-authored summary.
 
-Resolve the planner's complete design first; if none exists, complete the
-writing-plans workflow before implementing. Do not redesign architecture,
-interfaces or acceptance criteria in the implementation loop.
+Require an existing valid plan: resolve and validate the planner-authored design
+before implementing.
+If the plan is missing or invalid, stop before product edits and direct the user
+to `/plan`; do not create or repair a plan inside an explicit `/build`. Do not
+redesign architecture, interfaces or acceptance criteria in the implementation
+loop. Uncommanded requests follow the work/fix routing rules instead.
 
 Use `check.py next-step <goal>` for the current bounded task and relevant shared
 contracts. Read its named inputs only, begin the cycle, implement this task,

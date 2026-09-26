@@ -77,6 +77,9 @@ def main():
     agents_destination = target / ".opencode" / "agents"
     plugins_source = repo / ".opencode" / "plugins"
     plugins_destination = target / ".opencode" / "plugins"
+    entry_source = repo / "AGENTS.md"
+    entry_destination = target / ".opencode" / "workflow" / "default-routing.md"
+    entry_instruction = ".opencode/workflow/default-routing.md"
     destination.mkdir(parents=True, exist_ok=True)
     engine_root = target / ".opencode" / "workflow"
     manifest_path = engine_root / "install-manifest.json"
@@ -90,6 +93,13 @@ def main():
             raise SystemExit(f"cannot verify previous installation manifest: {exc}") from exc
         if not isinstance(previous_files, dict):
             raise SystemExit("cannot verify previous installation manifest: files must be an object")
+    if args.commands_only and "default-routing.md" not in previous_files and any(
+        f"commands/{name}.md" in previous_files for name in ("work", "fix")
+    ):
+        raise SystemExit(
+            "--commands-only cannot retire /work or /fix without default routing; "
+            "run a full install first"
+        )
     installed_files = {}
     command_names = {path.stem for path in source.glob("*.md")}
     agent_names = (
@@ -144,6 +154,8 @@ def main():
             raise SystemExit(f"cannot safely update {json_path}: skills must be an object")
         if "paths" in preflight_skills and not isinstance(preflight_skills["paths"], list):
             raise SystemExit(f"cannot safely update {json_path}: skills.paths must be an array")
+        if "instructions" in preflight_config and not isinstance(preflight_config["instructions"], list):
+            raise SystemExit(f"cannot safely update {json_path}: instructions must be an array")
         reject_inline_conflicts(preflight_config, str(json_path))
     if jsonc_path.exists():
         try:
@@ -220,6 +232,7 @@ def main():
         elif folder == "agents" and not args.commands_only and stem not in agent_names:
             retired_command_jobs.append((agents_destination / relative.name, key, owned_hash))
     if not args.commands_only:
+        copy_jobs.append((entry_source, entry_destination, "default-routing.md"))
         for script_name in (
             "check.py",
             "assurance_policy.py",
@@ -346,6 +359,9 @@ def main():
                         "sha256": skill_tree_hash(skill_dir),
                     }
         recorded_files = dict(previous_files) if args.commands_only else {}
+        for _, key, _ in retired_command_jobs:
+            if key not in installed_files:
+                recorded_files.pop(key, None)
         recorded_files.update(installed_files)
         with manifest_path.open("w", encoding="utf-8", newline="\n") as stream:
             stream.write(
@@ -372,6 +388,10 @@ def main():
                 paths.append(path)
             paths.extend(path for path in live_paths if path not in paths)
             skills["paths"] = paths
+            if target != repo:
+                instructions = config.setdefault("instructions", [])
+                if entry_instruction not in instructions:
+                    instructions.append(entry_instruction)
             with json_path.open("w", encoding="utf-8", newline="\n") as stream:
                 stream.write(json.dumps(config, ensure_ascii=False, indent=2) + "\n")
     except BaseException:
@@ -396,6 +416,8 @@ def main():
             + ", ".join(sorted(preserved_retired))
             + " (remove manually or reinstall with --force)"
         )
+    if args.commands_only:
+        print("--commands-only does not install default routing; use a full install to enable uncommanded work/fix")
     if not args.commands_only:
         print("installed workflow engine: .opencode/workflow/scripts/check.py")
         installed_plugins = sorted(path.name for path in plugins_source.glob("*.js")) if plugins_source.is_dir() else []
@@ -409,8 +431,10 @@ def main():
             )
         if manual_config:
             print("opencode.jsonc was not edited because comments must be preserved.")
-            print("WARNING: config pending — skills are NOT active until the field below is merged and OpenCode restarts.")
+            print("WARNING: config pending — skills and default routing are NOT active until the fields below are merged and OpenCode restarts.")
             print(f'add or merge this JSONC field: "skills": {{ "paths": {json.dumps(live_paths)} }}')
+            if target != repo:
+                print(f'add to the existing JSONC instructions array: {json.dumps(entry_instruction)}')
             print(f'remove only the exact old skills.paths entry, if present: {json.dumps(repo.as_posix())}')
         else:
             print(f"registered skills paths: {', '.join(live_paths)}")

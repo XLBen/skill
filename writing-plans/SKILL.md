@@ -1,6 +1,6 @@
 ---
 name: writing-plans
-description: Use for /plan after a confirmed grill brief, when /work needs an autonomous design, or before handing a multi-step implementation to another model. Acts as the engineering designer: resolves technical decisions, defines shared interfaces, designs the complete system, and writes every dependency-ordered task with implementation guidance and layered verification so execution can proceed without redesigning.
+description: Use for /plan after a confirmed grill brief, when an uncommanded work goal needs autonomous design, or before handing a multi-step implementation to another model. Acts as engineering designer: resolves technical decisions, shared interfaces, and dependency-ordered tasks with layered verification.
 license: MIT
 metadata:
   language: "zh-CN"
@@ -10,7 +10,7 @@ metadata:
 
 # Plan：把需求设计成能施工的软件
 
-你承担工程设计责任。输入可以是 grill 已确认的 brief、已明确的用户目标，或 `/work` 标注了假设的工作目标。需要正式工程交接时输出**完整的软件工程计划**；小型会话内路线按下文 `/work` 模式处理。
+你承担工程设计责任。输入可以是 grill 已确认的 brief、已明确的用户目标，或无命令 work 方法标注了假设的工作目标。需要正式工程交接时输出**完整的软件工程计划**；小型会话内路线按下文自主规划模式处理。
 目标：即使 build 使用较弱模型，也不用重新选技术、猜接口、补架构或发明验收标准。
 判断计划质量的问题是：**执行者还需要自行做哪些跨模块决定？**不是字数或字段数。
 
@@ -35,15 +35,15 @@ metadata:
 - 计划不改变已确认需求。事实推翻设计时修订受影响设计；产品取舍才问用户。
 - 有完整计划后才交给 build。仅通过结构检查不得称“设计已验证可行”。
 
-## `/work` 调用模式
+## 无命令 work 调用模式
 
-`/work` 可调用本 skill 进行自主规划，并在设计完成后由同一总控自动接续执行；不得把“下一步运行 `/build`”当成交接终点。对有界、低风险且无需跨任务交接的工作，可输出短的会话内路线而不创建 brief/plan 文件。跨模块、多步骤或需要独立执行者、持久恢复、goal/审核/UI/观察正式 gate 的目标仍按完整工程计划和 `mvp-delivery` 规则发布所需文件；不为省文件跳过已有强制产物。假设由 controller 标记并持续验证，不得把猜测伪装为 owner 已确认需求。
+无命令 work 方法可调用本 skill 进行自主规划，并在设计完成后由同一总控自动接续执行；不得把“下一步运行 `/build`”当成交接终点。对有界、低风险且无需跨任务交接的工作，可输出短的会话内路线而不创建 brief/plan 文件。跨模块、多步骤或需要独立执行者、持久恢复、goal/审核/UI/观察正式 gate 的目标仍按完整工程计划和 `mvp-delivery` 规则发布所需文件；不为省文件跳过已有强制产物。假设由 controller 标记并持续验证，不得把猜测伪装为 owner 已确认需求。
 
 ## 工作顺序（必须产出新的工程判断）
 
 ### 1. 重建完整产品模型
 
-若输入是 brief，读用户指定的实际版本并验证已确认；否则读原始请求与 `/work` 工作目标，区分用户约束和 agent 假设，不伪造确认或 brief。随后读仓库入口/依赖/相关代码和运行环境。
+若输入是 brief，读用户指定的实际版本并验证已确认；否则读原始请求与 work 工作目标，区分用户约束和 agent 假设，不伪造确认或 brief。随后读仓库入口/依赖/相关代码和运行环境。
 按**用户工作流**整理：前置状态 → 输入/动作 → 状态变化 → 输出取得 → 失败恢复。
 将每条必需成功结果对应到工作流；约束附到受影响设计，不按访谈题目顺序排计划。
 明确哪些东西由本软件实现，哪些由已有工具/外部目标提供。
@@ -183,7 +183,7 @@ build 实际拿到的包。prepare-plan 同时生成 `<design-stem>.readable.md`
 持久暂停，resolve-decision 记录真实答复；技术失败不需要为了恢复而伪造用户确认。
 
 独立 `/plan` 给用户完整可读设计链接（prepare-plan 返回的 readable_plan）、核心架构、实施路线、已核实/待探测边界和设计走查结论，
-然后单一 `/build` 交接。由 `/work` 调用时把路线交还同一总控立即执行，不要求用户另发命令。`i-have-adhd` 只压缩聊天摘要，完整计划不删减。
+然后单一 `/build` 交接。由无命令 work 方法调用时把路线交还同一总控立即执行，不要求用户另发命令。`i-have-adhd` 只压缩聊天摘要，完整计划不删减。
 Audited 施工另用编译 PLAN 投影当前实施范围；不把审计 JSON 当作用户的工程设计。
 
 ## 禁止的交付

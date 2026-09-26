@@ -1,17 +1,17 @@
 ---
 name: work
-description: Use for /work <goal> to autonomously infer unclear requirements, dynamically select applicable available skills, and plan, execute, repair, and verify the original goal through completion.
+description: Use for an uncommanded actionable goal to autonomously infer unclear requirements, dynamically select applicable available skills, and plan, execute, repair, and verify the original goal through completion. Do not use for a defect or an explicitly stage-limited request.
 license: MIT
 metadata:
   language: "zh-CN"
-  public-command: "/work <goal>"
+  entry: "uncommanded actionable goal"
   calls-skills: "runtime-discovered applicable skills"
   produces: "the requested outcome with current verification evidence"
 ---
 
 # Work：自主推进目标直到有证据地完成
 
-`/work <目标>` 是端到端总控入口。用户给目标；controller 自己理解、补充推断、选择能力、规划、执行、验证、修复和收敛。不要在完成分析、brief、计划、首个切片或第一次失败时停下并让用户再运行 `/plan`、`/build`、`/fix` 或 `/resume`。
+无命令的行动目标进入端到端总控流程。用户给目标；controller 自己理解、补充推断、选择能力、规划、执行、验证、修复和收敛。不要在完成分析、brief、计划、首个切片或第一次失败时停下并让用户再运行 `/plan`、`/build` 或 `/resume`。明确的阶段命令和仅限问答/设计的请求优先于本流程。
 
 ## 目标理解：模糊时自主 grill
 
@@ -50,7 +50,7 @@ Work Inference Mode 是自主需求建模，不是模拟访谈。不得在同一
 ## 规划、执行与产物
 
 - 有界、可逆且目标明确的小改动直接做：定位受影响处 → 最小修改 → 运行相关检查或观察实际结果 → 对照原目标收口；不为其强制创建 goal、brief 或 plan 文件，也不为了走流程拆成多个施工包。
-- 多步骤、跨模块或高不确定工作加载 `writing-plans` 制定可执行路线。仅在需要跨任务交接、持久恢复或正式 gate 时发布工程计划和目标卡；否则路线留在会话中。目标变化或设计假设被证伪时，带新证据重规划，然后由本 `/work` 循环自动恢复执行；重规划本身不要求用户重新发命令。
+- 多步骤、跨模块或高不确定工作加载 `writing-plans` 制定可执行路线。仅在需要跨任务交接、持久恢复或正式 gate 时发布工程计划和目标卡；否则路线留在会话中。目标变化或设计假设被证伪时，带新证据重规划，然后由本自主循环自动恢复执行；重规划本身不要求用户重新发命令。
 - 当现有 goal-card、工程计划、Audited contract/PLAN、UI acceptance、product-observation、owner decision 或 runtime gate 是目标/严谨级别的要求时，按 `mvp-delivery`、`contract-review`、`construction` 及其引擎流程保存必要产物。不得为了“无文件”绕过正式 gate。
 - 其他情况不因访谈/计划/内部状态而新建文档。首先用会话中的 `WORKING_GOAL` 与简短进度视图；只有目标本身要求文件、已有流程必须持久化、跨会话恢复需要，或用户要求交付计划/记录时才写对应文件。不得生成没有目标价值的第二套状态机或重复需求清单。
 - 执行每个工作包后运行适当检查，读取真实输出并与预期比较。根据证据继续下一个结果，不以测试数量或产物数量代替用户目标。
@@ -58,6 +58,8 @@ Work Inference Mode 是自主需求建模，不是模拟访谈。不得在同一
 - 结果未知的外部副作用先回读目标状态再重试。没有真实边界、权限、后端或审批时诚实阻塞，不用 mock 冒充真实通过。
 
 ## 继续条件、完成与报告
+
+加载 `i-have-adhd` 简明呈现进度、验收预览与最终交付；只压缩聊天表达，不省略真实证据或完整设计。
 
 每次操作后回到原始 `WORKING_GOAL`，核对仍未满足的必需结果并继续。新发现的可选项不自动加入范围；明确目标不能通过改名、降级或塞进 deferred 来缩水。agent 假设可被事实修正，用户明确约束不能被静默改写。
 

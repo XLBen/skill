@@ -1,3 +1,0 @@
-product audit gate: fail
-  - unresolved capability gaps must be resolved or blocked, not passed: compare:historical-baseline
-gate record: C:\Users\24083\AppData\Local\Temp\opencode\s20a-target\.opencode\mvp\observation\G-OBS\cand-bad-1\gate.json

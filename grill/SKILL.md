@@ -1,6 +1,6 @@
 ---
 name: grill
-description: Use for /grill or its autonomous inference mode under /work to analyze a vague, high-risk, or conflicted idea; interactive /grill elicits a confirmed brief, while /work records unconfirmed inferences as assumptions.
+description: Use for /grill or autonomous inference during an uncommanded work goal to analyze a vague, high-risk, or conflicted idea; interactive /grill elicits a confirmed brief, while work inference records unconfirmed inferences as assumptions.
 license: MIT
 metadata:
   language: "zh-CN"
@@ -24,13 +24,13 @@ Use `/grill` when at least one of these is true:
 - 这是高成本、不可逆、涉及隐私或跨模块的工作；
 - 用户明确要求“拷问我”或“把需求问清楚”。
 
-Skip it for a small, reversible, already-specific change. That path enters
-mvp-delivery through `/build <goal>` or `/plan <goal>`; contract-review is used
-only if the selected slice later requires Audited rigor.
+Skip it for a small, reversible, already-specific change. An uncommanded goal
+can proceed directly; explicit `/plan` designs first and `/build` consumes an
+existing valid plan. Contract-review is used only for Audited rigor.
 
 ### Work Inference Mode
 
-When `/work` encounters an unclear goal, it may load this skill for autonomous
+When the uncommanded work method encounters an unclear goal, it may load this skill for autonomous
 requirements analysis without entering the interactive `/grill` interview:
 
 - Inspect the request, session context, repository and available evidence; close
@@ -40,15 +40,15 @@ requirements analysis without entering the interactive `/grill` interview:
   falsify them; never turn them into user answers, decisions, confirmation or a
   final brief.
 - Do not create `docs/brief.md` solely to record this internal analysis, and do
-  not ask questions just to close every interview dimension. `/work` asks only
+  not ask questions just to close every interview dimension. The controller asks only
   for an unresolved material owner decision or an authorization/prerequisite
   that genuinely blocks safe progress.
-- Return a compact working goal to the `/work` controller and proceed. If facts
+- Return a compact working goal to the work controller and proceed. If facts
   later disprove an assumption, revise the working understanding and continue;
   explicit user requirements remain authoritative.
 
 This mode does not weaken `/grill`: direct `/grill` still requires real owner
-interactions, confirmation and a validated brief. If `/work` needs an owner
+interactions, confirmation and a validated brief. If work inference needs an owner
 decision, ask it as a real interaction; never answer it on the owner's behalf.
 
 ## Interview
@@ -285,7 +285,7 @@ requires a fresh preview + confirmation. The snapshot hash binds content; it doe
 Use exactly the `brief-hash:` value printed by the validator; never compute a
 hash by hand or with ad-hoc snippets. Do not hand off an invalid or unconfirmed
 brief. Once contract-review consumes
-its hash, the brief is frozen; later semantic correction enters `/fix`, which
+its hash, the brief is frozen; later semantic correction enters internal Fix Mode, which
 routes an Audited run through CR instead of quietly editing the brief.
 
 ### Brief Versioning
@@ -296,7 +296,7 @@ hash，或严格包保存了 snapshot）后，新一轮 `/grill` 或对已冻结
 最大版本递增）创建新版本文件，旧版本字节保持不变；既有 goal 的
 `source.path`/hash 与已冻结包的 snapshot 继续指向旧版本，不受影响。
 draft（未被任何 goal 消费、未被 snapshot）的 brief 续写当前 revision，
-不换文件。对已消费 brief 的语义修正走 `/fix`（Audited 走 CR/新包），
+不换文件。对已消费 brief 的语义修正走内部 Fix Mode（Audited 走 CR/新包），
 不通过新版本悄悄改既有目标。
 
 ### Final Confirmation Check

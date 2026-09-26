@@ -1,6 +1,6 @@
 # Delivery Execution Details
 
-> When to read: during `/build` or `/fix` implementation slices, before running
+> When to read: during `/build` or internal Fix Mode implementation slices, before running
 > tests or UI/GUI verification, or when a failure budget or evidence question
 > arises. Seat: controller (workers receive only their bounded package; the
 > detailed rules here stay with the integrator). Inputs: current slice card,
@@ -141,7 +141,7 @@ verification and planned UI acceptance, before review-verdict/goal-finish):
    records matches the dispatch context
    (`observation_backend.preflight_skip_plan`); a "controller-verified" label
    alone never exempts a probe.
-5. Route critical/high confirmed/intermittent findings to `/fix`; a repair
+5. Route critical/high confirmed/intermittent findings to internal Fix Mode; a repair
    creates a NEW candidate id (old observation rounds stay as history) and
    the new candidate must repeat a fresh, complete discover+compare round —
    same-candidate repair re-observation never reuses a partial or previous

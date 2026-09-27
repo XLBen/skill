@@ -14,6 +14,16 @@ dedicated browser automation; missing backend blocks acceptance instead of
 waiving it. `/plan` may identify prerequisites and design scenarios but must
 not begin GUI execution.
 
+Pointer journeys use the same scoped loop for hover, targeted scrolling,
+drag-and-drop, marquee and additive/range selection. See `SKILL.md` for the
+gesture and verification rules, and `references/cua-driver-fast-path.md` for
+backend-specific overlay-versus-real-pointer and coordinate caveats. The skill
+does not add mouse primitives that the active backend does not expose.
+Qualify a new backend/version against `references/pointer-evaluation.md`
+before claiming that a gesture or image-coordinate route works. A short
+ordered action batch requires actual backend support for per-step receipts and
+stop-on-failure; consecutive MCP calls are not such a batch.
+
 ## Selected Upstream
 
 Adapted from [ILoveMyJay/computer-use-kit](https://github.com/ILoveMyJay/computer-use-kit),
@@ -52,8 +62,9 @@ Its documented MCP entry is `cua-driver mcp`; platform capabilities vary by
 version, desktop session and permission mode. Follow its
 [installation guide](https://cua.ai/docs/how-to-guides/driver/install), inspect
 the chosen release/installer, and obtain approval before installing it. Do not
-pipe an unreviewed remote script into a shell. This repository has not performed
-a live desktop test of that backend.
+pipe an unreviewed remote script into a shell. This repository does not claim
+repeatable cross-platform gesture qualification of that backend; see
+`references/pointer-evaluation.md` for the required cases.
 
 After installation, confirm the executable path and version using its local
 help. `cua-driver mcp-config --client opencode` prints a current registration
@@ -111,6 +122,16 @@ For an authorized write smoke, use a disposable test window, enter `CU-SMOKE-42`
 and read back the exact text. Keep personal documents closed, do not save over an
 existing file, and close only the owned test window. If permission, input or
 observation fails, report the exact blocker rather than a successful setup.
+That text-field smoke does not qualify pixel geometry, hover, drag or selection;
+run the relevant pointer-evaluation cases with observable result state before
+claiming those capabilities.
+
+The sample tool permission above limits **tool names**, not app identities.
+The controller must pin each approved app/window in its actions, but an
+enforceable per-app allowlist, user-takeover detection and input cancellation
+require host/driver support. Do not advertise these as protections supplied by
+the skill alone. Foreground input on a shared Windows desktop may take focus
+and the real pointer; pause when the user needs the desktop.
 
 In delivery work, for example: `Fix the export dialog in the local test app`.
 The controller must first resolve the app and output path, then observe, act and

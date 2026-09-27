@@ -10,6 +10,14 @@
 UI applicability is declared in the goal definition (`goal.ui`), not by the
 existence of a sidecar file:
 
+| Affected scope | UI acceptance |
+|---|---|
+| Native desktop app, OS dialog, file picker or export path | Required scenario |
+| Web form, navigation or result rendering | Required scenario (browser backend preferred) |
+| CLI/API/background work without an affected interface journey | Record `applicability: none` with a reason |
+| Brief or plan handoff | Design prerequisites and scenarios only; no UI operation |
+| Backend-only change within a UI product | Decide from affected journeys, not the entire product |
+
 - `goal.ui.required: true` means the goal's outcomes include interface
   journeys. The sidecar must declare executed scenarios, and deleting it or
   marking `applicability: none` blocks completion.
@@ -27,6 +35,9 @@ A missing backend, denied permission, or unreadable window produces
 `blocked` — never `not-applicable`, and never a silent applicability change.
 `not-applicable` is reserved for "the affected scope contains no interface
 journey" with a concrete basis, and a `required: true` scenario cannot use it.
+Required scenarios must reach `passed` on the delivered artifact before the
+goal can finish. Missing evidence or a missing sidecar cannot waive the goal's
+declared UI obligation.
 
 ## Sidecar Schema (`ui-acceptance/1`)
 
@@ -100,6 +111,15 @@ Field rules:
 - A `passed` scenario also requires a completed `computer-use` or `webapp-testing`
   skill load in the executing session when a trace is supplied.
 
+Record the representative input, target app/window or URL, tested build and
+artifact identity, meaningful actions with native call references, observed
+result and limitations. A fixed screenshot count is not required: when a
+semantic read or runner output establishes a fact, do not capture a screenshot
+for ceremony. Visual claims do need visual evidence. Retain only necessary
+redacted excerpts or scoped captures; do not commit raw screenshots, session
+dumps, private URLs, credentials or personal clipboard data. Normal/Guarded
+work needs no extra manifest or ledger beyond its ordinary sidecar.
+
 ## Execution Order In The Workflow
 
 ```text
@@ -169,3 +189,27 @@ imported traces can be inspected structurally but cannot pass the gate.
 Raw tool receipts, observation files and runner logs remain acceptance
 evidence for the reviewer; they are not engine verification events, not a
 human owner's acceptance, and not a substitute for `verify-goal`.
+
+Three proofs remain distinct:
+
+- Interactive MCP/browser observations support acceptance and defect reports,
+  but are not engine-generated verification events or owner decisions.
+- An automated goal/V assertion needs a bounded runnable command that actually
+  exercises and asserts the declared behavior via `verify-goal` or
+  `verify-step`. A stored screenshot, narrative claim or unconditional success
+  print cannot manufacture a pass. Serialize this runner with interactive UI
+  control; a diagnostic rerun does not authorize repeating side effects.
+- An audited human V needs an actual bound owner decision and the controller's
+  `record-human-step` path. Do not convert a non-human V to human or change an
+  active contract outside CR. A human V alone does not replace the executable
+  outcome verification required by the current goal schema.
+
+With `runtime-policy/1`, run `check.py ui-gate <goal-card> --trace <trace.json>`
+before `finish-goal`. It checks scenario coverage/status, the controller's
+completed skill load, matching native call refs (including configured
+`ui_tools`), file evidence and artifact binding. A hand-written or truncated
+trace cannot pass. If the gate cannot be satisfied, report the real runner or
+approved planning change required; do not manually mark it verified, weaken
+the goal, or claim MCP observations were engine assertions. Return control to
+mvp-delivery after the journey; its integrated-state and owner gates remain
+authoritative.

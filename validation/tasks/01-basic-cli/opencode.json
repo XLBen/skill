@@ -1,0 +1,18 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "share": "disabled",
+  "permission": {
+    "read": {
+      "*": "allow",
+      "evaluation/**": "deny"
+    },
+    "edit": {
+      "*": "allow",
+      "evaluation/**": "deny",
+      "fixtures/**": "deny",
+      "TASK.md": "deny",
+      "ROUND*.md": "deny",
+      "opencode.json": "deny"
+    }
+  }
+}

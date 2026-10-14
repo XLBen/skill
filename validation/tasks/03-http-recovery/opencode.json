@@ -1,0 +1,22 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "share": "disabled",
+  "permission": {
+    "read": {
+      "*": "allow",
+      "evaluation/**": "deny",
+      "boundary/server.py": "deny",
+      "boundary/control.py": "deny",
+      "boundary/transient_gate.py": "deny"
+    },
+    "edit": {
+      "*": "allow",
+      "evaluation/**": "deny",
+      "fixtures/**": "deny",
+      "TASK.md": "deny",
+      "ROUND*.md": "deny",
+      "opencode.json": "deny",
+      "boundary/**": "deny"
+    }
+  }
+}

@@ -1,14 +1,24 @@
-# Workflow entry for ordinary requests
+# 工作流路由
 
-These rules apply to this repository and, when installed, to projects using this workflow suite. The default routing below applies to the primary controller handling a user's request; delegated subagents follow their assigned role and task instead of starting a new work/fix goal. An explicit `/grill`, `/plan`, `/build`, `/resume`, or `/visibility` command takes precedence. Respect the host's current agent mode, read-only restrictions, permissions, and the user's stated scope.
+用户输入了 `/grill`、`/plan`、`/build`、`/resume` 时，按命令执行。没有命令时，按下面的规则选择：
 
-When the user does **not** name a stage command, decide from the request and current project state:
+| 用户的请求 | 做法 |
+|---|---|
+| 问题、解释、只要求审查 | 直接回答，不改代码 |
+| 小而明确的改动（大约 1-3 个文件，不需要新的设计） | 直接改，跑相关测试，贴出结果。不写计划 |
+| 较大的新功能或新项目，目标清楚 | 加载 `plan` 写计划，给用户看一眼，然后加载 `build` 施工 |
+| 目标模糊、范围说不清 | 建议用户先 `/grill`；用户不想被问，就把猜测写成假设，再进入 plan |
+| 已经有 `docs/plan.md`，用户提出新需求或修改需求 | 加载 `change` |
+| bug、测试失败、行为不对 | 加载 `debug` |
+| “继续” | 有 `docs/handoff.md` 先读它；有 `docs/plan.md` 就加载 `build` 并运行 `python .opencode/wf.py status` |
+| “收尾/交付/发版/提 PR” | 加载 `ship` |
+| 要换会话、上下文快满 | 加载 `handoff` |
 
-- A new actionable goal: load the `work` skill and follow its autonomous goal loop. Infer reversible details from evidence, mark assumptions, and continue through suitable planning, execution, and verification without asking the user to invoke another command. Do not require a formal plan for a clear, bounded change; retain any real rigor, recovery, or acceptance gates that apply.
-- A defect, failed check, regression, or review finding requiring repair: load `systematic-debugging` and use the existing Fix Mode in `mvp-delivery` when the defect belongs to a managed goal. Reproduce and diagnose before editing, reuse the matching unfinished goal and its evidence, and reverify the affected behavior. A small standalone repair may be handled directly without inventing a plan or goal card.
-- A request to continue unfinished work: reconcile the unique durable goal and resume at its pending step using `mvp-delivery` recovery rules. Ask which goal only if the candidates are genuinely ambiguous.
-- A question, review, or request explicitly limited to design: answer or perform only the requested scope; do not treat it as authorization to implement.
+在已有代码的仓库里第一次规划、访谈或排查时，如果没有 `docs/codemap.md`，先加载 `codemap`。
 
-At each real task or acceptance boundary, choose from the skills **actually available in this OpenCode session**. Load only the original skills whose descriptions and triggers match the work, including domain skills when applicable; re-evaluate on a changed boundary. A skill file merely existing on disk does not mean it was loaded. The user never needs to name a skill. Do not fabricate owner decisions, verification results, or a successful handoff.
-
-Explicit `/build` requires an existing valid plan; if none exists, direct the user to `/plan` rather than silently creating a plan or editing product code. This restriction does not prevent an uncommanded `work` goal from planning internally when the work actually needs it.
+通用规则：
+- 不要编造用户的回答、确认或测试结果。
+- 只做用户要求的范围。想扩大范围，先问。
+- 写代码时遵守 `worker` skill 里的“写代码的规则”，不管是不是子代理。
+- 推送、合并、部署、删除数据之前，先得到用户明确同意。
+- 子代理按自己的角色工作，不重新走这张路由表。

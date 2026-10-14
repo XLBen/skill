@@ -1,0 +1,39 @@
+{
+  "code-simplification": {
+    "repo": "addyosmani/agent-skills",
+    "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+    "path": "skills/code-simplification"
+  },
+  "security-and-hardening": {
+    "repo": "addyosmani/agent-skills",
+    "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+    "path": "skills/security-and-hardening",
+    "shared": ["references/security-checklist.md"]
+  },
+  "shipping-and-launch": {
+    "repo": "addyosmani/agent-skills",
+    "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+    "path": "skills/shipping-and-launch",
+    "shared": ["references/accessibility-checklist.md", "references/definition-of-done.md", "references/performance-checklist.md", "references/security-checklist.md"]
+  },
+  "source-driven-development": {
+    "repo": "addyosmani/agent-skills",
+    "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+    "path": "skills/source-driven-development"
+  },
+  "frontend-design": {
+    "repo": "anthropics/skills",
+    "commit": "33375500bcea98d610eb30ce10ac4e59b89c390d",
+    "path": "skills/frontend-design"
+  },
+  "skill-creator": {
+    "repo": "anthropics/skills",
+    "commit": "33375500bcea98d610eb30ce10ac4e59b89c390d",
+    "path": "skills/skill-creator"
+  },
+  "vercel-react-best-practices": {
+    "repo": "vercel-labs/agent-skills",
+    "commit": "063bee94c3f4df8453406c830b0a7df0f2860278",
+    "path": "skills/react-best-practices"
+  }
+}

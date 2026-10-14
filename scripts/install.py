@@ -6,7 +6,7 @@
 安装内容：
   .opencode/commands/{grill,plan,build,resume}.md
   .opencode/agents/{worker,reviewer}.md
-  .opencode/wf.py
+  .opencode/wf.py、.opencode/skills.py（按项目类型启用 extras，见 extras/profiles.json）
   .opencode/workflow-routing.md（AGENTS.md 的副本，注册到 instructions）
   opencode.json 的 skills.paths 指向本仓库的 skill 目录（原地引用，改 skill 无需重装）
 
@@ -76,6 +76,7 @@ def main() -> None:
     parser.add_argument("target", help="目标项目根目录")
     parser.add_argument("--no-extras", action="store_true", help="不注册 extras/ 下的可选 skill")
     parser.add_argument("--force", action="store_true", help="覆盖不是本安装器写入的同名文件")
+    parser.add_argument("--profile", help="启用的 extras 档案，逗号分隔，例如 backend,frontend（默认沿用上次，首次安装只用核心）")
     args = parser.parse_args()
 
     target = Path(args.target).resolve()
@@ -84,7 +85,8 @@ def main() -> None:
 
     jobs = [(p, f".opencode/commands/{p.name}") for p in sorted((REPO / ".opencode/commands").glob("*.md"))]
     jobs += [(p, f".opencode/agents/{p.name}") for p in sorted((REPO / ".opencode/agents").glob("*.md"))]
-    jobs += [(REPO / "scripts/wf.py", ".opencode/wf.py"), (REPO / "AGENTS.md", ROUTING)]
+    jobs += [(REPO / "scripts/wf.py", ".opencode/wf.py"), (REPO / "scripts/skills.py", ".opencode/skills.py"),
+             (REPO / "AGENTS.md", ROUTING)]
 
     manifest_path = target / MANIFEST
     owned = v1_files(target)
@@ -102,7 +104,10 @@ def main() -> None:
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(src, dest)
         installed[rel] = sha(dest)
-    manifest_path.write_text(json.dumps({"repo": REPO.as_posix(), "files": installed}, indent=2) + "\n", encoding="utf-8")
+    previous = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
+    profiles = [p for p in args.profile.split(",") if p] if args.profile is not None else previous.get("profiles", [])
+    manifest_path.write_text(json.dumps({"repo": REPO.as_posix(), "files": installed, "profiles": profiles},
+                                        ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     paths = skill_dirs(not args.no_extras)
     json_path, jsonc_path = target / "opencode.json", target / "opencode.jsonc"
@@ -138,6 +143,11 @@ def main() -> None:
     if removed:
         print(f"清理了 v1 文件 {len(removed)} 个")
     print(f"已安装: {', '.join(sorted(installed))}")
+    if not args.no_extras:
+        sys.path.insert(0, str(REPO / "scripts"))
+        import skills
+        skills.apply(target, REPO, profiles)
+        print("以后切换档案: python .opencode/skills.py use <档案...>（档案列表: python .opencode/skills.py list）")
     print("在 .opencode/agents/worker.md 和 reviewer.md 里设置 model（见 models.md），然后重启 OpenCode。")
 
 

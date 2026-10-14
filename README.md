@@ -11,7 +11,7 @@
 ```
 
 不输入命令也可以：小改动直接做，bug 走 `debug`，大目标自动先 plan 再 build（见 [AGENTS.md](AGENTS.md)）。
-已有代码的仓库先用 `codemap` 生成一页仓库地图；需要换会话时用 `handoff` 交接。
+已有代码的仓库先用 `codemap` 生成一页仓库地图；需要换会话时用 `handoff` 交接；项目结束后用 `retro` 复盘。
 
 ## 设计要点
 
@@ -23,13 +23,16 @@
 - **只有三个审查点**：计划审查（可选）、每个任务的 diff 审查、最终审查（reviewer 实际运行验收样例）。
 - **失败逐级升级**：带错误重派 → 总控先诊断再重派 → 换强模型 `worker-strong` → 回到计划或问用户。
 - **跨平台**：验证命令以 `python` 开头时，wf 自动换成当前解释器；lint 会提醒 grep/sed 这类 Windows 上没有的命令。
+- **机械检查优先于提示词**：`guardrails` 为项目建立一条 lint/类型检查命令（包括抓吞异常的规则），写进计划的 `## 检查` 节，每个任务 verify 时自动运行。
+- **按项目类型启用 skill**：extras 分成档案，只启用需要的，其余对 agent 不可见；worker 只能看到 `worker` 一个 skill。
 
 ## 目录
 
 | 路径 | 内容 |
 |---|---|
 | `grill/` `plan/` `build/` `worker/` `review/` `debug/` | 核心流程 |
-| `change/` `codemap/` `ship/` `handoff/` | 变更、仓库地图、收尾、跨会话交接 |
+| `change/` `codemap/` `ship/` `handoff/` `guardrails/` `retro/` | 变更、仓库地图、收尾、跨会话交接、机械检查、复盘 |
+| `scripts/skills.py` | 按档案启用 extras（安装为 `.opencode/skills.py`） |
 | `scripts/wf.py` | 计划执行工具：status / next / task / verify / done / diffcheck / lint / regress / reopen / impact / wt-add / wt-merge / wt-drop |
 | `scripts/vendor.py` | 按 `extras/upstream.json` 从上游固定提交引入可选 skill |
 | `scripts/install.py` | 安装到目标项目 |
@@ -37,19 +40,41 @@
 | `extras/` | 可选 skill，来源见下表 |
 | `validation/` | 三档基准任务、oracle 和指标脚本 |
 
+## 按项目类型启用 extras
+
+每个 skill 的名称和描述都会占用上下文，描述写得宽泛的还会被误加载，所以 extras 默认全部隐藏，按档案启用：
+
+| 档案 | 启用的 skill |
+|---|---|
+| `backend` | source-driven-development、api-and-interface-design、security-and-hardening、deprecation-and-migration、performance-optimization、observability-and-instrumentation |
+| `frontend` | frontend-design、vercel-react-best-practices、webapp-testing、source-driven-development、performance-optimization |
+| `automation` | computer-use、webapp-testing |
+| `ai` | mcp-builder、skill-creator、writing-for-agents、source-driven-development |
+| `release` | shipping-and-launch、security-and-hardening、ci-cd-and-automation、code-simplification |
+
+```bash
+python .opencode/skills.py list
+```
+```bash
+python .opencode/skills.py use backend frontend
+```
+安装时也可以直接指定：`python scripts/install.py <项目> --profile backend,frontend`。切换后重启 OpenCode。
+实现方式是写项目 `opencode.json` 的 `permission.skill`，不修改任何 skill 文件；你自己加的条目会保留。
+
 ## extras 来源
 
 | skill | 来源 | 用途 |
 |---|---|---|
 | frontend-design、skill-creator | [anthropics/skills](https://github.com/anthropics/skills) | 前端视觉设计；编写 skill |
 | vercel-react-best-practices | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | React / Next.js |
-| source-driven-development、security-and-hardening、shipping-and-launch、code-simplification | [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) | 按官方文档写框架代码；安全加固；上线检查；简化代码 |
+| source-driven-development、security-and-hardening、shipping-and-launch、code-simplification、api-and-interface-design、deprecation-and-migration、performance-optimization、observability-and-instrumentation、ci-cd-and-automation | [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) | 按官方文档写框架代码、安全、上线、简化代码、接口设计、迁移、性能、可观测性、CI |
+| mcp-builder | [anthropics/skills](https://github.com/anthropics/skills) | 编写 MCP server |
+| writing-for-agents | [mattpocock/skills](https://github.com/mattpocock/skills) | 编写 skill 和 AGENTS.md |
 | webapp-testing | 本仓库（参考 anthropics/skills） | Web 验收 |
 | computer-use | 本仓库（改编自 computer-use-kit） | 桌面程序验收 |
 
-上游 skill 原样引入，`python scripts/vendor.py check` 核对、`outdated` 查看上游更新。核心流程参考了
-[obra/superpowers](https://github.com/obra/superpowers)（计划、子代理施工、升级、收尾）和
-[mattpocock/skills](https://github.com/mattpocock/skills)（grill、handoff、prototype）。
+上游 skill 原样引入，`python scripts/vendor.py check` 核对、`outdated` 查看上游更新。核心流程借鉴了 superpowers、
+mattpocock/skills、ponytail、stop-that-shit、pua、i-have-adhd 等项目的思路，详见 [CREDITS.md](CREDITS.md)。
 
 ## 安装
 

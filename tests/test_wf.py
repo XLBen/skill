@@ -252,6 +252,31 @@ class LifecycleTest(Workspace):
         self.assertEqual(wf.dirty_files(), [])
         self.assertEqual(self.run_wf("wt-drop", "T03")[0], 0)
 
+    def test_check_section_runs_on_verify_and_regress(self):
+        plan = Path("docs/plan.md")
+        plan.write_text(PARALLEL.replace("## 任务", '## 检查\n```bash\npython -c "import pathlib; assert \'bad\' not in pathlib.Path(\'a.txt\').read_text()"\n```\n\n## 任务'),
+                        encoding="utf-8")
+        Path("a.txt").write_text("A", encoding="utf-8")
+        self.assertIn("## 检查", self.run_wf("task", "T01")[1])
+        self.assertEqual(self.run_wf("verify", "T02")[0], 1)  # b.txt 不存在，任务命令先失败
+        Path("b.txt").write_text("B", encoding="utf-8")
+        self.assertEqual(self.run_wf("verify", "T02")[0], 0)
+        self.assertEqual(self.run_wf("done", "T02")[0], 0)
+        Path("a.txt").write_text("bad", encoding="utf-8")
+        code, out = self.run_wf("verify", "T01")
+        self.assertEqual(code, 1)  # 任务命令也会失败，但检查必定失败
+        code, out = self.run_wf("regress")
+        self.assertIn("失败: 检查", out)
+
+    def test_changed_check_section_requires_reverify(self):
+        Path("a.txt").write_text("A", encoding="utf-8")
+        self.run_wf("verify", "T01")
+        plan = Path("docs/plan.md")
+        plan.write_text(PARALLEL.replace("## 任务", '## 检查\n```bash\npython -c "print(1)"\n```\n\n## 任务'), encoding="utf-8")
+        code, out = self.run_wf("done", "T01")
+        self.assertEqual(code, 1)
+        self.assertIn("检查", out)
+
     def test_lint_warns_about_non_portable_commands(self):
         Path("docs/plan.md").write_text(PARALLEL.replace('python -c "print(1)"', "grep -q x a.txt"), encoding="utf-8")
         _, warnings = wf.lint(wf.Plan(Path("docs/plan.md")))

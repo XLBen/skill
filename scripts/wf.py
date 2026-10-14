@@ -18,6 +18,7 @@
   python wf.py wt-merge T03      提交 worktree 并合并回当前分支；冲突则中止
   python wf.py wt-drop T03       丢弃任务的 worktree
 
+plan.md 的 '## 检查' 节（```bash 代码块）会在每个任务 verify 时和 regress 末尾自动运行。
 verify/diffcheck/regress 支持 --cwd（在 worktree 中运行）。验证命令以 python/python3/py
 开头时，自动换成运行 wf.py 的解释器，方便同一份计划在 Windows/macOS/Linux 上运行。
 
@@ -43,7 +44,7 @@ TASK_HEADING = re.compile(r"^###\s+(T\d+)\s+(.*)$")
 CHECKBOX = re.compile(r"^- \[( |x|X)\]")
 FIELD = re.compile(r"^(依赖|文件|接口|阅读|完成标准)\s*[:：]\s*(.*)$")
 SPLIT = re.compile(r"[,，、;；]")
-PACKAGE_SECTIONS = ("背景", "约定", "共享接口", "错误策略")
+PACKAGE_SECTIONS = ("背景", "约定", "共享接口", "错误策略", "检查")
 MAX_FILES = 4
 STATE_DIR = Path(".wf")
 GENERATED = re.compile(r"(^|/)(\.wf|__pycache__|node_modules|\.pytest_cache|\.mypy_cache|dist|build)/|\.pyc$")
@@ -70,6 +71,23 @@ class Task:
     files: list[str] = field(default_factory=list)
     verify: list[str] = field(default_factory=list)
     milestone: bool = False
+
+
+def split_commands(lines: list[str]) -> list[str]:
+    """代码块按行拆成命令；行尾 \\ 续行，# 开头为注释。"""
+    result, pending = [], ""
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or (stripped.startswith("#") and not pending):
+            continue
+        if stripped.endswith("\\"):
+            pending += stripped[:-1] + " "
+            continue
+        result.append(pending + stripped)
+        pending = ""
+    if pending:
+        result.append(pending.strip())
+    return result
 
 
 class Plan:
@@ -139,20 +157,20 @@ class Plan:
                 task.files = [f.strip().strip("`") for f in SPLIT.split(value) if f.strip()]
 
     def commands(self, task: Task) -> list[str]:
-        """验证块按行拆成命令；行尾 \\ 续行，# 开头为注释。"""
-        result, pending = [], ""
-        for line in task.verify:
-            stripped = line.strip()
-            if not stripped or (stripped.startswith("#") and not pending):
-                continue
-            if stripped.endswith("\\"):
-                pending += stripped[:-1] + " "
-                continue
-            result.append(pending + stripped)
-            pending = ""
-        if pending:
-            result.append(pending.strip())
-        return result
+        return split_commands(task.verify)
+
+    def check_commands(self) -> list[str]:
+        """'## 检查' 节代码块里的命令：每个任务 verify 时都会运行。"""
+        lines, in_fence = [], False
+        for line in self.sections.get("检查", "").splitlines():
+            if line.strip().startswith("```"):
+                in_fence = not in_fence
+            elif in_fence:
+                lines.append(line)
+        return split_commands(lines)
+
+    def verify_commands(self, task: Task) -> list[str]:
+        return self.commands(task) + self.check_commands()
 
     def ready(self) -> list[Task]:
         return [t for t in self.tasks.values() if not t.done and all(self.tasks.get(d) and self.tasks[d].done for d in t.deps)]
@@ -290,6 +308,11 @@ def cmd_regress(plan: Plan, args) -> int:
         ok, _ = run_commands(plan.commands(task), args)
         if not ok:
             failed.append(task.id)
+    if plan.check_commands():
+        print("== 检查")
+        ok, _ = run_commands(plan.check_commands(), args)
+        if not ok:
+            failed.append("检查")
     print(f"\n回归: {len(done) - len(failed)}/{len(done)} 通过" + (f"；失败: {', '.join(failed)}" if failed else ""))
     return 1 if failed else 0
 
@@ -317,8 +340,8 @@ def cmd_impact(plan: Plan, args) -> int:
 
 def cmd_verify(plan: Plan, args) -> int:
     task = plan.get(args.id)
-    commands = plan.commands(task)
-    if not commands:
+    commands = plan.verify_commands(task)
+    if not plan.commands(task):
         print(f"{task.id} 没有验证命令（'验证:' 后的代码块）")
         return 1
     runs = STATE_DIR / "runs"
@@ -346,8 +369,8 @@ def cmd_done(plan: Plan, args) -> int:
     if not record or record["result"] != "pass":
         print(f"{task.id} 最近一次 verify 未通过或未运行，不能勾选。先运行: wf.py verify {task.id}")
         return 1
-    if record["commands"] != commands_hash(plan.commands(task)):
-        print(f"{task.id} 的验证命令在 verify 之后被改过，请重新 verify")
+    if record["commands"] != commands_hash(plan.verify_commands(task)):
+        print(f"{task.id} 的验证命令或 '## 检查' 在 verify 之后被改过，请重新 verify")
         return 1
     plan.set_done(task, True)
     print(f"{task.id} 已完成")
@@ -500,6 +523,8 @@ def lint(plan: Plan) -> tuple[list[str], list[str]]:
             errors.append(f"缺少 '## {name}' 节")
     if not plan.tasks:
         errors.append("没有 '### T01 标题' 形式的任务")
+    if not plan.check_commands():
+        warnings.append("没有 '## 检查' 节：建议加载 guardrails，建立格式/lint/类型检查命令")
     ids = list(plan.tasks)
     for index, task in enumerate(plan.tasks.values()):
         where = f"{task.id}"

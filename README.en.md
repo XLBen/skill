@@ -10,7 +10,7 @@ English · [简体中文](README.md)
 /ship    →  delivery        acceptance, docs, cleanup, delivery notes, merge or PR
 ```
 
-In existing repositories `codemap` writes a one-page map first; `handoff` passes state to a new session.
+In existing repositories `codemap` writes a one-page map first; `handoff` passes state to a new session; `retro` reviews a finished build.
 
 Without a command: small changes are done directly, bugs go through `debug`, larger goals plan first and then build (see [AGENTS.md](AGENTS.md)).
 
@@ -23,19 +23,24 @@ Without a command: small changes are done directly, bugs go through `debug`, lar
 - **Three review points only**: optional plan review, per-task diff review, and a final review where the reviewer actually runs the acceptance examples.
 - **Escalation on failure**: retry with the error → controller diagnoses first → strong `worker-strong` model → back to the plan or the user.
 - **Cross-platform**: verify commands starting with `python` run with the current interpreter; lint warns about grep/sed and other commands missing on Windows.
+- **Checkers over prompts**: `guardrails` sets up one lint/type-check command (including rules that catch swallowed exceptions) in the plan's `## 检查` section, run on every verify.
+- **Skill profiles**: extras are grouped into profiles (backend, frontend, automation, ai, release) and hidden unless enabled via `python .opencode/skills.py use <profile...>` or `install.py --profile`; workers can only see the `worker` skill.
 
 ## Layout
 
 | Path | Contents |
 |---|---|
 | `grill/` `plan/` `build/` `worker/` `review/` `debug/` | core workflow |
-| `change/` `codemap/` `ship/` `handoff/` | changes, repo map, delivery, session handoff |
+| `change/` `codemap/` `ship/` `handoff/` `guardrails/` `retro/` | changes, repo map, delivery, session handoff, checks, retrospective |
+| `scripts/skills.py` | enables extras by profile via `permission.skill` (installed as `.opencode/skills.py`) |
 | `scripts/wf.py` | plan runner: status / next / task / verify / done / diffcheck / lint / regress / reopen / impact / wt-add / wt-merge / wt-drop |
 | `scripts/vendor.py` | imports optional skills from pinned upstream commits listed in `extras/upstream.json` |
 | `scripts/install.py` | installer |
 | `models.md` | model roles and known tendencies |
-| `extras/` | optional skills from anthropics/skills, vercel-labs/agent-skills and addyosmani/agent-skills (pinned, unmodified), plus local webapp-testing and computer-use |
+| `extras/` | optional skills from anthropics/skills, vercel-labs/agent-skills, addyosmani/agent-skills and mattpocock/skills (pinned, unmodified), plus local webapp-testing and computer-use; profiles in `extras/profiles.json` |
 | `validation/` | three benchmark tasks, oracles and metrics |
+
+Ideas borrowed from superpowers, mattpocock/skills, ponytail, stop-that-shit, pua, i-have-adhd and others are listed in [CREDITS.md](CREDITS.md).
 
 ## Install
 

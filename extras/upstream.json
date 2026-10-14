@@ -1,39 +1,87 @@
 {
+  "api-and-interface-design": {
+    "repo": "addyosmani/agent-skills",
+    "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+    "path": "skills/api-and-interface-design"
+  },
+  "ci-cd-and-automation": {
+    "repo": "addyosmani/agent-skills",
+    "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+    "path": "skills/ci-cd-and-automation"
+  },
   "code-simplification": {
     "repo": "addyosmani/agent-skills",
     "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
     "path": "skills/code-simplification"
   },
-  "security-and-hardening": {
+  "deprecation-and-migration": {
     "repo": "addyosmani/agent-skills",
     "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
-    "path": "skills/security-and-hardening",
-    "shared": ["references/security-checklist.md"]
-  },
-  "shipping-and-launch": {
-    "repo": "addyosmani/agent-skills",
-    "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
-    "path": "skills/shipping-and-launch",
-    "shared": ["references/accessibility-checklist.md", "references/definition-of-done.md", "references/performance-checklist.md", "references/security-checklist.md"]
-  },
-  "source-driven-development": {
-    "repo": "addyosmani/agent-skills",
-    "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
-    "path": "skills/source-driven-development"
+    "path": "skills/deprecation-and-migration"
   },
   "frontend-design": {
     "repo": "anthropics/skills",
     "commit": "33375500bcea98d610eb30ce10ac4e59b89c390d",
     "path": "skills/frontend-design"
   },
+  "mcp-builder": {
+    "repo": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/mcp-builder"
+  },
+  "observability-and-instrumentation": {
+    "repo": "addyosmani/agent-skills",
+    "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+    "path": "skills/observability-and-instrumentation",
+    "shared": [
+      "references/observability-checklist.md"
+    ]
+  },
+  "performance-optimization": {
+    "repo": "addyosmani/agent-skills",
+    "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+    "path": "skills/performance-optimization",
+    "shared": [
+      "references/performance-checklist.md"
+    ]
+  },
+  "security-and-hardening": {
+    "repo": "addyosmani/agent-skills",
+    "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+    "path": "skills/security-and-hardening",
+    "shared": [
+      "references/security-checklist.md"
+    ]
+  },
+  "shipping-and-launch": {
+    "repo": "addyosmani/agent-skills",
+    "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+    "path": "skills/shipping-and-launch",
+    "shared": [
+      "references/accessibility-checklist.md",
+      "references/definition-of-done.md",
+      "references/performance-checklist.md",
+      "references/security-checklist.md"
+    ]
+  },
   "skill-creator": {
     "repo": "anthropics/skills",
     "commit": "33375500bcea98d610eb30ce10ac4e59b89c390d",
     "path": "skills/skill-creator"
   },
+  "source-driven-development": {
+    "repo": "addyosmani/agent-skills",
+    "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+    "path": "skills/source-driven-development"
+  },
   "vercel-react-best-practices": {
     "repo": "vercel-labs/agent-skills",
     "commit": "063bee94c3f4df8453406c830b0a7df0f2860278",
     "path": "skills/react-best-practices"
+  },
+  "writing-for-agents": {
+    "repo": "mattpocock/skills",
+    "commit": "49dd158d1076134a641b33efb035946536778336",
+    "path": "skills/productivity/writing-for-agents"
   }
 }

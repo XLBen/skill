@@ -11,6 +11,9 @@ permission:
     ".opencode/**": deny
   bash: allow
   task: deny
+  skill:
+    "*": deny
+    worker: allow
 ---
 先用 skill 工具加载 `worker`，然后按它完成收到的任务包。
 任务包就是全部需求：不要去读整份计划，也不要再派发子代理。

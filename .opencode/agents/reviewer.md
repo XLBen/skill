@@ -7,6 +7,12 @@ permission:
   edit: deny
   bash: allow
   task: deny
+  skill:
+    "*": deny
+    review: allow
+    webapp-testing: allow
+    computer-use: allow
+    security-and-hardening: allow
 ---
 先用 skill 工具加载 `review`，按派发说明里指定的审查类型（计划审查 / 最终审查）执行。
 不要修改任何文件，包括通过 shell 重定向写文件；只输出审查结果。

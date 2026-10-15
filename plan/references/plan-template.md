@@ -1,6 +1,6 @@
 # 计划模板（docs/plan.md）
 
-`wf.py` 解析这个格式：`## 背景/约定/共享接口/错误策略/检查` 五节会进入每个任务包；
+`wf.py` 解析这个格式：`## 背景/约定/共享接口/错误策略/检查` 五节会进入每个任务包，`## 接口契约` 只放进相关任务的包；
 任务用 `### Txx 标题`。其余小节（架构、风险）只给人和规划者看。
 
 ````markdown
@@ -50,6 +50,15 @@ def parse_rows(text: str) -> list[Row]: ...
 def summarize(rows: list[Row]) -> dict[str, int]: ...
 ```
 
+## 接口契约
+（设计里有两个以上组件通过接口协作时就写；只有单一组件时删掉这一节。见 plan skill 第 3.5 步。）
+
+### I01 summarize(rows) -> dict[str, int]
+提供: T02
+使用: T03
+示例: [Row("a", 1), Row("a", 2), Row("b", 5)] → {"a": 3, "b": 5}；[] → {}
+契约测试: python -m unittest tests.contracts.test_i01_summarize
+
 ## 错误策略
 只处理下面列出的失败；其他异常直接抛出，不捕获、不兜底、不重试。
 | 失败 | 在哪一层处理 | 表现 |
@@ -66,6 +75,7 @@ def summarize(rows: list[Row]) -> dict[str, int]: ...
 
 ### T01 端到端骨架：<最小可运行的完整链路>
 - [ ] 完成
+执行者: worker
 依赖: 无
 文件: src/app/cli.py(新增), tests/test_cli.py(新增)
 接口: 提供 main(argv)
@@ -88,6 +98,7 @@ python -m unittest tests.test_cli -v
   bash 工具，`python -c` 用双引号，这样同一份计划在 Windows、macOS、Linux 上都能跑。
 - 没有依赖关系的任务不要写依赖，“文件”尽量不重叠，build 可以并行施工。
 - **文件**字段列出本任务会创建或修改的全部文件（含测试），最多 4 个。
+- **执行者**字段（可选，默认 `worker`）：派给哪个子代理，例如 `test-author`、`backend-worker`、`frontend-worker`、`worker-strong`，名字要和 `.opencode/agents/` 里的文件对应。
 - **阅读**字段（可选）列出要先读、但不修改的现有文件。worker 只读这些文件和“文件”里的文件。
 - 标题含“里程碑”的任务完成后，总控会用 brief 的验收样例跑一次端到端检查。
 - 不写 TBD/TODO/待定/“适当处理”/“依此类推”；`wf.py lint` 会把这些当作错误。

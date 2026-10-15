@@ -17,6 +17,8 @@
   python wf.py wt-add T03        为任务建 git worktree（并行施工）
   python wf.py wt-merge T03      提交 worktree 并合并回当前分支；冲突则中止
   python wf.py wt-drop T03       丢弃任务的 worktree
+  python wf.py contracts         逐条运行 '## 接口契约' 的契约测试
+  python wf.py lanes             按执行者分组列出任务，给出关键路径
 
 plan.md 的 '## 检查' 节（```bash 代码块）会在每个任务 verify 时和 regress 末尾自动运行。
 verify/diffcheck/regress 支持 --cwd（在 worktree 中运行）。验证命令以 python/python3/py
@@ -41,8 +43,9 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 TASK_HEADING = re.compile(r"^###\s+(T\d+)\s+(.*)$")
+CONTRACT_HEADING = re.compile(r"^###\s+(I\d+)\s+(.*)$")
 CHECKBOX = re.compile(r"^- \[( |x|X)\]")
-FIELD = re.compile(r"^(依赖|文件|接口|阅读|完成标准)\s*[:：]\s*(.*)$")
+FIELD = re.compile(r"^(依赖|文件|接口|阅读|完成标准|执行者|提供|使用|契约测试)\s*[:：]\s*(.*)$")
 SPLIT = re.compile(r"[,，、;；]")
 PACKAGE_SECTIONS = ("背景", "约定", "共享接口", "错误策略", "检查")
 MAX_FILES = 4
@@ -71,6 +74,19 @@ class Task:
     files: list[str] = field(default_factory=list)
     verify: list[str] = field(default_factory=list)
     milestone: bool = False
+    executor: str = "worker"
+
+
+@dataclass
+class Contract:
+    """'## 接口契约' 里的一条：### I01 签名。提供方、使用方和契约测试命令。"""
+    id: str
+    title: str
+    start: int
+    end: int
+    provider: str = ""
+    users: list[str] = field(default_factory=list)
+    test: str = ""
 
 
 def split_commands(lines: list[str]) -> list[str]:
@@ -95,6 +111,7 @@ class Plan:
         self.path = path
         self.lines = path.read_text(encoding="utf-8").splitlines()
         self.tasks: dict[str, Task] = {}
+        self.contracts: dict[str, Contract] = {}
         self.sections: dict[str, str] = {}
         self._parse()
 
@@ -115,6 +132,14 @@ class Plan:
                 for name in PACKAGE_SECTIONS:
                     if title.startswith(name):
                         self.sections[name] = "\n".join(self.lines[i:end]).rstrip()
+                continue
+            match = CONTRACT_HEADING.match(line)
+            if match:
+                contract = Contract(match.group(1), match.group(2).strip(), i, end)
+                self._parse_contract(contract)
+                if contract.id in self.contracts:
+                    raise SystemExit(f"计划中接口契约 ID 重复: {contract.id}")
+                self.contracts[contract.id] = contract
                 continue
             match = TASK_HEADING.match(line)
             if match:
@@ -152,9 +177,30 @@ class Plan:
             key, value = match.groups()
             if key == "依赖":
                 task.deps = re.findall(r"T\d+", value)
+            elif key == "执行者":
+                task.executor = value.strip().strip("`") or "worker"
             elif key == "文件":
                 value = re.sub(r"[（(][^)）]*[)）]", "", value)  # 去掉 (新增) 之类的注释
                 task.files = [f.strip().strip("`") for f in SPLIT.split(value) if f.strip()]
+
+    def _parse_contract(self, contract: Contract) -> None:
+        for line in self.lines[contract.start + 1:contract.end]:
+            match = FIELD.match(line.strip())
+            if not match:
+                continue
+            key, value = match.groups()
+            if key == "提供":
+                contract.provider = next(iter(re.findall(r"T\d+", value)), "")
+            elif key == "使用":
+                contract.users = re.findall(r"T\d+", value)
+            elif key == "契约测试":
+                contract.test = value.strip().strip("`")
+
+    def provided(self, task: Task) -> list[Contract]:
+        return [c for c in self.contracts.values() if c.provider == task.id]
+
+    def related(self, task: Task) -> list[Contract]:
+        return [c for c in self.contracts.values() if c.provider == task.id or task.id in c.users]
 
     def commands(self, task: Task) -> list[str]:
         return split_commands(task.verify)
@@ -170,7 +216,9 @@ class Plan:
         return split_commands(lines)
 
     def verify_commands(self, task: Task) -> list[str]:
-        return self.commands(task) + self.check_commands()
+        """任务自己的验证 + 它提供的接口的契约测试 + '## 检查'。"""
+        contract_tests = [c.test for c in self.provided(task) if c.test]
+        return self.commands(task) + contract_tests + self.check_commands()
 
     def ready(self) -> list[Task]:
         return [t for t in self.tasks.values() if not t.done and all(self.tasks.get(d) and self.tasks[d].done for d in t.deps)]
@@ -226,7 +274,8 @@ def cmd_status(plan: Plan, _args) -> int:
     for task in plan.tasks.values():
         mark = "x" if task.done else (">" if task.id in ready else " ")
         last = state.get(task.id, {}).get("result", "")
-        print(f"[{mark}] {task.id} {task.title}" + (f"   (最近验证: {last})" if last and not task.done else ""))
+        who = f"  @{task.executor}" if task.executor != "worker" else ""
+        print(f"[{mark}] {task.id} {task.title}{who}" + (f"   (最近验证: {last})" if last and not task.done else ""))
     done = sum(t.done for t in plan.tasks.values())
     print(f"\n完成 {done}/{len(plan.tasks)}")
     return cmd_next(plan, _args)
@@ -258,9 +307,17 @@ def cmd_task(plan: Plan, args) -> int:
     missing = [d for d in task.deps if not plan.tasks.get(d) or not plan.tasks[d].done]
     if missing:
         print(f"注意: 依赖未完成 {', '.join(missing)}\n")
+    print(f"执行者: {task.executor}\n")
     for name in PACKAGE_SECTIONS:
         if name in plan.sections:
             print(plan.sections[name] + "\n")
+    related = plan.related(task)
+    if related:
+        print("## 相关接口契约\n")
+        for contract in related:
+            role = "你提供（verify 时会运行它的契约测试）" if contract.provider == task.id else "你使用"
+            print(f"<!-- {role} -->")
+            print("\n".join(plan.lines[contract.start:contract.end]).rstrip() + "\n")
     print("## 当前任务\n")
     print("\n".join(plan.lines[task.start:task.end]).rstrip())
     print("\n只做这个任务。完成后贴出验证命令的原始输出。")
@@ -329,12 +386,55 @@ def cmd_reopen(plan: Plan, args) -> int:
 
 def cmd_impact(plan: Plan, args) -> int:
     hits = [t for t in plan.tasks.values() if args.name in "\n".join(plan.lines[t.start:t.end])]
+    contract = plan.contracts.get(args.name.upper())
+    if contract:  # 接口契约：提供方和所有使用方都受影响
+        ids = [contract.provider, *contract.users]
+        hits = [plan.tasks[i] for i in plan.tasks if i in ids or plan.tasks[i] in hits]
     if not hits:
         print(f"没有任务提到 {args.name}")
         return 0
     for task in hits:
         print(f"[{'x' if task.done else ' '}] {task.id} {task.title}")
     print("已完成的任务如果受变更影响：wf reopen <ID>，或追加一个修改任务")
+    return 0
+
+
+def cmd_contracts(plan: Plan, args) -> int:
+    """逐条运行接口契约测试。基础任务完成后应当全部失败（只有骨架），全部任务完成后应当全部通过。"""
+    if not plan.contracts:
+        print("计划里没有 '## 接口契约'")
+        return 0
+    passed = 0
+    for contract in plan.contracts.values():
+        if not contract.test:
+            print(f"----  {contract.id} {contract.title}（没有契约测试命令）")
+            continue
+        code, output = run_command(contract.test, args.timeout)
+        ok = code == 0
+        passed += ok
+        provider = plan.tasks.get(contract.provider)
+        state = "已完成" if provider and provider.done else "未完成"
+        print(f"{'PASS' if ok else 'FAIL'}  {contract.id} {contract.title}   提供: {contract.provider}（{state}）")
+        if not ok and args.verbose:
+            print("\n".join("    " + l for l in output.strip().splitlines()[-args.tail:]))
+    print(f"\n契约测试: {passed}/{len(plan.contracts)} 通过")
+    return 0 if passed == len(plan.contracts) else 1
+
+
+def cmd_lanes(plan: Plan, _args) -> int:
+    """按执行者分组列出未完成任务，并给出关键路径（最长的依赖链）。"""
+    lanes: dict[str, list[Task]] = {}
+    for task in plan.tasks.values():
+        if not task.done:
+            lanes.setdefault(task.executor, []).append(task)
+    for executor, tasks in lanes.items():
+        print(f"{executor}: " + ", ".join(t.id for t in tasks))
+    longest: dict[str, list[str]] = {}
+    for task in plan.tasks.values():  # 依赖只指向前面的任务（lint 保证），按顺序算即可
+        best = max((longest[d] for d in task.deps if d in longest), key=len, default=[])
+        longest[task.id] = best + [task.id]
+    path = max(longest.values(), key=len, default=[])
+    print(f"\n关键路径（{len(path)} 个任务）: {' → '.join(path)}")
     return 0
 
 
@@ -525,6 +625,20 @@ def lint(plan: Plan) -> tuple[list[str], list[str]]:
         errors.append("没有 '### T01 标题' 形式的任务")
     if not plan.check_commands():
         warnings.append("没有 '## 检查' 节：建议加载 guardrails，建立格式/lint/类型检查命令")
+    for contract in plan.contracts.values():
+        where = f"{contract.id}"
+        if contract.provider not in plan.tasks:
+            errors.append(f"{where}: '提供:' 要写成一个存在的任务 ID")
+        for user in contract.users:
+            if user not in plan.tasks:
+                errors.append(f"{where}: 使用方 {user} 不存在")
+        if not contract.test:
+            errors.append(f"{where}: 缺少 '契约测试:' 命令")
+    agents = Path(".opencode/agents")
+    if agents.is_dir():
+        for task in plan.tasks.values():
+            if not (agents / f"{task.executor}.md").is_file():
+                warnings.append(f"{task.id}: 执行者 {task.executor} 在 .opencode/agents/ 里没有对应的定义")
     ids = list(plan.tasks)
     for index, task in enumerate(plan.tasks.values()):
         where = f"{task.id}"
@@ -578,6 +692,11 @@ def main(argv: list[str] | None = None) -> int:
     nxt.add_argument("--all", action="store_true", help="列出可以并行的一组任务")
     nxt.add_argument("--max", type=int, default=3)
     sub.add_parser("lint")
+    sub.add_parser("lanes")
+    contracts = sub.add_parser("contracts")
+    contracts.add_argument("--timeout", type=int, default=300)
+    contracts.add_argument("--tail", type=int, default=15)
+    contracts.add_argument("-v", "--verbose", action="store_true", help="显示失败输出")
     for name in ("task", "done", "reopen", "wt-add", "wt-merge", "wt-drop"):
         sub.add_parser(name).add_argument("id")
     sub.add_parser("impact").add_argument("name")
@@ -601,7 +720,7 @@ def main(argv: list[str] | None = None) -> int:
     handlers = {"status": cmd_status, "next": cmd_next, "task": cmd_task, "verify": cmd_verify,
                 "done": cmd_done, "diffcheck": cmd_diffcheck, "lint": cmd_lint, "regress": cmd_regress,
                 "reopen": cmd_reopen, "impact": cmd_impact, "wt-add": cmd_wt_add, "wt-merge": cmd_wt_merge,
-                "wt-drop": cmd_wt_drop}
+                "wt-drop": cmd_wt_drop, "contracts": cmd_contracts, "lanes": cmd_lanes}
     return handlers[args.command](Plan(path), args)
 
 

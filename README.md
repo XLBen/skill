@@ -26,6 +26,8 @@
 - **失败逐级升级**：带错误重派 → 总控先诊断再重派 → 换强模型 `worker-strong` → 回到计划或问用户。
 - **跨平台**：验证命令以 `python` 开头时，wf 自动换成当前解释器；lint 会提醒 grep/sed 这类 Windows 上没有的命令。
 - **机械检查优先于提示词**：`guardrails` 为项目建立一条 lint/类型检查命令（包括抓吞异常的规则），写进计划的 `## 检查` 节，每个任务 verify 时自动运行。
+- **契约优先的多人分工**：设计涉及多个组件时，计划定好 `## 接口契约`（签名、示例、契约测试），T00 由 `test-author` 建骨架和契约测试，
+  各条线分别交给 `backend-worker`、`frontend-worker` 等子代理并行施工，`wf verify` 自动跑契约测试，只看输出是否达标。
 - **按项目类型启用 skill**：extras 分成档案，只启用需要的，其余对 agent 不可见；worker 只能看到 `worker` 一个 skill。
 
 ## 目录
@@ -35,7 +37,7 @@
 | `grill/` `plan/` `build/` `worker/` `review/` `debug/` | 核心流程 |
 | `change/` `codemap/` `ship/` `handoff/` `guardrails/` `retro/` | 变更、仓库地图、收尾、跨会话交接、机械检查、复盘 |
 | `scripts/skills.py` | 按档案启用 extras（安装为 `.opencode/skills.py`） |
-| `scripts/wf.py` | 计划执行工具：status / next / task / verify / done / diffcheck / lint / regress / reopen / impact / wt-add / wt-merge / wt-drop |
+| `scripts/wf.py` | 计划执行工具：status / next / task / verify / done / diffcheck / lint / regress / reopen / impact / contracts / lanes / wt-add / wt-merge / wt-drop |
 | `scripts/vendor.py` | 按 `extras/upstream.json` 从上游固定提交引入可选 skill |
 | `scripts/install.py` | 安装到目标项目 |
 | `models.md` | 模型分工和已知倾向 |

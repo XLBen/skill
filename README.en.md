@@ -26,6 +26,7 @@ Without a command: small changes are done directly, bugs go through `debug`, lar
 - **Escalation on failure**: retry with the error → controller diagnoses first → strong `worker-strong` model → back to the plan or the user.
 - **Cross-platform**: verify commands starting with `python` run with the current interpreter; lint warns about grep/sed and other commands missing on Windows.
 - **Checkers over prompts**: `guardrails` sets up one lint/type-check command (including rules that catch swallowed exceptions) in the plan's `## 检查` section, run on every verify.
+- **Contract-first teams**: whenever the design spans several components, the plan defines `## 接口契约` (signature, examples, contract test); T00 by `test-author` builds stubs and failing contract tests; lanes go to `backend-worker` / `frontend-worker` etc. in parallel, and `wf verify` runs the contract tests of each provided interface.
 - **Skill profiles**: extras are grouped into profiles (backend, frontend, automation, ai, release) and hidden unless enabled via `python .opencode/skills.py use <profile...>` or `install.py --profile`; workers can only see the `worker` skill.
 
 ## Layout
@@ -35,7 +36,7 @@ Without a command: small changes are done directly, bugs go through `debug`, lar
 | `grill/` `plan/` `build/` `worker/` `review/` `debug/` | core workflow |
 | `change/` `codemap/` `ship/` `handoff/` `guardrails/` `retro/` | changes, repo map, delivery, session handoff, checks, retrospective |
 | `scripts/skills.py` | enables extras by profile via `permission.skill` (installed as `.opencode/skills.py`) |
-| `scripts/wf.py` | plan runner: status / next / task / verify / done / diffcheck / lint / regress / reopen / impact / wt-add / wt-merge / wt-drop |
+| `scripts/wf.py` | plan runner: status / next / task / verify / done / diffcheck / lint / regress / reopen / impact / contracts / lanes / wt-add / wt-merge / wt-drop |
 | `scripts/vendor.py` | imports optional skills from pinned upstream commits listed in `extras/upstream.json` |
 | `scripts/install.py` | installer |
 | `models.md` | model roles and known tendencies |

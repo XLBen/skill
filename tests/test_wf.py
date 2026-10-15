@@ -283,5 +283,101 @@ class LifecycleTest(Workspace):
         self.assertTrue(any("Windows" in w for w in warnings))
 
 
+CONTRACT_PLAN = """## 共享接口
+无
+
+## 错误策略
+无
+
+## 接口契约
+
+### I01 double(x: int) -> int
+提供: T01
+使用: T02
+示例: double(2) == 4
+契约测试: python -c "import mod; assert mod.double(2) == 4"
+
+## 任务
+
+### T00 接口骨架
+- [ ] 完成
+执行者: test-author
+文件: mod.py
+验证:
+```bash
+python -c "import mod"
+```
+
+### T01 实现 double
+- [ ] 完成
+依赖: T00
+文件: mod.py
+验证:
+```bash
+python -c "import mod"
+```
+
+### T02 使用 double
+- [ ] 完成
+依赖: T00
+执行者: frontend-worker
+文件: app.py
+验证:
+```bash
+python -c "import app"
+```
+"""
+
+
+class ContractTest(Workspace):
+    def setUp(self):
+        super().setUp()
+        Path("docs/plan.md").write_text(CONTRACT_PLAN, encoding="utf-8")
+        Path("mod.py").write_text("def double(x):\n    raise NotImplementedError\n", encoding="utf-8")
+
+    def test_package_includes_only_related_contracts_and_executor(self):
+        out = self.run_wf("task", "T02")[1]
+        self.assertIn("执行者: frontend-worker", out)
+        self.assertIn("### I01", out)
+        self.assertIn("你使用", out)
+        self.assertNotIn("### I01", self.run_wf("task", "T00")[1])
+        self.assertIn("你提供", self.run_wf("task", "T01")[1])
+
+    def test_provider_verify_runs_contract_test(self):
+        self.assertEqual(self.run_wf("verify", "T01")[0], 1)  # 骨架还没实现
+        self.assertEqual(self.run_wf("verify", "T02")[0], 1)  # app.py 不存在
+        Path("mod.py").write_text("def double(x):\n    return x * 2\n", encoding="utf-8")
+        self.assertEqual(self.run_wf("verify", "T01")[0], 0)
+
+    def test_contracts_command_reports_red_then_green(self):
+        code, out = self.run_wf("contracts")
+        self.assertEqual(code, 1)
+        self.assertIn("FAIL  I01", out)
+        Path("mod.py").write_text("def double(x):\n    return x * 2\n", encoding="utf-8")
+        code, out = self.run_wf("contracts")
+        self.assertEqual(code, 0)
+        self.assertIn("1/1 通过", out)
+
+    def test_impact_on_contract_lists_provider_and_users(self):
+        out = self.run_wf("impact", "I01")[1]
+        self.assertIn("T01", out)
+        self.assertIn("T02", out)
+        self.assertNotIn("T00", out)
+
+    def test_lanes_and_lint(self):
+        out = self.run_wf("lanes")[1]
+        self.assertIn("frontend-worker: T02", out)
+        self.assertIn("关键路径", out)
+        errors, _ = wf.lint(wf.Plan(Path("docs/plan.md")))
+        self.assertEqual(errors, [])
+        Path(".opencode/agents").mkdir(parents=True)
+        Path(".opencode/agents/worker.md").write_text("x", encoding="utf-8")
+        _, warnings = wf.lint(wf.Plan(Path("docs/plan.md")))
+        self.assertTrue(any("frontend-worker" in w for w in warnings))
+        Path("docs/plan.md").write_text(CONTRACT_PLAN.replace("提供: T01", "提供: T09"), encoding="utf-8")
+        errors, _ = wf.lint(wf.Plan(Path("docs/plan.md")))
+        self.assertTrue(any("I01" in e for e in errors))
+
+
 if __name__ == "__main__":
     unittest.main()

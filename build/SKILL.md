@@ -16,7 +16,7 @@ description: 用于 /build、/resume，或用户要求按 docs/plan.md 施工。
 ## 每个任务的循环（串行）
 ```
 wf next                     → 例如 T03
-wf task T03                 → 任务包，原文作为 prompt 派给 worker，不加别的
+wf task T03                 → 任务包，原文作为 prompt 派给卡片上的“执行者”子代理（默认 worker），不加别的
 wf verify T03               → 你亲自运行，不相信 worker 说“已通过”
 wf diffcheck T03 + 读 diff  → 按 review skill 的“任务审查”清单检查
 通过：wf done T03，然后 git commit -m "T03 <标题>"
@@ -30,6 +30,14 @@ wf diffcheck T03 + 读 diff  → 按 review skill 的“任务审查”清单检
 4. 每个 worker 返回后：`wf verify <ID> --cwd <路径>`、`wf diffcheck <ID> --cwd <路径>`，审查通过后 `wf wt-merge <ID>`。
 5. 合并后在主工作区再 `wf verify <ID>`（检查和其他任务合在一起是否还对），通过后 `wf done <ID>`，提交。
 6. 合并冲突：`wf wt-drop <ID>`，等这一批合并完后串行重做。同一批任务冲突多，说明计划的“文件”写得不准，改回串行。
+
+## 有接口契约时
+- 先做 T00（执行者 `test-author`）。完成后运行 `wf contracts`：契约测试必须**全部失败，而且失败原因是“未实现”**；
+  有通过的或者是导入错误，退回 test-author 修改。然后提交，再开始各条施工线。
+- 用 `wf lanes` 看各条线和关键路径，优先派关键路径上的任务；不同施工线的任务可以按“并行”一节同时派发。
+- 某个任务的契约测试不过时，先判断是实现错了还是契约错了。契约错了不要让 worker 绕开，按 `change` 修改契约，
+  然后 `wf impact I0x` 找出提供方和所有使用方，重新打开受影响的任务。
+- 全部完成前运行一次 `wf contracts`，必须全部通过。
 
 ## worker 的汇报状态
 | 状态 | 你的处理 |

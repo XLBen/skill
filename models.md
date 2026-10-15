@@ -9,6 +9,8 @@
 | worker 子代理 | haiku / ds / glm-flash | 任务卡已经消除了设计决定，只需要按卡片施工 |
 | worker-strong 子代理 | 强模型（可以和总控相同） | worker 同一任务失败两次后，总控升级派给它 |
 | reviewer 子代理 | 强模型，最好和 worker 不是同一家族 | 同一家族的盲点往往相同 |
+| test-author 子代理 | 强模型，最好和施工的 worker 不是同一个 | 它写的接口骨架和契约测试就是别人的验收标准；出题和答题分开 |
+| backend-worker / frontend-worker 子代理 | 弱模型（可以和 worker 相同） | 有接口契约时按施工线分工；各自只能看到对应领域的 skill |
 
 ## 已知倾向与对策
 

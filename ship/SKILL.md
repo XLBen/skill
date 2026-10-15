@@ -44,6 +44,7 @@ description: build 的最终审查通过后，或用户说“收尾/交付/发�
 
 用户想要 CI 时，按 `guardrails` 第 5 步加工作流，跑同一条检查命令和测试。
 
-**推送、合并、部署之前必须得到用户明确同意。**涉及部署、对外服务或凭据时，先加载 `security-and-hardening` 和 `shipping-and-launch`（extras）检查一遍。
+**推送、合并、部署之前必须得到用户明确同意。**涉及部署、对外服务或凭据时，先加载 `security-and-hardening` 和 `shipping-and-launch`（extras）检查一遍；
+看不到它们时运行 `python .opencode/skills.py add release` 并提醒用户重启 OpenCode。
 
 全部完成后，建议用户运行一次 `retro` 复盘这次施工。

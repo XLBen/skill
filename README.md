@@ -35,7 +35,7 @@
 | 路径 | 内容 |
 |---|---|
 | `grill/` `plan/` `build/` `worker/` `review/` `debug/` | 核心流程 |
-| `change/` `codemap/` `ship/` `handoff/` `guardrails/` `retro/` | 变更、仓库地图、收尾、跨会话交接、机械检查、复盘 |
+| `change/` `codemap/` `ship/` `handoff/` `guardrails/` `retro/` `testing/` | 变更、仓库地图、收尾、跨会话交接、机械检查、复盘、测试方法 |
 | `scripts/skills.py` | 按档案启用 extras（安装为 `.opencode/skills.py`） |
 | `scripts/wf.py` | 计划执行工具：status / next / task / verify / done / diffcheck / lint / regress / reopen / impact / contracts / lanes / wt-add / wt-merge / wt-drop |
 | `scripts/vendor.py` | 按 `extras/upstream.json` 从上游固定提交引入可选 skill |
@@ -52,7 +52,7 @@
 |---|---|
 | `backend` | source-driven-development、api-and-interface-design、security-and-hardening、deprecation-and-migration、performance-optimization、observability-and-instrumentation、postgres |
 | `frontend` | frontend-design、frontend-engineering、vercel-react-best-practices、webapp-testing、source-driven-development、performance-optimization |
-| `automation` | computer-use、webapp-testing |
+| `automation` | computer-use、webapp-testing、source-driven-development |
 | `ai` | mcp-builder、skill-creator、writing-for-agents、source-driven-development |
 | `release` | shipping-and-launch、security-and-hardening、ci-cd-and-automation、code-simplification |
 

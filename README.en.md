@@ -34,7 +34,7 @@ Without a command: small changes are done directly, bugs go through `debug`, lar
 | Path | Contents |
 |---|---|
 | `grill/` `plan/` `build/` `worker/` `review/` `debug/` | core workflow |
-| `change/` `codemap/` `ship/` `handoff/` `guardrails/` `retro/` | changes, repo map, delivery, session handoff, checks, retrospective |
+| `change/` `codemap/` `ship/` `handoff/` `guardrails/` `retro/` `testing/` | changes, repo map, delivery, session handoff, checks, retrospective, test techniques |
 | `scripts/skills.py` | enables extras by profile via `permission.skill` (installed as `.opencode/skills.py`) |
 | `scripts/wf.py` | plan runner: status / next / task / verify / done / diffcheck / lint / regress / reopen / impact / contracts / lanes / wt-add / wt-merge / wt-drop |
 | `scripts/vendor.py` | imports optional skills from pinned upstream commits listed in `extras/upstream.json` |

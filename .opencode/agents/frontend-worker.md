@@ -15,10 +15,12 @@ permission:
   skill:
     "*": deny
     worker: allow
+    testing: allow
+    webapp-testing: allow
     frontend-engineering: allow
     vercel-react-best-practices: allow
     source-driven-development: allow
 ---
-先用 skill 工具加载 `worker`，然后按它完成收到的任务包；写界面时加载 `frontend-engineering`。
+先用 skill 工具加载 `worker`，然后按它完成收到的任务包；写界面时加载 `frontend-engineering`；写浏览器端到端测试脚本时加载 `webapp-testing`。
 任务包里的“相关接口契约”就是验收标准：你使用的后端接口按契约调用（后端还没完成时用契约里的示例数据），不要猜它的内部实现。
 契约测试（tests/contracts/）不能修改；觉得契约有问题时用 blocked 汇报。

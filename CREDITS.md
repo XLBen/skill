@@ -13,7 +13,7 @@
 | [tanweai/pua](https://github.com/tanweai/pua) | MIT | 放弃前的 7 项检查；换参数不算换方法；什么才算一次失败 | debug、build |
 | [ayghri/i-have-adhd](https://github.com/ayghri/i-have-adhd)（Ayoub Ghriss） | MIT | 汇报第一行给结果、编号、只给一个下一步、阻塞格式 | AGENTS.md |
 | [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) | Apache-2.0 | 以第一次使用者的身份试用、问题分级（dogfood）；agent-browser 的使用循环；Electron 程序走 CDP | review、extras/webapp-testing、extras/computer-use |
-| [trailofbits/skills](https://github.com/trailofbits/skills) | CC BY-SA 4.0 | 只借思路、用自己的话重写：自定义 semgrep 规则要先写测试且包含“不该报”的例子（semgrep-rule-creator）；uv/ruff/ty 的工具选择（modern-python）；性质测试的规律表、强弱顺序和两种无效写法（property-based-testing） | guardrails、plan/references/test-techniques.md |
+| [trailofbits/skills](https://github.com/trailofbits/skills) | CC BY-SA 4.0 | 只借思路、用自己的话重写：自定义 semgrep 规则要先写测试且包含“不该报”的例子（semgrep-rule-creator）；uv/ruff/ty 的工具选择（modern-python）；性质测试的规律表、强弱顺序和两种无效写法（property-based-testing） | guardrails、testing |
 | [github/spec-kit](https://github.com/github/spec-kit) | MIT | plan 阶段产出接口契约；先做阻塞所有人的基础阶段，之后各条线并行；契约测试先写并确认失败；“改不同文件、无依赖才能并行” | plan（第 3.5 步）、build、wf contracts |
 | [bmad-code-org/BMAD-METHOD](https://github.com/bmad-code-org/BMAD-METHOD) | MIT | 按角色分工、每个故事交给对应角色执行的思路（只做成任务卡上的“执行者”字段，不引入角色人格和流程） | plan、build、.opencode/agents |
 | [supabase/agent-skills](https://github.com/supabase/agent-skills) | MIT | Postgres 规则的分类和优先级（supabase-postgres-best-practices） | extras/postgres |

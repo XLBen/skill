@@ -15,6 +15,7 @@ permission:
   skill:
     "*": deny
     worker: allow
+    testing: allow
     postgres: allow
     api-and-interface-design: allow
     source-driven-development: allow

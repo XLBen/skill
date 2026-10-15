@@ -1,4 +1,14 @@
-# 按风险选测试方法
+---
+name: testing
+description: 写测试或选择测试方法时使用：plan 为有特定风险的任务选测试方法，worker / test-author 写单元测试、契约测试、性质测试。包括按风险选方法的对照表、性质测试的规律表，以及怎样确认测试真的能抓住缺陷。Choose and write tests that can actually fail: risk-to-technique table and property-based testing.
+---
+
+# Testing：写能抓住缺陷的测试
+
+基本规则（worker 里也有）：有行为要实现时先写测试并看到它失败；期望值来自卡片、契约或简报的具体例子，
+不能用和代码相同的方法算出来；通过公开接口测试，不测私有函数，不 mock 项目内部的模块。
+
+## 按风险选测试方法
 
 只在简报或错误策略里确实有对应风险时使用。这张表选的是**测试方法**，不增加产品需求；
 每个用到的方法都要对应到一条验收样例或错误策略条目。

@@ -65,7 +65,8 @@ wf diffcheck T03 + 读 diff  → 按 review skill 的“任务审查”清单检
 
 ## 里程碑
 标题带“里程碑”的任务完成后，或每完成约 3 个任务：从简报里挑相关的验收样例，**通过真实入口运行**并对照期望。
-Web 界面加载 `webapp-testing`，桌面程序或系统对话框加载 `computer-use`（extras）。结果不符就在当前或下一个任务里修。
+Web 界面加载 `webapp-testing`，桌面程序或系统对话框加载 `computer-use`（extras）；看不到这两个 skill 时，
+运行 `python .opencode/skills.py add frontend`（或 `automation`）并提醒用户重启 OpenCode。结果不符就在当前或下一个任务里修。
 
 ## 全部完成后
 0. 运行 `wf regress`。失败的如果是“变更 N”有意改变的行为，更新那张卡的验证命令并记进变更记录；否则按缺陷修复。

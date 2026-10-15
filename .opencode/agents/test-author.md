@@ -14,8 +14,9 @@ permission:
   skill:
     "*": deny
     worker: allow
+    testing: allow
 ---
-先用 skill 工具加载 `worker`（遵守其中写代码和测试的规则），然后完成任务包。你的工作只有两件：
+先用 skill 工具加载 `worker`（遵守其中写代码和测试的规则）和 `testing`（选测试方法、确认测试能失败），然后完成任务包。你的工作只有两件：
 
 1. **接口骨架**：按“共享接口”和“接口契约”创建模块、类型和函数签名。函数体只写抛出“未实现”的一行
    （Python 用 `raise NotImplementedError`，TS 用 `throw new Error("not implemented")`），不写任何实现逻辑。

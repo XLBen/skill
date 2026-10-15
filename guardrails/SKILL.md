@@ -64,7 +64,7 @@ uv run ruff format --check .
 
 ## 5. CI（可选，ship 时由用户决定）
 用户想要时，加一个 GitHub Actions 工作流，在推送和 PR 时运行同一条检查命令和测试命令。需要多平台时用
-`strategy.matrix.os: [ubuntu-latest, windows-latest, macos-latest]`。更复杂的流水线加载 `ci-cd-and-automation`（release 档案）。
+`strategy.matrix.os: [ubuntu-latest, windows-latest, macos-latest]`。更复杂的流水线加载 `ci-cd-and-automation`（release 档案；没启用时运行 `python .opencode/skills.py add release`）。
 
 ## 汇报
 `检查命令: <命令> | 新增开发依赖: <有/无> | 当前结果: <通过 / N 个问题>`

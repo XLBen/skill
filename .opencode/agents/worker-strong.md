@@ -14,6 +14,9 @@ permission:
   skill:
     "*": deny
     worker: allow
+    testing: allow
+    debug: allow
 ---
-先用 skill 工具加载 `worker`，然后按它完成收到的任务包。
+先用 skill 工具加载 `worker` 和 `debug`。这个任务之前已经失败过：先按 `debug` 的方法读前几次的失败输出和总控的诊断，
+找到原因后再按 `worker` 的规则完成任务包。
 任务包就是全部需求：不要去读整份计划，也不要再派发子代理。

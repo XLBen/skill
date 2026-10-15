@@ -12,3 +12,7 @@ Playwright 等专用浏览器自动化对 Web 应用做真实操作与断言。
   `networkidle` 等待作为所有页面的就绪信号。未复制上游文本或代码。
 - 上游许可：Apache-2.0（详见上游仓库声明）。本目录不包含上游代码副本，
   本文件满足来源标注。
+
+另外参考了 [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser)（Apache-2.0）：
+把它作为一次性浏览器检查的首选工具，使用方式（安装、`skills get core`、独立会话、snapshot → @ref → 重新 snapshot 的循环、
+dogfood 试用流程）用自己的话概括，没有复制原文；最新用法以已安装版本的 `agent-browser skills get core` 输出为准。

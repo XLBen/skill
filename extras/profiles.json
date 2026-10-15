@@ -1,22 +1,50 @@
 {
   "backend": {
     "说明": "Web 后端 / API / 数据库",
-    "skills": ["source-driven-development", "api-and-interface-design", "security-and-hardening", "deprecation-and-migration", "performance-optimization", "observability-and-instrumentation"]
+    "skills": [
+      "source-driven-development",
+      "api-and-interface-design",
+      "security-and-hardening",
+      "deprecation-and-migration",
+      "performance-optimization",
+      "observability-and-instrumentation",
+      "postgres"
+    ]
   },
   "frontend": {
     "说明": "网页前端",
-    "skills": ["frontend-design", "vercel-react-best-practices", "webapp-testing", "source-driven-development", "performance-optimization"]
+    "skills": [
+      "frontend-design",
+      "frontend-engineering",
+      "vercel-react-best-practices",
+      "webapp-testing",
+      "source-driven-development",
+      "performance-optimization"
+    ]
   },
   "automation": {
     "说明": "桌面程序、游戏脚本、浏览器自动化",
-    "skills": ["computer-use", "webapp-testing"]
+    "skills": [
+      "computer-use",
+      "webapp-testing"
+    ]
   },
   "ai": {
     "说明": "MCP server、agent、编写 skill",
-    "skills": ["mcp-builder", "skill-creator", "writing-for-agents", "source-driven-development"]
+    "skills": [
+      "mcp-builder",
+      "skill-creator",
+      "writing-for-agents",
+      "source-driven-development"
+    ]
   },
   "release": {
     "说明": "上线、CI、发布前清理",
-    "skills": ["shipping-and-launch", "security-and-hardening", "ci-cd-and-automation", "code-simplification"]
+    "skills": [
+      "shipping-and-launch",
+      "security-and-hardening",
+      "ci-cd-and-automation",
+      "code-simplification"
+    ]
   }
 }

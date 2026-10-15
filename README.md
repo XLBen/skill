@@ -6,9 +6,11 @@
 /grill   →  docs/brief.md   一次一问、每问附推荐答案，把想法问成简报
 /plan    →  docs/plan.md    架构、唯一的共享接口、一节错误策略、小任务卡（大项目先写 roadmap 分阶段）
 /build   →  逐卡施工          worker 子代理写代码（可并行）；总控复验、审查 diff、失败逐级升级
-/change  →  需求变更          追加或重开受影响的任务，跑回归
+/change  →  需求变更          像 /plan 一样为变更写任务卡，只追加或重开受影响的任务
 /ship    →  收尾交付          验收、更新文档、清理、交付说明、合并或开 PR
 ```
+
+已有项目加需求：`/grill <想法>`（变更访谈，写成简报里的“变更 N”）→ `/change` → `/build`；需求很清楚时可以直接 `/change`。
 
 不输入命令也可以：小改动直接做，bug 走 `debug`，大目标自动先 plan 再 build（见 [AGENTS.md](AGENTS.md)）。
 已有代码的仓库先用 `codemap` 生成一页仓库地图；需要换会话时用 `handoff` 交接；项目结束后用 `retro` 复盘。
@@ -46,8 +48,8 @@
 
 | 档案 | 启用的 skill |
 |---|---|
-| `backend` | source-driven-development、api-and-interface-design、security-and-hardening、deprecation-and-migration、performance-optimization、observability-and-instrumentation |
-| `frontend` | frontend-design、vercel-react-best-practices、webapp-testing、source-driven-development、performance-optimization |
+| `backend` | source-driven-development、api-and-interface-design、security-and-hardening、deprecation-and-migration、performance-optimization、observability-and-instrumentation、postgres |
+| `frontend` | frontend-design、frontend-engineering、vercel-react-best-practices、webapp-testing、source-driven-development、performance-optimization |
 | `automation` | computer-use、webapp-testing |
 | `ai` | mcp-builder、skill-creator、writing-for-agents、source-driven-development |
 | `release` | shipping-and-launch、security-and-hardening、ci-cd-and-automation、code-simplification |
@@ -70,8 +72,10 @@ python .opencode/skills.py use backend frontend
 | source-driven-development、security-and-hardening、shipping-and-launch、code-simplification、api-and-interface-design、deprecation-and-migration、performance-optimization、observability-and-instrumentation、ci-cd-and-automation | [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) | 按官方文档写框架代码、安全、上线、简化代码、接口设计、迁移、性能、可观测性、CI |
 | mcp-builder | [anthropics/skills](https://github.com/anthropics/skills) | 编写 MCP server |
 | writing-for-agents | [mattpocock/skills](https://github.com/mattpocock/skills) | 编写 skill 和 AGENTS.md |
-| webapp-testing | 本仓库（参考 anthropics/skills） | Web 验收 |
-| computer-use | 本仓库（改编自 computer-use-kit） | 桌面程序验收 |
+| webapp-testing | 本仓库（参考 anthropics/skills、vercel-labs/agent-browser） | Web 验收，一次性检查用 agent-browser |
+| computer-use | 本仓库（改编自 computer-use-kit） | 桌面程序验收；Electron 程序优先走 agent-browser |
+| postgres | 本仓库（整理自 supabase/agent-skills） | Postgres 表结构、索引、查询、RLS、迁移规则 |
+| frontend-engineering | 本仓库（整理自 addyosmani 的 frontend-ui-engineering） | 组件、状态、无障碍、响应式、加载/空/错误状态 |
 
 上游 skill 原样引入，`python scripts/vendor.py check` 核对、`outdated` 查看上游更新。核心流程借鉴了 superpowers、
 mattpocock/skills、ponytail、stop-that-shit、pua、i-have-adhd 等项目的思路，详见 [CREDITS.md](CREDITS.md)。

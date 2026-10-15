@@ -32,11 +32,14 @@ flowchart LR
 ## 检查
 每个任务 verify 时都会自动运行（由 guardrails 建立；没有就省略这一节）。
 ```bash
-python -m ruff check .
+uv run ruff check .
 ```
 
 ## 共享接口
 跨任务使用的类型与签名只在这里定义一次。任务按名称引用，不得修改。
+
+术语（来自简报）：
+- 收据（Row）：CSV 中的一行，不包括表头
 ```python
 @dataclass(frozen=True)
 class Row:

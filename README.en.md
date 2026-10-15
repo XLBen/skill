@@ -6,9 +6,11 @@ English · [简体中文](README.md)
 /grill   →  docs/brief.md   one question at a time, each with a recommended answer
 /plan    →  docs/plan.md    architecture, single shared interfaces, one error policy, small task cards (roadmap phases for big projects)
 /build   →  card by card    worker subagents write code (optionally in parallel); controller re-verifies, reviews, escalates
-/change  →  changes         append or reopen only the affected tasks, then run regression
+/change  →  changes         plans a change like /plan does: append or reopen only the affected tasks
 /ship    →  delivery        acceptance, docs, cleanup, delivery notes, merge or PR
 ```
+
+For an existing project: `/grill <idea>` (change interview, appended to the brief as “变更 N”) → `/change` → `/build`; clear requests can go straight to `/change`.
 
 In existing repositories `codemap` writes a one-page map first; `handoff` passes state to a new session; `retro` reviews a finished build.
 
@@ -37,7 +39,7 @@ Without a command: small changes are done directly, bugs go through `debug`, lar
 | `scripts/vendor.py` | imports optional skills from pinned upstream commits listed in `extras/upstream.json` |
 | `scripts/install.py` | installer |
 | `models.md` | model roles and known tendencies |
-| `extras/` | optional skills from anthropics/skills, vercel-labs/agent-skills, addyosmani/agent-skills and mattpocock/skills (pinned, unmodified), plus local webapp-testing and computer-use; profiles in `extras/profiles.json` |
+| `extras/` | optional skills from anthropics/skills, vercel-labs/agent-skills, addyosmani/agent-skills and mattpocock/skills (pinned, unmodified), plus local webapp-testing (with agent-browser), computer-use, postgres and frontend-engineering; profiles in `extras/profiles.json` |
 | `validation/` | three benchmark tasks, oracles and metrics |
 
 Ideas borrowed from superpowers, mattpocock/skills, ponytail, stop-that-shit, pua, i-have-adhd and others are listed in [CREDITS.md](CREDITS.md).

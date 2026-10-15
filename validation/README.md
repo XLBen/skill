@@ -19,7 +19,8 @@ python validation/setup.py 01-basic-cli ~/bench/l1-v2
 1. 在 `~/bench/l1-v2/.opencode/agents/worker.md` 和 `reviewer.md` 里设置 `model:`（见 `models.md`）。
 2. 用强模型打开 OpenCode：`opencode ~/bench/l1-v2 -m <强模型>`
 3. 输入 `/plan TASK.md`，确认计划后输入 `/build`。只按 TASK.md 回答 agent 的问题。
-4. 有 ROUND 文件的任务：上一轮完成后，输入 `/change ` 加上 `validation/tasks/<任务>/ROUND2.md` 的内容，依此类推（ROUND3 是排查类，直接粘贴，不加 `/change`）。
+4. 有 ROUND 文件的任务：上一轮完成后，输入 `/change ` 加上 `validation/tasks/<任务>/ROUND2.md` 的内容，确认任务卡后再 `/build`，依此类推（ROUND3 是排查类，直接粘贴，不加 `/change`）。
+   想测变更访谈时，改用 `/grill ` 加 ROUND 内容，再 `/change`、`/build`。
    每轮完成后看一眼 agent 有没有运行 `wf regress`。
 5. 全部完成后运行：`python validation/metrics.py ~/bench/l1-v2`，把表格行贴进 `RESULTS.md`。
 6. 导出会话（`opencode export`），保存到工作区外面，供复查。

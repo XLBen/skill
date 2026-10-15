@@ -38,6 +38,11 @@ For backend qualification and pointer regressions, use
   `../webapp-testing/SKILL.md` for delivery acceptance); use desktop control
   only for native/OS boundaries. For ordinary file/CLI work, use file/CLI
   tools rather than driving a GUI.
+- **Electron apps** (VS Code, Slack, Discord, Figma, Notion and many in-house
+  tools): when `agent-browser` is installed, prefer driving them through it
+  (`agent-browser skills get electron`) — it reads the app's accessibility tree
+  over CDP, which is more reliable than screenshots and pixel coordinates. Fall
+  back to desktop control only when the app does not expose a debugging port.
 
 **Fast path:** resolve one exact app/window -> take one scoped observation
 (tree-only if a named control suffices) -> choose an enabled, uniquely

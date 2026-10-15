@@ -1,0 +1,25 @@
+rules:
+  - id: except-returns-empty
+    languages: [python]
+    severity: ERROR
+    message: 捕获异常后返回空值，调用方会以为成功了；让异常抛出，或按错误策略处理
+    pattern-either:
+      - pattern: |
+          try:
+              ...
+          except $E:
+              ...
+              return $EMPTY
+      - pattern: |
+          try:
+              ...
+          except:
+              ...
+              return $EMPTY
+    metavariable-pattern:
+      metavariable: $EMPTY
+      pattern-either:
+        - pattern: "[]"
+        - pattern: "{}"
+        - pattern: '""'
+        - pattern: None

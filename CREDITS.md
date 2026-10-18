@@ -6,9 +6,11 @@
 | 来源 | 许可 | 借用的内容 | 放在哪里 |
 |---|---|---|---|
 | [obra/superpowers](https://github.com/obra/superpowers)（Jesse Vincent） | MIT | 计划写给无上下文的执行者；每任务一个新子代理；失败升级到更强模型；系统化排查；收到审查意见先核实；收尾时选择合并方式 | plan、build、debug、review、ship |
-| [mattpocock/skills](https://github.com/mattpocock/skills)（Matt Pocock） | MIT | 一次一问的访谈（grill-me）；任务依赖图、随时取可开工的一批、实现与合并分开（to-tickets、implement-spec）；术语表与“三条都满足才记录决定”（domain-modeling）；跨会话交接（handoff）；一次性原型回答设计问题（prototype）；复盘与“能机械检查的就写成检查”（retro）；先红后绿、避免同义反复的测试（tdd） | grill、handoff、plan、retro、guardrails、worker |
+| [mattpocock/skills](https://github.com/mattpocock/skills)（Matt Pocock） | MIT | 一次一问的访谈（grill-me）；任务依赖图、随时取可开工的一批、实现与合并分开（to-tickets、implement-spec）；术语表与“三条都满足才记录决定”（domain-modeling）；深模块、删除测试、一种实现是假接口（codebase-design）；跨会话交接（handoff）；一次性原型回答设计问题（prototype）；复盘与“能机械检查的就写成检查”（retro）；先红后绿、避免同义反复的测试（tdd） | grill、handoff、plan、retro、guardrails、worker、review |
 | [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills)（Addy Osmani） | MIT | 框架代码以官方文档为准（source-driven-development） | plan |
 | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) | MIT | “先问需不需要、仓库里有没有、标准库能不能”的递进顺序；在所有调用方经过的地方修根因；不能省略的保护；给有意的简化标注上限 | worker、debug、plan |
+| [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) | MIT | 多种理解时列出来而不是默默选一个；只清理自己改动造成的孤儿，原有死代码只提不删；每一行改动都能追溯到需求 | AGENTS.md、worker、review |
+| [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) | Apache-2.0 | 重构先锁住行为、不夹带功能、一次移动一个职责边界、每一步都能运行（safe-refactor）；该重构时不要硬塞进局部补丁、新增配置和依赖要由验收证明（lean-build） | plan、review |
 | [lennney/stop-that-shit](https://github.com/lennney/stop-that-shit) | MIT | 把失败变成空结果的捕获是缺陷；已有保护在弄清作用前不删 | review、worker |
 | [tanweai/pua](https://github.com/tanweai/pua) | MIT | 放弃前的 7 项检查；换参数不算换方法；什么才算一次失败 | debug、build |
 | [ayghri/i-have-adhd](https://github.com/ayghri/i-have-adhd)（Ayoub Ghriss） | MIT | 汇报第一行给结果、编号、只给一个下一步、阻塞格式 | AGENTS.md |

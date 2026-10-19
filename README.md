@@ -50,13 +50,16 @@
 
 每个 skill 的名称和描述都会占用上下文，描述写得宽泛的还会被误加载，所以 extras 默认全部隐藏，按档案启用：
 
-| 档案 | 启用的 skill |
-|---|---|
-| `backend` | source-driven-development、api-and-interface-design、security-and-hardening、deprecation-and-migration、performance-optimization、observability-and-instrumentation、postgres |
-| `frontend` | frontend-design、frontend-engineering、vercel-react-best-practices、webapp-testing、source-driven-development、performance-optimization |
-| `automation` | computer-use、webapp-testing、source-driven-development |
-| `ai` | mcp-builder、skill-creator、writing-for-agents、source-driven-development |
-| `release` | shipping-and-launch、security-and-hardening、ci-cd-and-automation、code-simplification |
+| 档案 | 启用的 skill | 打开的 MCP |
+|---|---|---|
+| `backend` | source-driven-development、api-and-interface-design、security-and-hardening、deprecation-and-migration、performance-optimization、observability-and-instrumentation、postgres | context7 |
+| `frontend` | frontend-design、frontend-engineering、vercel-react-best-practices、webapp-testing、source-driven-development、performance-optimization | context7、playwright |
+| `automation` | computer-use、webapp-testing、source-driven-development | context7、playwright、computer-use |
+| `ai` | mcp-builder、skill-creator、writing-for-agents、source-driven-development | context7 |
+| `release` | shipping-and-launch、security-and-hardening、ci-cd-and-automation、code-simplification | 无 |
+
+档案没列出的 MCP（包括你全局配置里的）在项目里都会关掉；worker 子代理看不到任何 MCP 工具。
+全局配置里的某个服务器要在这个项目里用：`python .opencode/skills.py use automation --mcp godot`。MCP 和插件的建议见 [models.md](models.md)。
 
 ```bash
 python .opencode/skills.py list
@@ -65,7 +68,7 @@ python .opencode/skills.py list
 python .opencode/skills.py use backend frontend
 ```
 安装时也可以直接指定：`python scripts/install.py <项目> --profile backend,frontend`。切换后重启 OpenCode。
-实现方式是写项目 `opencode.json` 的 `permission.skill`，不修改任何 skill 文件；你自己加的条目会保留。
+实现方式是写项目 `opencode.json` 的 `permission.skill`、`tools` 和 `agent`，不修改任何 skill 文件；你自己加的其他条目会保留。
 
 ## extras 来源
 

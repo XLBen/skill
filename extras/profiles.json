@@ -9,6 +9,9 @@
       "performance-optimization",
       "observability-and-instrumentation",
       "postgres"
+    ],
+    "mcp": [
+      "context7"
     ]
   },
   "frontend": {
@@ -20,6 +23,10 @@
       "webapp-testing",
       "source-driven-development",
       "performance-optimization"
+    ],
+    "mcp": [
+      "context7",
+      "playwright"
     ]
   },
   "automation": {
@@ -28,6 +35,11 @@
       "computer-use",
       "webapp-testing",
       "source-driven-development"
+    ],
+    "mcp": [
+      "context7",
+      "playwright",
+      "computer-use"
     ]
   },
   "ai": {
@@ -37,6 +49,9 @@
       "skill-creator",
       "writing-for-agents",
       "source-driven-development"
+    ],
+    "mcp": [
+      "context7"
     ]
   },
   "release": {
@@ -46,6 +61,7 @@
       "security-and-hardening",
       "ci-cd-and-automation",
       "code-simplification"
-    ]
+    ],
+    "mcp": []
   }
 }

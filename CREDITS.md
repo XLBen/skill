@@ -12,6 +12,8 @@
 | [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) | MIT | 多种理解时列出来而不是默默选一个；只清理自己改动造成的孤儿，原有死代码只提不删；每一行改动都能追溯到需求 | AGENTS.md、worker、review |
 | [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) | Apache-2.0 | 重构先锁住行为、不夹带功能、一次移动一个职责边界、每一步都能运行（safe-refactor）；该重构时不要硬塞进局部补丁、新增配置和依赖要由验收证明（lean-build） | plan、review |
 | [OpenClaw superpowers 的 loop-circuit-breaker](https://openskillindex.com/skills/archieindian-openclaw-superpowers-loop-circuit-breaker) | —（只借思路，未使用其文本） | 按“同一调用 + 同一失败”识别重复失败并熔断 | .opencode/plugins/wf-guard.js |
+| [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) 的 interview-me | MIT | 心里先写假设和置信度；复述意图时必须写“不做”；“你看着办/听起来不错”不算确认；能预测用户对后面 3 个问题的回答才停；分辨“应该要”和“真正要”（没有沿用它每题附猜测的做法） | grill |
+| Mom Test / JTBD 的发现访谈方法，参考 [deanpeters/Product-Manager-Skills](https://github.com/deanpeters/Product-Manager-Skills)、[JacobLinCool/ux-discovery-interviewer-skill](https://github.com/JacobLinCool/ux-discovery-interviewer-skill) | —（只借思路） | 问发生过的具体事而不是假设；理解问题时不给选项、不提方案；先确认问题再谈方案 | grill |
 | [lennney/stop-that-shit](https://github.com/lennney/stop-that-shit) | MIT | 把失败变成空结果的捕获是缺陷；已有保护在弄清作用前不删 | review、worker |
 | [tanweai/pua](https://github.com/tanweai/pua) | MIT | 放弃前的 7 项检查；换参数不算换方法；什么才算一次失败 | debug、build |
 | [ayghri/i-have-adhd](https://github.com/ayghri/i-have-adhd)（Ayoub Ghriss） | MIT | 汇报第一行给结果、编号、只给一个下一步、阻塞格式 | AGENTS.md |

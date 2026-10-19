@@ -3,7 +3,7 @@
 [English](README.en.md) · 简体中文
 
 ```
-/grill   →  docs/brief.md   一次一问、每问附推荐答案，把想法问成简报
+/grill   →  docs/brief.md   先只问开放问题理解需求，再逐行复述确认，最后按你的标准做取舍
 /plan    →  docs/plan.md    架构、唯一的共享接口、一节错误策略、小任务卡（大项目先写 roadmap 分阶段）
 /build   →  逐卡施工          worker 子代理写代码（可并行）；总控复验、审查 diff、失败逐级升级
 /change  →  需求变更          像 /plan 一样为变更写任务卡，只追加或重开受影响的任务

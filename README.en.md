@@ -3,7 +3,7 @@
 English · [简体中文](README.md)
 
 ```
-/grill   →  docs/brief.md   one question at a time, each with a recommended answer
+/grill   →  docs/brief.md   open questions first (no suggestions), line-by-line playback, then decisions by your criteria
 /plan    →  docs/plan.md    architecture, single shared interfaces, one error policy, small task cards (roadmap phases for big projects)
 /build   →  card by card    worker subagents write code (optionally in parallel); controller re-verifies, reviews, escalates
 /change  →  changes         plans a change like /plan does: append or reopen only the affected tasks

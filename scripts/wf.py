@@ -307,7 +307,9 @@ def cmd_task(plan: Plan, args) -> int:
     missing = [d for d in task.deps if not plan.tasks.get(d) or not plan.tasks[d].done]
     if missing:
         print(f"注意: 依赖未完成 {', '.join(missing)}\n")
-    print(f"执行者: {task.executor}\n")
+    print(f"执行者: {task.executor}")
+    print(f"项目根目录: {Path.cwd().resolve()}")
+    print("所有读写都在这个目录里；路径一律写成相对于它的路径，或用它拼出绝对路径。不要拼接 skill 所在的目录。\n")
     for name in PACKAGE_SECTIONS:
         if name in plan.sections:
             print(plan.sections[name] + "\n")

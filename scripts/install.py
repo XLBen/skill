@@ -5,7 +5,8 @@
 
 安装内容：
   .opencode/commands/{grill,plan,build,resume}.md
-  .opencode/agents/{worker,reviewer}.md
+  .opencode/agents/*.md（worker、reviewer 等子代理）
+  .opencode/plugins/wf-guard.js（临时文件留在项目内；拦截连续失败后的重试和循环重试）
   .opencode/wf.py、.opencode/skills.py（按项目类型启用 extras，见 extras/profiles.json）
   .opencode/workflow-routing.md（AGENTS.md 的副本，注册到 instructions）
   opencode.json 的 skills.paths 指向本仓库的 skill 目录（原地引用，改 skill 无需重装）
@@ -85,6 +86,7 @@ def main() -> None:
 
     jobs = [(p, f".opencode/commands/{p.name}") for p in sorted((REPO / ".opencode/commands").glob("*.md"))]
     jobs += [(p, f".opencode/agents/{p.name}") for p in sorted((REPO / ".opencode/agents").glob("*.md"))]
+    jobs += [(p, f".opencode/plugins/{p.name}") for p in sorted((REPO / ".opencode/plugins").glob("*.js"))]
     jobs += [(REPO / "scripts/wf.py", ".opencode/wf.py"), (REPO / "scripts/skills.py", ".opencode/skills.py"),
              (REPO / "AGENTS.md", ROUTING)]
 

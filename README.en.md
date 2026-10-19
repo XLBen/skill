@@ -27,6 +27,7 @@ Without a command: small changes are done directly, bugs go through `debug`, lar
 - **Cross-platform**: verify commands starting with `python` run with the current interpreter; lint warns about grep/sed and other commands missing on Windows.
 - **Checkers over prompts**: `guardrails` sets up one lint/type-check command (including rules that catch swallowed exceptions) in the plan's `## 检查` section, run on every verify.
 - **Contract-first teams**: whenever the design spans several components, the plan defines `## 接口契约` (signature, examples, contract test); T00 by `test-author` builds stubs and failing contract tests; lanes go to `backend-worker` / `frontend-worker` etc. in parallel, and `wf verify` runs the contract tests of each provided interface.
+- **Two rules enforced by a plugin**: `.opencode/plugins/wf-guard.js` points every shell command's temp dir at the in-project `.wf/tmp/` (rewriting `/tmp/` paths too), and blocks a 4th retry of a command that failed 3 times in a row with no code change, as well as loops that retry a failed command.
 - **Skill profiles**: extras are grouped into profiles (backend, frontend, automation, ai, release) and hidden unless enabled via `python .opencode/skills.py use <profile...>` or `install.py --profile`; workers can only see the `worker` skill.
 
 ## Layout

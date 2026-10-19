@@ -338,6 +338,7 @@ class ContractTest(Workspace):
     def test_package_includes_only_related_contracts_and_executor(self):
         out = self.run_wf("task", "T02")[1]
         self.assertIn("执行者: frontend-worker", out)
+        self.assertIn(f"项目根目录: {Path.cwd().resolve()}", out)
         self.assertIn("### I01", out)
         self.assertIn("你使用", out)
         self.assertNotIn("### I01", self.run_wf("task", "T00")[1])

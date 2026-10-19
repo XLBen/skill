@@ -34,6 +34,12 @@ L3 额外步骤：
 - ROUND4 之前，先在 OpenCode 外运行 `python boundary/control.py schema-v2`，再粘贴 ROUND4.md。
 - 结束后运行 `python boundary/control.py normal` 恢复。
 
+### 无人值守运行（`opencode run`）
+- 不要加 `--pure`：它会同时关掉项目里的 `wf-guard` 插件。
+- 用 `XDG_CONFIG_HOME=<空目录>` 隔离你全局的插件和 MCP（登录信息在数据目录里，不受影响）。
+- 命令末尾加 `< /dev/null`：stdin 是打开的管道时，`opencode run` 会一直等着读它。
+- 例：`XDG_CONFIG_HOME=~/bench/xdg opencode run --format json --command plan "TASK.md" < /dev/null > plan.jsonl`
+
 ### 和 v1 对比
 把 v1 检出到另一个目录（`git worktree add ../skill-v1 main`），然后：
 ```bash

@@ -14,6 +14,8 @@
 | [OpenClaw superpowers 的 loop-circuit-breaker](https://openskillindex.com/skills/archieindian-openclaw-superpowers-loop-circuit-breaker) | —（只借思路，未使用其文本） | 按“同一调用 + 同一失败”识别重复失败并熔断 | .opencode/plugins/wf-guard.js |
 | [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) 的 interview-me | MIT | 心里先写假设和置信度；复述意图时必须写“不做”；“你看着办/听起来不错”不算确认；能预测用户对后面 3 个问题的回答才停；分辨“应该要”和“真正要”（没有沿用它每题附猜测的做法） | grill |
 | Mom Test / JTBD 的发现访谈方法，参考 [deanpeters/Product-Manager-Skills](https://github.com/deanpeters/Product-Manager-Skills)、[JacobLinCool/ux-discovery-interviewer-skill](https://github.com/JacobLinCool/ux-discovery-interviewer-skill) | —（只借思路） | 问发生过的具体事而不是假设；理解问题时不给选项、不提方案；先确认问题再谈方案 | grill |
+| [mattpocock/skills](https://github.com/mattpocock/skills) 的 prototype | MIT | 让用户对具体的东西做反应，而不是回答抽象问题（这里改成文字描述的结果场景，不做样品） | grill |
+| Dan McKinley 的 [Choose Boring Technology](https://boringtechnology.club/) | —（只借思路） | 默认选成熟、无聊的技术，偏离要有理由 | plan/references/stack-choice.md |
 | [lennney/stop-that-shit](https://github.com/lennney/stop-that-shit) | MIT | 把失败变成空结果的捕获是缺陷；已有保护在弄清作用前不删 | review、worker |
 | [tanweai/pua](https://github.com/tanweai/pua) | MIT | 放弃前的 7 项检查；换参数不算换方法；什么才算一次失败 | debug、build |
 | [ayghri/i-have-adhd](https://github.com/ayghri/i-have-adhd)（Ayoub Ghriss） | MIT | 汇报第一行给结果、编号、只给一个下一步、阻塞格式 | AGENTS.md |
